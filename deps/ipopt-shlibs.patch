@@ -1,0 +1,12 @@
+diff -ur Ipopt-3.11.4/Ipopt/src/Interfaces/Makefile.in Ipopt-3.11.4-new/Ipopt/src/Interfaces/Makefile.in
+--- Ipopt-3.11.4/Ipopt/src/Interfaces/Makefile.in	2013-06-14 10:32:46.000000000 -0400
++++ Ipopt-3.11.4-new/Ipopt/src/Interfaces/Makefile.in	2013-10-01 12:18:49.997268379 -0400
+@@ -381,7 +381,7 @@
+ 	IpTNLPAdapter.cpp IpTNLPAdapter.hpp \
+ 	IpTNLPReducer.cpp IpTNLPReducer.hpp
+ 
+-libipopt_la_LIBADD = $(IPALLLIBS)
++libipopt_la_LIBADD = $(IPALLLIBS) $(IPOPTLIB_LIBS)
+ libipopt_la_DEPENDENCIES = $(IPALLLIBS)
+ libipopt_la_LDFLAGS = $(LT_LDFLAGS)
+ 

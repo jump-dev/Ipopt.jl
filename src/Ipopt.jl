@@ -1,5 +1,6 @@
 module Ipopt
 
-# package code goes here
+using BinDeps
+@BinDeps.load_dependencies
 
 end # module
