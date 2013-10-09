@@ -1,6 +1,7 @@
 module Ipopt
 
-using BinDeps
-@BinDeps.load_dependencies
+  using BinDeps
+  @BinDeps.load_dependencies
+  
 
 end # module
