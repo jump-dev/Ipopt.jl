@@ -19,6 +19,10 @@ provides(SimpleBuild,
         @build_steps begin
             ChangeDirectory(srcdir)
             `cat $patchdir/ipopt-shlibs.patch` |> `patch -p1`
+            @build_steps begin
+                ChangeDirectory(joinpath(srcdir,"ThirdParty","Mumps"))
+                `./get.Mumps`
+            end
             `./configure --prefix=$prefix`
             `make install`
         end
