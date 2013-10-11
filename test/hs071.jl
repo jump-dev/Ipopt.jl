@@ -22,6 +22,7 @@ g_U = [2.0e19, 40.0]
 
 
 function eval_f(n::Cint, x_ptr::Ptr{Float64}, new_x::Cint, obj_ptr::Ptr{Float64}, user_data::Ptr{Void})
+  println("eval_f")
   # Return the value of the objective function at the point $ x$ .
   # n: (in), the number of variables in the problem (dimension of $ x$ ).
   # x: (in), the values for the primal variables, $ x$ , at which  $ f(x)$ is to be evaluated.
@@ -40,6 +41,7 @@ eval_f_cb = cfunction(eval_f, Cint, (Cint, Ptr{Float64}, Cint, Ptr{Float64}, Ptr
 
 
 function eval_g(n::Cint, x_ptr::Ptr{Float64}, new_x::Cint, m::Cint, g::Ptr{Float64}, user_data::Ptr{Void})
+  println("eval_g")
   # Return the value of the constraint function at the point $ x$ .
   # n: (in), the number of variables in the problem (dimension of $ x$ ).
   # x: (in), the values for the primal variables, $ x$ , at which the constraint functions,  $ g(x)$ , are to be evaluated.
@@ -58,6 +60,7 @@ eval_g_cb = cfunction(eval_g, Cint, (Cint, Ptr{Float64}, Cint, Cint, Ptr{Float64
 
 
 function eval_grad_f(n::Cint, x_ptr::Ptr{Float64}, new_x::Cint, grad_f::Ptr{Float64}, user_data::Ptr{Void})
+  println("eval_grad_f")
   # Return the gradient of the objective function at the point $ x$ .
   # n: (in), the number of variables in the problem (dimension of $ x$ ).
   # x: (in), the values for the primal variables, $ x$ , at which  $ \nabla f(x)$ is to be evaluated.
@@ -77,6 +80,8 @@ eval_grad_f_cb = cfunction(eval_grad_f, Cint, (Cint, Ptr{Float64}, Cint, Ptr{Flo
 
 
 function eval_jac_g(n::Cint, x_ptr::Ptr{Float64}, new_x::Cint, m::Cint, nele_jac::Cint, iRow::Ptr{Cint}, jCol::Ptr{Cint}, values::Ptr{Float64}, user_data::Ptr{Void})
+  println("eval_jac_g")
+  println(nele_jac)
   # Return either the sparsity structure of the Jacobian of the constraints, or the values for the Jacobian of the constraints at the point $ x$ .
   # n: (in), the number of variables in the problem (dimension of $ x$ ).
   # x: (in), the values for the primal variables, $ x$ , at which the constraint Jacobian,  $ \nabla g(x)^T$ , is to be evaluated.
@@ -93,23 +98,23 @@ function eval_jac_g(n::Cint, x_ptr::Ptr{Float64}, new_x::Cint, m::Cint, nele_jac
     # return the structure of the Jacobian
 
     # this particular Jacobian is dense
-    unsafe_store!(iRow, 1, 1)
-    unsafe_store!(iRow, 1, 2)
-    unsafe_store!(iRow, 1, 3)
-    unsafe_store!(iRow, 1, 4)
-    unsafe_store!(iRow, 2, 5)
-    unsafe_store!(iRow, 2, 6)
-    unsafe_store!(iRow, 2, 7)
-    unsafe_store!(iRow, 2, 8)
+    unsafe_store!(iRow, 0, 1)
+    unsafe_store!(iRow, 0, 2)
+    unsafe_store!(iRow, 0, 3)
+    unsafe_store!(iRow, 0, 4)
+    unsafe_store!(iRow, 1, 5)
+    unsafe_store!(iRow, 1, 6)
+    unsafe_store!(iRow, 1, 7)
+    unsafe_store!(iRow, 1, 8)
 
-    unsafe_store!(jCol, 1, 1)
-    unsafe_store!(jCol, 2, 2)
-    unsafe_store!(jCol, 3, 3)
-    unsafe_store!(jCol, 4, 4)
-    unsafe_store!(jCol, 1, 5)
-    unsafe_store!(jCol, 2, 6)
-    unsafe_store!(jCol, 3, 7)
-    unsafe_store!(jCol, 4, 8)
+    unsafe_store!(jCol, 0, 1)
+    unsafe_store!(jCol, 1, 2)
+    unsafe_store!(jCol, 2, 3)
+    unsafe_store!(jCol, 3, 4)
+    unsafe_store!(jCol, 0, 5)
+    unsafe_store!(jCol, 1, 6)
+    unsafe_store!(jCol, 2, 7)
+    unsafe_store!(jCol, 3, 8)
   else
     # return the values of the Jacobian of the constraints
     unsafe_store!(values, x[2]*x[3]*x[4], 1) # 0,0
@@ -129,6 +134,7 @@ eval_jac_g_cb = cfunction(eval_jac_g, Cint, (Cint, Ptr{Float64}, Cint, Cint, Cin
 
 
 function eval_h(n::Cint, x_ptr::Ptr{Float64}, new_x::Cint, obj_factor::Float64, m::Cint, lamda::Ptr{Float64}, new_lambda::Cint, nele_hess::Cint, iRow::Ptr{Cint}, jCol::Ptr{Cint}, values::Ptr{Float64}, user_data::Ptr{Void})
+  println("eval h")
   # Do it later
   return int32(0)
 end
@@ -141,7 +147,7 @@ ret = ccall((:CreateIpoptProblem, libipopt), Ptr{Void},
          Cint, Cint, # Num nnz in constraint Jacobian and in "Hessian of Lagrangian"
          Cint, # 0 for C, 1 for Fortran
          Any, Any, Any, Any, Any), # Callbacks for eval_f, eval_g, eval_grad_f, eval_jac_g, eval_h
-         n, x_L, x_U, m, g_L, g_U, 8, 10, 1,
+         n, x_L, x_U, m, g_L, g_U, 8, 10, 0,
          eval_f_cb, eval_g_cb, eval_grad_f_cb, eval_jac_g_cb, eval_h_cb)
 println(ret)
 prob = IpoptProblem(ret)
