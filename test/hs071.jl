@@ -92,9 +92,8 @@ function eval_jac_g(n::Cint, x_ptr::Ptr{Float64}, new_x::Cint, m::Cint, nele_jac
   # jCol: (out), the column indices of entries in the Jacobian of the constraints.
   # values: (out), the values of the entries in the Jacobian of the constraints.
 
-  x = pointer_to_array(x_ptr, n)
 
-  if values == CNULL
+  if values == C_NULL
     # return the structure of the Jacobian
 
     # this particular Jacobian is dense
@@ -116,6 +115,7 @@ function eval_jac_g(n::Cint, x_ptr::Ptr{Float64}, new_x::Cint, m::Cint, nele_jac
     unsafe_store!(jCol, 2, 7)
     unsafe_store!(jCol, 3, 8)
   else
+    x = pointer_to_array(x_ptr, int(n))
     # return the values of the Jacobian of the constraints
     unsafe_store!(values, x[2]*x[3]*x[4], 1) # 0,0
     unsafe_store!(values, x[1]*x[3]*x[4], 2) # 0,1
@@ -146,7 +146,7 @@ ret = ccall((:CreateIpoptProblem, libipopt), Ptr{Void},
          Cint, Ptr{Float64}, Ptr{Float64},  # Num constraints, con lower and upper bounds
          Cint, Cint, # Num nnz in constraint Jacobian and in "Hessian of Lagrangian"
          Cint, # 0 for C, 1 for Fortran
-         Any, Any, Any, Any, Any), # Callbacks for eval_f, eval_g, eval_grad_f, eval_jac_g, eval_h
+         Ptr{Void}, Ptr{Void}, Ptr{Void}, Ptr{Void}, Ptr{Void}), # Callbacks for eval_f, eval_g, eval_grad_f, eval_jac_g, eval_h
          n, x_L, x_U, m, g_L, g_U, 8, 10, 0,
          eval_f_cb, eval_g_cb, eval_grad_f_cb, eval_jac_g_cb, eval_h_cb)
 println(ret)
