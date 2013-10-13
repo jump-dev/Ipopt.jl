@@ -132,8 +132,9 @@ g_U = [2.0e19, 40.0]
 
 prob = CreateProblem(n, x_L, x_U, m, g_L, g_U, 8, 10,
                      eval_f, eval_g, eval_grad_f, eval_jac_g, eval_h)
-
 AddOption(prob, "hessian_approximation", "limited-memory")
+OpenOutputFile(prob, "test.txt", 2)
+SetProblemScaling(prob, 0.5)
 prob.x = [1.0, 5.0, 5.0, 1.0]
 status = SolveProblem(prob)
 println(Ipopt.ApplicationReturnStatus[status])

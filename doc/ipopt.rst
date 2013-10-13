@@ -102,3 +102,28 @@ AddOption
     prob::IpoptProblem, keyword::ASCIIString, value::Integer)
 
 Sets a solver option, the full list is available `here <http://www.coin-or.org/Ipopt/documentation/node39.html>`_. Returns nothing, raises error if option could not be set correctly.
+
+OpenOutputFile
+^^^^^^^^^^^^^^
+
+(C function(s): ``OpenIpoptOutputFile``)::
+  
+  function OpenOutputFile(
+    prob::IpoptProblem, file_name::ASCIIString, print_level::Int)
+
+Write Ipopt output to a file. Unclear what the acceptable inputs to print
+levels are.
+
+SetProblemScaling
+^^^^^^^^^^^^^^^^^
+
+(C function(s): ``SetIpoptProblemScaling``)::
+
+  function SetProblemScaling(
+    prob::IpoptProblem,
+    obj_scaling::Float64,       # Objective scaling
+    x_scaling = nothing,        # Variable scaling (n-length vector, optional)
+    g_scaling = nothing)        # Constraint scaling (m-length vector, optional)
+
+Optional function for scaling the problem. If no input is given for the x and/or
+constraint scaling vectors, no scaling is done.

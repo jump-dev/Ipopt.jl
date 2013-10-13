@@ -4,7 +4,9 @@ module Ipopt
   @BinDeps.load_dependencies
   
   export libipopt
-  export CreateProblem, AddOption, FreeProblem, SolveProblem
+  export CreateProblem, FreeProblem, AddOption
+  export OpenOutputFile, SetProblemScaling
+  export SolveProblem
 
   type IpoptProblem
     ref::Ptr{Void}
@@ -42,9 +44,9 @@ module Ipopt
 
 
   function CreateProblem(n::Int, x_L::Vector{Float64}, x_U::Vector{Float64},
-                              m::Int, g_L::Vector{Float64}, g_U::Vector{Float64},
-                              nele_jac::Int, nele_hess::Int, 
-                              eval_f, eval_g, eval_grad_f, eval_jac_g, eval_h)
+                         m::Int, g_L::Vector{Float64}, g_U::Vector{Float64},
+                         nele_jac::Int, nele_hess::Int, 
+                         eval_f, eval_g, eval_grad_f, eval_jac_g, eval_h)
     # Wrap callbacks
     eval_f_cb = cfunction(eval_f, Cint, (Cint, Ptr{Float64}, Cint, Ptr{Float64}, Ptr{Void}))
     eval_g_cb = cfunction(eval_g, Cint, (Cint, Ptr{Float64}, Cint, Cint, Ptr{Float64}, Ptr{Void}))
@@ -74,6 +76,8 @@ module Ipopt
   end
 
   function AddOption(prob::IpoptProblem, keyword::ASCIIString, value::ASCIIString)
+    #/** Function for adding a string option.  Returns FALSE the option
+    # *  could not be set (e.g., if keyword is unknown) */
     ret = ccall((:AddIpoptStrOption, libipopt), 
                 Cint, (Ptr{Void}, Ptr{Uint8}, Ptr{Uint8}),
                 prob.ref, keyword, value)
@@ -83,6 +87,8 @@ module Ipopt
   end
 
   function AddOption(prob::IpoptProblem, keyword::ASCIIString, value::Float64)
+    #/** Function for adding a Number option.  Returns FALSE the option
+    # *  could not be set (e.g., if keyword is unknown) */
     ret = ccall((:AddIpoptIntOption, libipopt),
                 Cint, (Ptr{Void}, Ptr{Uint8}, Float64),
                 prob.ref, keyword, value)
@@ -92,11 +98,46 @@ module Ipopt
   end
 
   function AddOption(prob::IpoptProblem, keyword::ASCIIString, value::Integer)
+    #/** Function for adding an Int option.  Returns FALSE the option
+    # *  could not be set (e.g., if keyword is unknown) */
     ret = ccall((:AddIpoptIntOption, libipopt),
                 Cint, (Ptr{Void}, Ptr{Uint8}, Cint),
                 prob.ref, keyword, value)
     if ret == 0
       error("IPOPT: Couldn't set option '$keyword' to value '$value'.")
+    end
+  end
+
+  function OpenOutputFile(prob::IpoptProblem, file_name::ASCIIString, print_level::Int)
+    #/** Function for opening an output file for a given name with given
+    # *  printlevel.  Returns false, if there was a problem opening the
+    # *  file. */
+    ret = ccall((:OpenIpoptOutputFile, libipopt),
+                Cint, (Ptr{Void}, Ptr{Uint8}, Cint),
+                prob.ref, file_name, print_level)
+    if ret == 0
+      error("IPOPT: Couldn't open output file.")
+    end
+  end
+
+  # TODO: Set type info on x_scaling, g_scaling - probably doesn't matter
+  # performance-wise though.
+  # TODO: Verify this function even works! Trying it with 0.5 on HS071
+  # seems to change nothing.
+  function SetProblemScaling(prob::IpoptProblem, obj_scaling::Float64,
+                             x_scaling = nothing,
+                             g_scaling = nothing)
+    #/** Optional function for setting scaling parameter for the NLP.
+    # *  This corresponds to the get_scaling_parameters method in TNLP.
+    # *  If the pointers x_scaling or g_scaling are NULL, then no scaling
+    # *  for x resp. g is done. */
+    x_scale_arg = (x_scaling == nothing) ? C_NULL : x_scaling
+    g_scale_arg = (g_scaling == nothing) ? C_NULL : g_scaling
+    ret = ccall((:SetIpoptProblemScaling, libipopt),
+                Cint, (Ptr{Void}, Float64, Ptr{Float64}, Ptr{Float64}),
+                prob.ref, obj_scaling, x_scale_arg, g_scale_arg)
+    if ret == 0
+      error("IPOPT: Error setting problem scaling.")
     end
   end
 
