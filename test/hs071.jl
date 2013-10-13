@@ -135,7 +135,8 @@ prob = CreateProblem(n, x_L, x_U, m, g_L, g_U, 8, 10,
 
 AddOption(prob, "hessian_approximation", "limited-memory")
 prob.x = [1.0, 5.0, 5.0, 1.0]
-SolveProblem(prob)
+status = SolveProblem(prob)
+println(Ipopt.ApplicationReturnStatus[status])
 
 println(prob.x)
 println(prob.obj_val)

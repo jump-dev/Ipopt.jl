@@ -19,6 +19,27 @@ module Ipopt
     end
   end
 
+  ApplicationReturnStatus = {
+    0=>:Solve_Succeeded,
+    1=>:Solved_To_Acceptable_Level,
+    2=>:Infeasible_Problem_Detected,
+    3=>:Search_Direction_Becomes_Too_Small,
+    4=>:Diverging_Iterates,
+    5=>:User_Requested_Stop,
+    6=>:Feasible_Point_Found,
+    -1=>:Maximum_Iterations_Exceeded,
+    -2=>:Restoration_Failed,
+    -3=>:Error_In_Step_Computation,
+    -4=>:Maximum_CpuTime_Exceeded,
+    -10=>:Not_Enough_Degrees_Of_Freedom,
+    -11=>:Invalid_Problem_Definition,
+    -12=>:Invalid_Option,
+    -13=>:Invalid_Number_Detected,
+    -100=>:Unrecoverable_Exception,
+    -101=>:NonIpopt_Exception_Thrown,
+    -102=>:Insufficient_Memory,
+    -199=>:Internal_Error}
+
 
   function CreateProblem(n::Int, x_L::Vector{Float64}, x_U::Vector{Float64},
                               m::Int, g_L::Vector{Float64}, g_U::Vector{Float64},
@@ -83,10 +104,11 @@ module Ipopt
   function SolveProblem(prob::IpoptProblem)
     final_objval = [0.0]
     ret = ccall((:IpoptSolve, libipopt),
-                Ptr{Void}, (Ptr{Void}, Ptr{Float64}, Ptr{Float64}, Ptr{Float64}, Ptr{Float64}, Ptr{Float64}, Ptr{Float64}, Ptr{Void}),
+                Cint, (Ptr{Void}, Ptr{Float64}, Ptr{Float64}, Ptr{Float64}, Ptr{Float64}, Ptr{Float64}, Ptr{Float64}, Ptr{Void}),
                 prob.ref, prob.x, C_NULL, final_objval, C_NULL, C_NULL, C_NULL, C_NULL)
-
     prob.obj_val = final_objval[1]
+    
+    return int(ret)
   end
 
 
