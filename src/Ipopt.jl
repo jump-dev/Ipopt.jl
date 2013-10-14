@@ -3,23 +3,39 @@ module Ipopt
   using BinDeps
   @BinDeps.load_dependencies
   
-  export libipopt
   export CreateProblem, FreeProblem, AddOption
   export OpenOutputFile, SetProblemScaling, SetIntermediateCallback
   export SolveProblem
+  export IpoptProblem
+
 
   type IpoptProblem
-    ref::Ptr{Void}
-    n::Int
-    x::Vector{Float64}
-    obj_val::Float64
+    ref::Ptr{Void}  # Reference to the internal data structure
+    n::Int  # Num vars
+    m::Int  # Num cons
+    x::Vector{Float64}  # Starting and final solution
+    obj_val::Float64  # Final objective
     
-    function IpoptProblem(ref::Ptr{Void}, n)
-      prob = new(ref, n, zeros(Float64, n), 0.0)
+    # Callbacks
+    eval_f::Function
+    eval_g::Function
+    eval_grad_f::Function
+    eval_jac_g::Function
+
+    function IpoptProblem(
+      ref::Ptr{Void}, n, m,
+      eval_f, eval_g, eval_grad_f, eval_jac_g)
+
+      prob = new(ref, n, m, zeros(Float64, n), 0.0,
+                 eval_f, eval_g, eval_grad_f, eval_jac_g)
+      # Free the internal IpoptProblem structure when
+      # the Julia IpoptProblem instance goes out of scope
       finalizer(prob, FreeProblem)
+      # Return the object we just made
       prob
     end
   end
+
 
   ApplicationReturnStatus = {
     0=>:Solve_Succeeded,
@@ -43,16 +59,76 @@ module Ipopt
     -199=>:Internal_Error}
 
 
+  ###########################################################################
+  # Callback wrappers
+  ###########################################################################
+  # Objective (eval_f)
+  function eval_f_wrapper(n::Cint, x_ptr::Ptr{Float64}, new_x::Cint, obj_ptr::Ptr{Float64}, user_data::Ptr{Void})
+    # Extract Julia the problem from the pointer
+    prob = unsafe_pointer_to_objref(user_data)::IpoptProblem
+    # Calculate the new objective
+    new_obj = convert(Float64, prob.eval_f(prob, pointer_to_array(x_ptr, int(n))))
+    # Fill out the pointer
+    unsafe_store!(obj_ptr, new_obj)
+    # Done
+    return int32(1)
+  end
+
+  # Constraints (eval_g)
+  function eval_g_wrapper(n::Cint, x_ptr::Ptr{Float64}, new_x::Cint, m::Cint, g_ptr::Ptr{Float64}, user_data::Ptr{Void})
+    # Extract Julia the problem from the pointer
+    prob = unsafe_pointer_to_objref(user_data)::IpoptProblem
+    # Calculate the new constraint values
+    new_g = pointer_to_array(g_ptr, int(m))
+    prob.eval_g(prob, pointer_to_array(x_ptr, int(n)), new_g)
+    # Done
+    return int32(1)
+  end
+
+  # Objective gradient (eval_grad_f)
+  function eval_grad_f_wrapper(n::Cint, x_ptr::Ptr{Float64}, new_x::Cint, grad_f_ptr::Ptr{Float64}, user_data::Ptr{Void})
+    # Extract Julia the problem from the pointer
+    prob = unsafe_pointer_to_objref(user_data)::IpoptProblem
+    # Calculate the gradient
+    new_grad_f = pointer_to_array(grad_f_ptr, int(n))
+    prob.eval_grad_f(prob, pointer_to_array(x_ptr, int(n)), new_grad_f)
+    # Done
+    return int32(1)
+  end
+
+  # Jacobian (eval_jac_g)
+  function eval_jac_g_wrapper(n::Cint, x_ptr::Ptr{Float64}, new_x::Cint, m::Cint, nele_jac::Cint, iRow::Ptr{Cint}, jCol::Ptr{Cint}, values::Ptr{Float64}, user_data::Ptr{Void})
+    # Extract Julia the problem from the pointer
+    prob = unsafe_pointer_to_objref(user_data)::IpoptProblem
+    # Determine mode
+    mode = (values == C_NULL) ? (:Structure) : (:Values)
+    x = pointer_to_array(x_ptr, int(n))
+    rows = pointer_to_array(iRow, int(nele_jac))
+    cols = pointer_to_array(jCol, int(nele_jac))
+    values = pointer_to_array(values, int(nele_jac))
+    prob.eval_jac_g(prob, x, mode, rows, cols, values)
+    # Done
+    return int32(1)
+  end
+
+  ###########################################################################
+  # C function wrappers
+  ###########################################################################
   function CreateProblem(n::Int, x_L::Vector{Float64}, x_U::Vector{Float64},
                          m::Int, g_L::Vector{Float64}, g_U::Vector{Float64},
                          nele_jac::Int, nele_hess::Int, 
                          eval_f, eval_g, eval_grad_f, eval_jac_g, eval_h)
     # Wrap callbacks
-    eval_f_cb = cfunction(eval_f, Cint, (Cint, Ptr{Float64}, Cint, Ptr{Float64}, Ptr{Void}))
-    eval_g_cb = cfunction(eval_g, Cint, (Cint, Ptr{Float64}, Cint, Cint, Ptr{Float64}, Ptr{Void}))
-    eval_grad_f_cb = cfunction(eval_grad_f, Cint, (Cint, Ptr{Float64}, Cint, Ptr{Float64}, Ptr{Void}))
-    eval_jac_g_cb = cfunction(eval_jac_g, Cint, (Cint, Ptr{Float64}, Cint, Cint, Cint, Ptr{Cint}, Ptr{Cint}, Ptr{Float64}, Ptr{Void}))
+    eval_f_cb = cfunction(eval_f_wrapper, Cint,
+                  (Cint, Ptr{Float64}, Cint, Ptr{Float64}, Ptr{Void}))
+    eval_g_cb = cfunction(eval_g_wrapper, Cint,
+                  (Cint, Ptr{Float64}, Cint, Cint, Ptr{Float64}, Ptr{Void}))
+    eval_grad_f_cb = cfunction(eval_grad_f_wrapper, Cint,
+                       (Cint, Ptr{Float64}, Cint, Ptr{Float64}, Ptr{Void}))
+    eval_jac_g_cb = cfunction(eval_jac_g_wrapper, Cint, (Cint, Ptr{Float64}, Cint, Cint, Cint, Ptr{Cint}, Ptr{Cint}, Ptr{Float64}, Ptr{Void}))
+
     eval_h_cb = cfunction(eval_h, Cint, (Cint, Ptr{Float64}, Cint, Float64, Cint, Ptr{Float64}, Cint, Cint, Ptr{Cint}, Ptr{Cint}, Ptr{Float64}, Ptr{Void}))
+
 
     ret = ccall((:CreateIpoptProblem, libipopt), Ptr{Void},
         (Cint, Ptr{Float64}, Ptr{Float64},  # Num vars, var lower and upper bounds
@@ -61,19 +137,22 @@ module Ipopt
          Cint, # 0 for C, 1 for Fortran
          Ptr{Void}, Ptr{Void}, # Callbacks for eval_f, eval_g
          Ptr{Void}, Ptr{Void}, Ptr{Void}), # Callbacks for eval_grad_f, eval_jac_g, eval_h
-         n, x_L, x_U, m, g_L, g_U, nele_jac, nele_hess, 0,
+         n, x_L, x_U, m, g_L, g_U, nele_jac, nele_hess, 1,
          eval_f_cb, eval_g_cb, eval_grad_f_cb, eval_jac_g_cb, eval_h_cb)
 
     if ret == C_NULL
       error("IPOPT: Failed to construct problem.")
     else
-      return(IpoptProblem(ret, n))
+      return(IpoptProblem(ret, n, m, eval_f, eval_g, eval_grad_f, eval_jac_g))
     end
   end
 
+  # TODO: Not even expose this? Seems dangerous, should just destruct
+  # the IpoptProblem object via GC
   function FreeProblem(prob::IpoptProblem)
     ccall((:FreeIpoptProblem, libipopt), Void, (Ptr{Void},), prob.ref)
   end
+
 
   function AddOption(prob::IpoptProblem, keyword::ASCIIString, value::ASCIIString)
     #/** Function for adding a string option.  Returns FALSE the option
@@ -86,6 +165,7 @@ module Ipopt
     end
   end
 
+
   function AddOption(prob::IpoptProblem, keyword::ASCIIString, value::Float64)
     #/** Function for adding a Number option.  Returns FALSE the option
     # *  could not be set (e.g., if keyword is unknown) */
@@ -97,6 +177,7 @@ module Ipopt
     end
   end
 
+
   function AddOption(prob::IpoptProblem, keyword::ASCIIString, value::Integer)
     #/** Function for adding an Int option.  Returns FALSE the option
     # *  could not be set (e.g., if keyword is unknown) */
@@ -107,6 +188,7 @@ module Ipopt
       error("IPOPT: Couldn't set option '$keyword' to value '$value'.")
     end
   end
+
 
   function OpenOutputFile(prob::IpoptProblem, file_name::ASCIIString, print_level::Int)
     #/** Function for opening an output file for a given name with given
@@ -167,8 +249,8 @@ module Ipopt
   function SolveProblem(prob::IpoptProblem)
     final_objval = [0.0]
     ret = ccall((:IpoptSolve, libipopt),
-                Cint, (Ptr{Void}, Ptr{Float64}, Ptr{Float64}, Ptr{Float64}, Ptr{Float64}, Ptr{Float64}, Ptr{Float64}, Ptr{Void}),
-                prob.ref, prob.x, C_NULL, final_objval, C_NULL, C_NULL, C_NULL, C_NULL)
+                Cint, (Ptr{Void}, Ptr{Float64}, Ptr{Float64}, Ptr{Float64}, Ptr{Float64}, Ptr{Float64}, Ptr{Float64}, Any),
+                prob.ref, prob.x, C_NULL, final_objval, C_NULL, C_NULL, C_NULL, prob)
     prob.obj_val = final_objval[1]
     
     return int(ret)

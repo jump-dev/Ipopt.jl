@@ -22,6 +22,14 @@ Example
 The official documentation uses a sample problem, `HS071 <http://www.coin-or.org/Ipopt/documentation/node20.html>`_, to motivate the various interfaces. Here is what that particular
 problem looks like in Julia with the Ipopt.jl interface::
 
+  # HS071
+  # min x1 * x4 * (x1 + x2 + x3) + x3
+  # st  x1 * x2 * x3 * x4 >= 25
+  #     x1^2 + x2^2 + x3^2 + x4^2 = 40
+  #     1 <= x1, x2, x3, x4 <= 5
+  # Start at (1,5,5,1)
+  # End at (1.000..., 4.743..., 3.821..., 1.379...)
+
   n = 4
   x_L = [1.0, 1.0, 1.0, 1.0]
   x_U = [5.0, 5.0, 5.0, 5.0]
@@ -30,12 +38,58 @@ problem looks like in Julia with the Ipopt.jl interface::
   g_L = [25.0, 40.0]
   g_U = [2.0e19, 40.0]
 
+  function eval_f(prob, x) 
+    return x[1] * x[4] * (x[1] + x[2] + x[3]) + x[3]
+  end
+
+  function eval_g(prob, x, g)
+    g[1] = x[1]   * x[2]   * x[3]   * x[4]
+    g[2] = x[1]^2 + x[2]^2 + x[3]^2 + x[4]^2
+  end
+
+  function eval_grad_f(prob, x, grad_f)
+    grad_f[1] = x[1] * x[4] + x[4] * (x[1] + x[2] + x[3])
+    grad_f[2] = x[1] * x[4]
+    grad_f[3] = x[1] * x[4] + 1
+    grad_f[4] = x[1] * (x[1] + x[2] + x[3])
+  end
+
+  function eval_jac_g(prob, x, mode, rows, cols, values)
+    if mode == :Structure
+      # Constraint (row) 1
+      rows[1] = 1; cols[1] = 1
+      rows[2] = 1; cols[2] = 2
+      rows[3] = 1; cols[3] = 3
+      rows[4] = 1; cols[4] = 4
+      # Constraint (row) 2
+      rows[5] = 2; cols[5] = 1
+      rows[6] = 2; cols[6] = 2
+      rows[7] = 2; cols[7] = 3
+      rows[8] = 2; cols[8] = 4
+    else
+      # Constraint (row) 1
+      values[1] = x[2]*x[3]*x[4]  # 1,1
+      values[2] = x[1]*x[3]*x[4]  # 1,2
+      values[3] = x[1]*x[2]*x[4]  # 1,3
+      values[4] = x[1]*x[2]*x[3]  # 1,4
+      # Constraint (row) 2
+      values[5] = 2*x[1]  # 2,1
+      values[6] = 2*x[2]  # 2,2
+      values[7] = 2*x[3]  # 2,3
+      values[8] = 2*x[4]  # 2,4
+    end
+  end
+
   prob = CreateProblem(n, x_L, x_U, m, g_L, g_U, 8, 10,
                        eval_f, eval_g, eval_grad_f, eval_jac_g, eval_h)
 
+  # Approximate Hessian instead of providing it
   AddOption(prob, "hessian_approximation", "limited-memory")
 
+  # Set starting solution
   prob.x = [1.0, 5.0, 5.0, 1.0]
+
+  # Solve
   status = SolveProblem(prob)
   
   println(Ipopt.ApplicationReturnStatus[status])
@@ -138,3 +192,66 @@ SetIntermediateCallback
 
 Sets a callback function that will be called after every iteration of the
 algorithm. See Callbacks section for more information.
+
+---------
+Callbacks
+---------
+
+All but one of the callbacks for Ipopt evaluate functions given a current solution. The other callback (set by SetIntermediateCallback) receives information from the solver which the user can use as they see fit. This section of the documentation details the function signatures expected for the callbacks. See the HS071 example for full implementations of these for a sample problem.
+
+eval_f
+^^^^^^
+
+Returns the value of the objective function at the current solution ``x``::
+
+  function eval_f(prob::IpoptProblem, x::Vector{Float64})
+    # ...
+    return obj_value
+  end
+
+eval_g
+^^^^^^
+
+Sets the value of the constraint functions ``g`` at the current solution ``x``::
+
+  function eval_g(prob::IpoptProblem, x::Vector{Float64}, g::Vector{Float64})
+    # ...
+    # g[1] = ...
+    # ...
+    # g[prob.m] = ...
+  end
+
+Note that the values of ``g`` must be set "in-place", i.e. the statement
+``g = zeros(prob.m)`` musn't be done. If you do want to create a new vector
+and allocate it to ``g`` use ``g[:]``, e.g. ``g[:] = zeros(prob.m)``.
+
+eval_grad_f
+^^^^^^^^^^^
+
+Sets the value of the gradient of the objective function at the current solution ``x``::
+
+  function eval_grad_f(prob::IpoptProblem, x::Vector{Float64}, grad_f::Vector{Float64})
+    # ...
+    # grad_f[1] = ...
+    # ...
+    # grad_f[prob.n] = ...
+  end
+
+As for ``eval_g``, you must set the values "in-place".
+
+eval_jac_g
+^^^^^^^^^^
+
+This function has two modes of operation. In the first mode the user tells IPOPT the sparsity structure of the Jacobian of the constraints. In the second mode the user provides the actual Jacobian values. Julia is 1-based, in the sense that indexing always starts at 1 (unlike C, which starts at 0).::
+
+  function eval_jac_g(prob::IpoptProblem, x::Vector{Float64}, mode, rows::Vector{Int32}, cols::Vector{Int32}, values::Vector{Float64})
+    if mode == :Structure
+      # rows[...] = ...
+      # ...
+      # cols[...] = ...
+    else
+      # values[...] = ...
+    end
+  end
+
+As for the previous two callbacks, all values must be set "in-place". See the Ipopt documentation for a further description of the sparsity format followed by Ipopt ((row,column,value) triples).
