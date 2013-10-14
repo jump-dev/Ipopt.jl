@@ -46,9 +46,9 @@ As you can see, the code mirrors the C interface fairly closely, with some C-spe
 features abstracted such as replacing the various option-adding functions with one
 ``AddOption`` method.
 
----------
-Functions
----------
+-----------------
+Wrapped Functions
+-----------------
 
 We implement all functionality exposed through the C header file ``IpStdCInterface.h``.
 
@@ -127,3 +127,14 @@ SetProblemScaling
 
 Optional function for scaling the problem. If no input is given for the x and/or
 constraint scaling vectors, no scaling is done.
+
+SetIntermediateCallback
+^^^^^^^^^^^^^^^^^^^^^^^
+
+(C function(s): ``SetIntermediateCallback``)::
+
+  function SetIntermediateCallback(
+    prob::IpoptProblem, intermediate_cb)
+
+Sets a callback function that will be called after every iteration of the
+algorithm. See Callbacks section for more information.

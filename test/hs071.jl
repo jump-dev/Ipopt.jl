@@ -121,6 +121,15 @@ function eval_h(n::Cint, x_ptr::Ptr{Float64}, new_x::Cint, obj_factor::Float64, 
 end
 
 
+function intermediate(alg_mod::Cint, iter_count::Cint, 
+  obj_value::Float64, inf_pr::Float64, inf_du::Float64, mu::Float64,
+  d_norm::Float64, regularization_size::Float64, alpha_du::Float64, alpha_pr::Float64, 
+  ls_trials::Cint, user_data::Ptr{Void})
+  println("Intermediate")
+  println(alg_mod)
+  println(obj_value)
+  return int32(1)
+end
 
 n = 4
 x_L = [1.0, 1.0, 1.0, 1.0]
@@ -135,6 +144,7 @@ prob = CreateProblem(n, x_L, x_U, m, g_L, g_U, 8, 10,
 AddOption(prob, "hessian_approximation", "limited-memory")
 OpenOutputFile(prob, "test.txt", 2)
 SetProblemScaling(prob, 0.5)
+SetIntermediateCallback(prob, intermediate)
 prob.x = [1.0, 5.0, 5.0, 1.0]
 status = SolveProblem(prob)
 println(Ipopt.ApplicationReturnStatus[status])

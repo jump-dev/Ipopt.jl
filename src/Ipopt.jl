@@ -5,7 +5,7 @@ module Ipopt
   
   export libipopt
   export CreateProblem, FreeProblem, AddOption
-  export OpenOutputFile, SetProblemScaling
+  export OpenOutputFile, SetProblemScaling, SetIntermediateCallback
   export SolveProblem
 
   type IpoptProblem
@@ -138,6 +138,28 @@ module Ipopt
                 prob.ref, obj_scaling, x_scale_arg, g_scale_arg)
     if ret == 0
       error("IPOPT: Error setting problem scaling.")
+    end
+  end
+
+  
+  function SetIntermediateCallback(prob::IpoptProblem, intermediate_cb)
+    #/** Setting a callback function for the "intermediate callback"
+    # *  method in the TNLP.  This gives control back to the user once
+    # *  per iteration.  If set, it provides the user with some
+    # *  information on the state of the optimization.  This can be used
+    # *  to print some user-defined output.  It also gives the user a way
+    # *  to terminate the optimization prematurely.  If the callback
+    # *  method returns false, Ipopt will terminate the optimization.
+    # *  Calling this set method to set the CB pointer to NULL disables
+    # *  the intermediate callback functionality. */
+    wrapper = cfunction(intermediate_cb, Cint, (Cint, Cint,
+                                                Float64, Float64, Float64, Float64,
+                                                Float64, Float64, Float64, Float64,
+                                                Cint, Ptr{Void}))
+    ret = ccall((:SetIntermediateCallback, libipopt), Cint, (Ptr{Void}, Ptr{Void}),
+                                                               prob.ref, wrapper)
+    if ret == 0
+      error("IPOPT: Something went wrong setting the intermediate callback.")
     end
   end
 
