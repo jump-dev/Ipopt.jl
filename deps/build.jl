@@ -35,7 +35,8 @@ libdir = BinDeps.libdir(libipopt)
 downloadname = "Ipopt-3.11.0-Win32-Win64-dll.7z"
 windir = WORD_SIZE == 32 ? "Win32" : "x64"
 
-provides(BuildProcess,
+# BinDeps complains about the .7z file on other platforms...
+@windows_only provides(BuildProcess,
     (@build_steps begin
         FileDownloader("http://www.coin-or.org/download/binary/Ipopt/$downloadname", joinpath(downloadsdir, downloadname))
 	CreateDirectory(BinDeps.srcdir(libipopt), true)
