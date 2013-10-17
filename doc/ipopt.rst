@@ -80,6 +80,47 @@ problem looks like in Julia with the Ipopt.jl interface::
     end
   end
 
+  function eval_h(prob, x, mode, rows, cols, obj_factor, lambda, values)
+    if mode == :Structure
+      # Symmetric matrix, fill the lower left triangle only
+      idx = 1
+      for row = 1:4
+        for col = 1:row
+          rows[idx] = row
+          cols[idx] = col
+          idx += 1
+        end
+      end
+    else
+      # Again, only lower left triangle
+      # Objective
+      values[1] = obj_factor * (2*x[4])  # 1,1
+      values[2] = obj_factor * (  x[4])  # 2,1
+      values[3] = 0                      # 2,2
+      values[4] = obj_factor * (  x[4])  # 3,1
+      values[5] = 0                      # 3,2
+      values[6] = 0                      # 3,3
+      values[7] = obj_factor * (2*x[1] + x[2] + x[3])  # 4,1
+      values[8] = obj_factor * (  x[1])  # 4,2
+      values[9] = obj_factor * (  x[1])  # 4,3
+      values[10] = 0                     # 4,4
+
+      # First constraint
+      values[2] += lambda[1] * (x[3] * x[4])  # 2,1
+      values[4] += lambda[1] * (x[2] * x[4])  # 3,1
+      values[5] += lambda[1] * (x[1] * x[4])  # 3,2
+      values[7] += lambda[1] * (x[2] * x[3])  # 4,1
+      values[8] += lambda[1] * (x[1] * x[3])  # 4,2
+      values[9] += lambda[1] * (x[1] * x[2])  # 4,3
+
+      # Second constraint
+      values[1]  += lambda[2] * 2  # 1,1
+      values[3]  += lambda[2] * 2  # 2,2
+      values[6]  += lambda[2] * 2  # 3,3
+      values[10] += lambda[2] * 2  # 4,4
+    end
+  end
+
   prob = CreateProblem(n, x_L, x_U, m, g_L, g_U, 8, 10,
                        eval_f, eval_g, eval_grad_f, eval_jac_g, eval_h)
 
@@ -244,7 +285,14 @@ eval_jac_g
 
 This function has two modes of operation. In the first mode the user tells IPOPT the sparsity structure of the Jacobian of the constraints. In the second mode the user provides the actual Jacobian values. Julia is 1-based, in the sense that indexing always starts at 1 (unlike C, which starts at 0).::
 
-  function eval_jac_g(prob::IpoptProblem, x::Vector{Float64}, mode, rows::Vector{Int32}, cols::Vector{Int32}, values::Vector{Float64})
+  function eval_jac_g(
+    prob::IpoptProblem,
+    x::Vector{Float64},         # Current solution
+    mode,                       # Either :Structure or :Values
+    rows::Vector{Int32},        # Sparsity structure - row indices
+    cols::Vector{Int32},        # Sparsity structure - column indices
+    values::Vector{Float64})    # The values of the Hessian
+
     if mode == :Structure
       # rows[...] = ...
       # ...
@@ -255,3 +303,28 @@ This function has two modes of operation. In the first mode the user tells IPOPT
   end
 
 As for the previous two callbacks, all values must be set "in-place". See the Ipopt documentation for a further description of the sparsity format followed by Ipopt ((row,column,value) triples).
+
+eval_h
+^^^^^^
+
+Similar to the Jacobian, except for the Hessian of the Lagrangian. See documentation for full details of the meaning of everything.::
+
+  function eval_h(
+    prob::IpoptProblem,         
+    x::Vector{Float64},         # Current solution
+    mode,                       # Either :Structure or :Values
+    rows::Vector{Int32},        # Sparsity structure - row indices
+    cols::Vector{Int32},        # Sparsity structure - column indices
+    obj_factor::Float64,        # Lagrangian multiplier for objective
+    lambda::Vector{Float64},    # Multipliers for each constraint
+    values::Vector{Float64})    # The values of the Hessian
+
+    if mode == :Structure
+      # rows[...] = ...
+      # ...
+      # cols[...] = ...
+    else
+      # values[...] = ...
+    end
+  end
+

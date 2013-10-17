@@ -21,13 +21,14 @@ module Ipopt
     eval_g::Function
     eval_grad_f::Function
     eval_jac_g::Function
+    eval_h::Function
 
     function IpoptProblem(
       ref::Ptr{Void}, n, m,
-      eval_f, eval_g, eval_grad_f, eval_jac_g)
+      eval_f, eval_g, eval_grad_f, eval_jac_g, eval_h)
 
       prob = new(ref, n, m, zeros(Float64, n), 0.0,
-                 eval_f, eval_g, eval_grad_f, eval_jac_g)
+                 eval_f, eval_g, eval_grad_f, eval_jac_g, eval_h)
       # Free the internal IpoptProblem structure when
       # the Julia IpoptProblem instance goes out of scope
       finalizer(prob, FreeProblem)
@@ -111,6 +112,22 @@ module Ipopt
     return int32(1)
   end
 
+  # Hessian
+  function eval_h_wrapper(n::Cint, x_ptr::Ptr{Float64}, new_x::Cint, obj_factor::Float64, m::Cint, lambda_ptr::Ptr{Float64}, new_lambda::Cint, nele_hess::Cint, iRow::Ptr{Cint}, jCol::Ptr{Cint}, values::Ptr{Float64}, user_data::Ptr{Void})
+   # Extract Julia the problem from the pointer
+    prob = unsafe_pointer_to_objref(user_data)::IpoptProblem
+    # Determine mode
+    mode = (values == C_NULL) ? (:Structure) : (:Values)
+    x = pointer_to_array(x_ptr, int(n))
+    lambda = pointer_to_array(lambda_ptr, int(m))
+    rows = pointer_to_array(iRow, int(nele_hess))
+    cols = pointer_to_array(jCol, int(nele_hess))
+    values = pointer_to_array(values, int(nele_hess))
+    prob.eval_h(prob, x, mode, rows, cols, obj_factor, lambda, values)
+    # Done
+    return int32(1)
+  end
+
   ###########################################################################
   # C function wrappers
   ###########################################################################
@@ -120,30 +137,30 @@ module Ipopt
                          eval_f, eval_g, eval_grad_f, eval_jac_g, eval_h)
     # Wrap callbacks
     eval_f_cb = cfunction(eval_f_wrapper, Cint,
-                  (Cint, Ptr{Float64}, Cint, Ptr{Float64}, Ptr{Void}))
+                        (Cint, Ptr{Float64}, Cint, Ptr{Float64}, Ptr{Void}))
     eval_g_cb = cfunction(eval_g_wrapper, Cint,
-                  (Cint, Ptr{Float64}, Cint, Cint, Ptr{Float64}, Ptr{Void}))
+                        (Cint, Ptr{Float64}, Cint, Cint, Ptr{Float64}, Ptr{Void}))
     eval_grad_f_cb = cfunction(eval_grad_f_wrapper, Cint,
-                       (Cint, Ptr{Float64}, Cint, Ptr{Float64}, Ptr{Void}))
-    eval_jac_g_cb = cfunction(eval_jac_g_wrapper, Cint, (Cint, Ptr{Float64}, Cint, Cint, Cint, Ptr{Cint}, Ptr{Cint}, Ptr{Float64}, Ptr{Void}))
-
-    eval_h_cb = cfunction(eval_h, Cint, (Cint, Ptr{Float64}, Cint, Float64, Cint, Ptr{Float64}, Cint, Cint, Ptr{Cint}, Ptr{Cint}, Ptr{Float64}, Ptr{Void}))
-
+                        (Cint, Ptr{Float64}, Cint, Ptr{Float64}, Ptr{Void}))
+    eval_jac_g_cb = cfunction(eval_jac_g_wrapper, Cint,
+                        (Cint, Ptr{Float64}, Cint, Cint, Cint, Ptr{Cint}, Ptr{Cint}, Ptr{Float64}, Ptr{Void}))
+    eval_h_cb = cfunction(eval_h_wrapper, Cint, 
+                        (Cint, Ptr{Float64}, Cint, Float64, Cint, Ptr{Float64}, Cint, Cint, Ptr{Cint}, Ptr{Cint}, Ptr{Float64}, Ptr{Void}))
 
     ret = ccall((:CreateIpoptProblem, libipopt), Ptr{Void},
         (Cint, Ptr{Float64}, Ptr{Float64},  # Num vars, var lower and upper bounds
          Cint, Ptr{Float64}, Ptr{Float64},  # Num constraints, con lower and upper bounds
-         Cint, Cint, # Num nnz in constraint Jacobian and in "Hessian of Lagrangian"
-         Cint, # 0 for C, 1 for Fortran
-         Ptr{Void}, Ptr{Void}, # Callbacks for eval_f, eval_g
-         Ptr{Void}, Ptr{Void}, Ptr{Void}), # Callbacks for eval_grad_f, eval_jac_g, eval_h
+         Cint, Cint,                        # Num nnz in constraint Jacobian and in Hessian
+         Cint,                              # 0 for C, 1 for Fortran
+         Ptr{Void}, Ptr{Void},              # Callbacks for eval_f, eval_g
+         Ptr{Void}, Ptr{Void}, Ptr{Void}),  # Callbacks for eval_grad_f, eval_jac_g, eval_h
          n, x_L, x_U, m, g_L, g_U, nele_jac, nele_hess, 1,
          eval_f_cb, eval_g_cb, eval_grad_f_cb, eval_jac_g_cb, eval_h_cb)
 
     if ret == C_NULL
       error("IPOPT: Failed to construct problem.")
     else
-      return(IpoptProblem(ret, n, m, eval_f, eval_g, eval_grad_f, eval_jac_g))
+      return(IpoptProblem(ret, n, m, eval_f, eval_g, eval_grad_f, eval_jac_g, eval_h))
     end
   end
 

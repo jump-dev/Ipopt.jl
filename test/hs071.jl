@@ -54,13 +54,46 @@ function eval_jac_g(prob::IpoptProblem, x::Vector{Float64}, mode, rows::Vector{I
   end
 end
 
+function eval_h(prob::IpoptProblem, x::Vector{Float64}, mode, rows::Vector{Int32}, cols::Vector{Int32}, obj_factor::Float64, lambda::Vector{Float64}, values::Vector{Float64})
+  if mode == :Structure
+    # Symmetric matrix, fill the lower left triangle only
+    idx = 1
+    for row = 1:4
+      for col = 1:row
+        rows[idx] = row
+        cols[idx] = col
+        idx += 1
+      end
+    end
+  else
+    # Again, only lower left triangle
+    # Objective
+    values[1] = obj_factor * (2*x[4])  # 1,1
+    values[2] = obj_factor * (  x[4])  # 2,1
+    values[3] = 0                      # 2,2
+    values[4] = obj_factor * (  x[4])  # 3,1
+    values[5] = 0                      # 3,2
+    values[6] = 0                      # 3,3
+    values[7] = obj_factor * (2*x[1] + x[2] + x[3])  # 4,1
+    values[8] = obj_factor * (  x[1])  # 4,2
+    values[9] = obj_factor * (  x[1])  # 4,3
+    values[10] = 0                     # 4,4
 
-function eval_h(n::Cint, x_ptr::Ptr{Float64}, new_x::Cint, obj_factor::Float64, m::Cint, lamda::Ptr{Float64}, new_lambda::Cint, nele_hess::Cint, iRow::Ptr{Cint}, jCol::Ptr{Cint}, values::Ptr{Float64}, user_data::Ptr{Void})
-  println("eval h")
-  # Do it later
-  return int32(0)
+    # First constraint
+    values[2] += lambda[1] * (x[3] * x[4])  # 2,1
+    values[4] += lambda[1] * (x[2] * x[4])  # 3,1
+    values[5] += lambda[1] * (x[1] * x[4])  # 3,2
+    values[7] += lambda[1] * (x[2] * x[3])  # 4,1
+    values[8] += lambda[1] * (x[1] * x[3])  # 4,2
+    values[9] += lambda[1] * (x[1] * x[2])  # 4,3
+
+    # Second constraint
+    values[1]  += lambda[2] * 2  # 1,1
+    values[3]  += lambda[2] * 2  # 2,2
+    values[6]  += lambda[2] * 2  # 3,3
+    values[10] += lambda[2] * 2  # 4,4
+  end
 end
-
 
 function intermediate(alg_mod::Cint, iter_count::Cint, 
   obj_value::Float64, inf_pr::Float64, inf_du::Float64, mu::Float64,
