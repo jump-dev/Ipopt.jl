@@ -8,7 +8,13 @@ You can install it using the Julia package manager:
 julia> Pkg.add("Ipopt")
 ```
 
-This will install Ipopt.jl, as well as Ipopt itself (by building from source on Linux, and by downloading the binary on Windows and OSX [via Homebrew]).
+This will install Ipopt.jl, as well as Ipopt itself. A binary will be downloaded on Windows and
+on OSX (via Homebrew), but it will be built from source on Linux. You should make sure you have
+the required packages before installing, e.g.
+
+```bash
+sudo apt-get install gfortran liblapack3
+```
 
 Full documentation is available [here](http://ipoptjl.readthedocs.org/en/latest/ipopt.html).
 
