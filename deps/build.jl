@@ -29,6 +29,13 @@ provides(SimpleBuild,
         end
     end),libipopt, os = :Unix)
 
+# OS X
+@osx_only begin
+    using Homebrew
+    provides(Homebrew.HB, "ipopt", libipopt, os = :Darwin)
+end
+
+
 # Windows
 downloadsdir = BinDeps.downloadsdir(libipopt)
 libdir = BinDeps.libdir(libipopt)

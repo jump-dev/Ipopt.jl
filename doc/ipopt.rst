@@ -12,7 +12,8 @@ optimizaiton problem solver. You can install it with the Julia package manager::
     julia> Pkg.add("Ipopt")
 
 This will install the interface and Ipopt itself. On Linux, it will build from source
-(you will need ``gfortran`` and ``liblapack3`` installed).
+(you will need ``build-essential``, ``gfortran`` and ``liblapack-dev`` installed
+on Debian-based systems).
 On Windows and OSX, it will download the binary. This document details the Julia interface,
 how it relates to the C interface, and any Julia-specific usage notes. For further
 information about Ipopt, consult the `official documentation <http://www.coin-or.org/Ipopt/documentation/>`_.

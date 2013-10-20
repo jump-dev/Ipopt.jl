@@ -13,7 +13,7 @@ on OSX (via Homebrew), but it will be built from source on Linux. You should mak
 the required packages before installing, e.g.
 
 ```bash
-sudo apt-get install gfortran liblapack3
+sudo apt-get install build-essential gfortran liblapack-dev
 ```
 
 Full documentation is available [here](http://ipoptjl.readthedocs.org/en/latest/ipopt.html).
