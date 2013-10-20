@@ -10,6 +10,6 @@ julia> Pkg.add("Ipopt")
 
 This will install Ipopt.jl, as well as Ipopt itself (by building from source on Linux, and by downloading the binary on Windows and OSX [via Homebrew]).
 
-Full documentation is available [here](http://ipoptjl.readthedocs.org/en/latest/).
+Full documentation is available [here](http://ipoptjl.readthedocs.org/en/latest/ipopt.html).
 
 Ipopt.jl has testing, and the status of the current build is [![Build Status](https://travis-ci.org/JuliaOpt/Ipopt.jl.png?branch=master)](https://travis-ci.org/JuliaOpt/Ipopt.jl)
