@@ -326,3 +326,24 @@ Similar to the Jacobian, except for the Hessian of the Lagrangian. See documenta
     end
   end
 
+This function does not need to be provided - see CreateProblem for more information.
+
+intermediate
+^^^^^^^^^^^^
+
+Different from the above, this function is called every iteration and allows the user to track the progress of the solve. Additionally they can terminate the optimization prematurely. Must return true (keep going) or false (stop).::
+
+  function intermediate(
+    alg_mod::Int,
+    iter_count::Int, 
+    obj_value::Float64,
+    inf_pr::Float64, inf_du::Float64,
+    mu::Float64, d_norm::Float64,
+    regularization_size::Float64,
+    alpha_du::Float64, alpha_pr::Float64, 
+    ls_trials::Int)
+    # ...
+    return true  # Keep going
+  end
+
+For descriptions of inputs, see official documentation.
