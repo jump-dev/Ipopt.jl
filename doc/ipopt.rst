@@ -5,15 +5,16 @@ Ipopt.jl --- Julia interface for the Ipopt solver
 .. module:: Ipopt
    :synopsis: Julia interface for the Ipopt solver
 
-`Ipopt.jl <https://github.com/mlubin/Ipopt.jl>`_ is a light-weight wrapper around
+`Ipopt.jl <https://github.com/JuliaOpt/Ipopt.jl>`_ is a light-weight wrapper around
 the C interface of `Ipopt <https://projects.coin-or.org/Ipopt>`_, a non-linear
 optimizaiton problem solver. You can install it with the Julia package manager::
 
     julia> Pkg.add("Ipopt")
 
-This document details the Julia interface, how it relates to the C interface, and
-any Julia-specific usage notes. For further information about Ipopt, consult the
-`official documentation <http://www.coin-or.org/Ipopt/documentation/>`_.
+This will install the interface and Ipopt itself. On Linux, it will build from source.
+On Windows and OSX, it will download the binary. This document details the Julia interface,
+how it relates to the C interface, and any Julia-specific usage notes. For further
+information about Ipopt, consult the `official documentation <http://www.coin-or.org/Ipopt/documentation/>`_.
 
 -------
 Example
@@ -144,7 +145,7 @@ Wrapped Functions
 
 We implement all functionality exposed through the C header file ``IpStdCInterface.h``.
 
-CreateProblem
+createProblem
 ^^^^^^^^^^^^^
 
 (C function: ``CreateIpoptProblem``)::
@@ -171,7 +172,7 @@ for the Hessian, you must set the Hessian approximation option:
 ``addOption(prob, "hessian_approximation", "limited-memory")``
 
 
-FreeProblem
+freeProblem
 ^^^^^^^^^^^
 
 (C function: ``FreeIpoptProblem``)::
@@ -182,7 +183,7 @@ Destroys the internal reference to an ``IpoptProblem``. This function is
 automatically called when an ``IpoptProblem`` instance goes out of scope - you
 should not need to call it yourself.
 
-AddOption
+addOption
 ^^^^^^^^^
 
 (C functions: ``AddIpoptStrOption``, ``AddIpoptNumOption``, ``AddIpoptIntOption``)::
@@ -198,7 +199,7 @@ AddOption
 
 Sets a solver option, the full list is available `here <http://www.coin-or.org/Ipopt/documentation/node39.html>`_. Returns nothing, raises error if option could not be set correctly.
 
-OpenOutputFile
+openOutputFile
 ^^^^^^^^^^^^^^
 
 (C function: ``OpenIpoptOutputFile``)::
@@ -209,7 +210,7 @@ OpenOutputFile
 Write Ipopt output to a file. Unclear what the acceptable inputs to print
 levels are.
 
-SetProblemScaling
+setProblemScaling
 ^^^^^^^^^^^^^^^^^
 
 (C function: ``SetIpoptProblemScaling``)::
@@ -223,7 +224,7 @@ SetProblemScaling
 Optional function for scaling the problem. If no input is given for the x and/or
 constraint scaling vectors, no scaling is done.
 
-SetIntermediateCallback
+setIntermediateCallback
 ^^^^^^^^^^^^^^^^^^^^^^^
 
 (C function: ``SetIntermediateCallback``)::
@@ -352,7 +353,7 @@ Similar to the Jacobian, except for the Hessian of the Lagrangian. See documenta
     end
   end
 
-This function does not need to be provided - see CreateProblem for more information.
+This function does not need to be provided - see createProblem for more information.
 
 intermediate
 ^^^^^^^^^^^^
