@@ -3,9 +3,9 @@ module Ipopt
   using BinDeps
   @BinDeps.load_dependencies
   
-  export CreateProblem, FreeProblem, AddOption
-  export OpenOutputFile, SetProblemScaling, SetIntermediateCallback
-  export SolveProblem
+  export createProblem, addOption
+  export openOutputFile, setProblemScaling, setIntermediateCallback
+  export solveProblem
   export IpoptProblem
 
 
@@ -14,6 +14,7 @@ module Ipopt
     n::Int  # Num vars
     m::Int  # Num cons
     x::Vector{Float64}  # Starting and final solution
+    g::Vector{Float64}  # Final constraint values
     obj_val::Float64  # Final objective
     
     # Callbacks
@@ -21,18 +22,18 @@ module Ipopt
     eval_g::Function
     eval_grad_f::Function
     eval_jac_g::Function
-    eval_h::Function
-    intermediate::Function
+    eval_h  # Can be nothing
+    intermediate  # Can be nothing
 
     function IpoptProblem(
       ref::Ptr{Void}, n, m,
       eval_f, eval_g, eval_grad_f, eval_jac_g, eval_h)
 
-      prob = new(ref, n, m, zeros(Float64, n), 0.0,
+      prob = new(ref, n, m, zeros(Float64, n), zeros(Float64, m), 0.0,
                  eval_f, eval_g, eval_grad_f, eval_jac_g, eval_h, nothing)
       # Free the internal IpoptProblem structure when
       # the Julia IpoptProblem instance goes out of scope
-      finalizer(prob, FreeProblem)
+      finalizer(prob, freeProblem)
       # Return the object we just made
       prob
     end
@@ -117,16 +118,22 @@ module Ipopt
   function eval_h_wrapper(n::Cint, x_ptr::Ptr{Float64}, new_x::Cint, obj_factor::Float64, m::Cint, lambda_ptr::Ptr{Float64}, new_lambda::Cint, nele_hess::Cint, iRow::Ptr{Cint}, jCol::Ptr{Cint}, values::Ptr{Float64}, user_data::Ptr{Void})
     # Extract Julia the problem from the pointer
     prob = unsafe_pointer_to_objref(user_data)::IpoptProblem
-    # Determine mode
-    mode = (values == C_NULL) ? (:Structure) : (:Values)
-    x = pointer_to_array(x_ptr, int(n))
-    lambda = pointer_to_array(lambda_ptr, int(m))
-    rows = pointer_to_array(iRow, int(nele_hess))
-    cols = pointer_to_array(jCol, int(nele_hess))
-    values = pointer_to_array(values, int(nele_hess))
-    prob.eval_h(x, mode, rows, cols, obj_factor, lambda, values)
-    # Done
-    return int32(1)
+    # Did the user specify a Hessian
+    if prob.eval_h == nothing
+      # No Hessian provided
+      return int32(0)
+    else
+      # Determine mode
+      mode = (values == C_NULL) ? (:Structure) : (:Values)
+      x = pointer_to_array(x_ptr, int(n))
+      lambda = pointer_to_array(lambda_ptr, int(m))
+      rows = pointer_to_array(iRow, int(nele_hess))
+      cols = pointer_to_array(jCol, int(nele_hess))
+      values = pointer_to_array(values, int(nele_hess))
+      prob.eval_h(x, mode, rows, cols, obj_factor, lambda, values)
+      # Done
+      return int32(1)
+    end
   end
 
   # Intermediate
@@ -141,10 +148,10 @@ module Ipopt
   ###########################################################################
   # C function wrappers
   ###########################################################################
-  function CreateProblem(n::Int, x_L::Vector{Float64}, x_U::Vector{Float64},
+  function createProblem(n::Int, x_L::Vector{Float64}, x_U::Vector{Float64},
                          m::Int, g_L::Vector{Float64}, g_U::Vector{Float64},
                          nele_jac::Int, nele_hess::Int, 
-                         eval_f, eval_g, eval_grad_f, eval_jac_g, eval_h)
+                         eval_f, eval_g, eval_grad_f, eval_jac_g, eval_h = nothing)
     # Wrap callbacks
     eval_f_cb = cfunction(eval_f_wrapper, Cint,
                         (Cint, Ptr{Float64}, Cint, Ptr{Float64}, Ptr{Void}))
@@ -156,6 +163,7 @@ module Ipopt
                         (Cint, Ptr{Float64}, Cint, Cint, Cint, Ptr{Cint}, Ptr{Cint}, Ptr{Float64}, Ptr{Void}))
     eval_h_cb = cfunction(eval_h_wrapper, Cint, 
                         (Cint, Ptr{Float64}, Cint, Float64, Cint, Ptr{Float64}, Cint, Cint, Ptr{Cint}, Ptr{Cint}, Ptr{Float64}, Ptr{Void}))
+
 
     ret = ccall((:CreateIpoptProblem, libipopt), Ptr{Void},
         (Cint, Ptr{Float64}, Ptr{Float64},  # Num vars, var lower and upper bounds
@@ -176,12 +184,12 @@ module Ipopt
 
   # TODO: Not even expose this? Seems dangerous, should just destruct
   # the IpoptProblem object via GC
-  function FreeProblem(prob::IpoptProblem)
+  function freeProblem(prob::IpoptProblem)
     ccall((:FreeIpoptProblem, libipopt), Void, (Ptr{Void},), prob.ref)
   end
 
 
-  function AddOption(prob::IpoptProblem, keyword::ASCIIString, value::ASCIIString)
+  function addOption(prob::IpoptProblem, keyword::ASCIIString, value::ASCIIString)
     #/** Function for adding a string option.  Returns FALSE the option
     # *  could not be set (e.g., if keyword is unknown) */
     ret = ccall((:AddIpoptStrOption, libipopt), 
@@ -193,10 +201,10 @@ module Ipopt
   end
 
 
-  function AddOption(prob::IpoptProblem, keyword::ASCIIString, value::Float64)
+  function addOption(prob::IpoptProblem, keyword::ASCIIString, value::Float64)
     #/** Function for adding a Number option.  Returns FALSE the option
     # *  could not be set (e.g., if keyword is unknown) */
-    ret = ccall((:AddIpoptIntOption, libipopt),
+    ret = ccall((:AddIpoptNumOption, libipopt),
                 Cint, (Ptr{Void}, Ptr{Uint8}, Float64),
                 prob.ref, keyword, value)
     if ret == 0
@@ -205,7 +213,7 @@ module Ipopt
   end
 
 
-  function AddOption(prob::IpoptProblem, keyword::ASCIIString, value::Integer)
+  function addOption(prob::IpoptProblem, keyword::ASCIIString, value::Integer)
     #/** Function for adding an Int option.  Returns FALSE the option
     # *  could not be set (e.g., if keyword is unknown) */
     ret = ccall((:AddIpoptIntOption, libipopt),
@@ -217,7 +225,7 @@ module Ipopt
   end
 
 
-  function OpenOutputFile(prob::IpoptProblem, file_name::ASCIIString, print_level::Int)
+  function openOutputFile(prob::IpoptProblem, file_name::ASCIIString, print_level::Int)
     #/** Function for opening an output file for a given name with given
     # *  printlevel.  Returns false, if there was a problem opening the
     # *  file. */
@@ -229,11 +237,9 @@ module Ipopt
     end
   end
 
-  # TODO: Set type info on x_scaling, g_scaling - probably doesn't matter
-  # performance-wise though.
   # TODO: Verify this function even works! Trying it with 0.5 on HS071
   # seems to change nothing.
-  function SetProblemScaling(prob::IpoptProblem, obj_scaling::Float64,
+  function setProblemScaling(prob::IpoptProblem, obj_scaling::Float64,
                              x_scaling = nothing,
                              g_scaling = nothing)
     #/** Optional function for setting scaling parameter for the NLP.
@@ -251,7 +257,7 @@ module Ipopt
   end
 
   
-  function SetIntermediateCallback(prob::IpoptProblem, intermediate::Function)
+  function setIntermediateCallback(prob::IpoptProblem, intermediate::Function)
     intermediate_cb = cfunction(intermediate_wrapper, Cint,
                         (Cint, Cint, Float64, Float64, Float64, Float64,
                         Float64, Float64, Float64, Float64, Cint, Ptr{Void}))
@@ -264,16 +270,26 @@ module Ipopt
   end
 
 
-  # TODO: Expose full functionality
-  function SolveProblem(prob::IpoptProblem)
+  function solveProblem(prob::IpoptProblem)
     final_objval = [0.0]
     ret = ccall((:IpoptSolve, libipopt),
                 Cint, (Ptr{Void}, Ptr{Float64}, Ptr{Float64}, Ptr{Float64}, Ptr{Float64}, Ptr{Float64}, Ptr{Float64}, Any),
-                prob.ref, prob.x, C_NULL, final_objval, C_NULL, C_NULL, C_NULL, prob)
+                prob.ref, prob.x, prob.g, final_objval, C_NULL, C_NULL, C_NULL, prob)
     prob.obj_val = final_objval[1]
     
     return int(ret)
   end
+
+  function solveProblem(prob::IpoptProblem, mult_g::Vector{Float64}, mult_x_L::Vector{Float64}, mult_x_U::Vector{Float64})
+    final_objval = [0.0]
+    ret = ccall((:IpoptSolve, libipopt),
+                Cint, (Ptr{Void}, Ptr{Float64}, Ptr{Float64}, Ptr{Float64}, Ptr{Float64}, Ptr{Float64}, Ptr{Float64}, Any),
+                prob.ref, prob.x, prob.g, final_objval, mult_g, mult_x_L, mult_x_U, prob)
+    prob.obj_val = final_objval[1]
+    
+    return int(ret)
+  end
+
 
 
 end # module

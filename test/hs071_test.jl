@@ -111,15 +111,15 @@ m = 2
 g_L = [25.0, 40.0]
 g_U = [2.0e19, 40.0]
 
-prob = CreateProblem(n, x_L, x_U, m, g_L, g_U, 8, 10,
+prob = createProblem(n, x_L, x_U, m, g_L, g_U, 8, 10,
                      eval_f, eval_g, eval_grad_f, eval_jac_g, eval_h)
-AddOption(prob, "hessian_approximation", "limited-memory")
-OpenOutputFile(prob, "test.txt", 2)
-SetProblemScaling(prob, 0.5)
-SetIntermediateCallback(prob, intermediate)
-prob.x = [1.0, 5.0, 5.0, 1.0]
-status = SolveProblem(prob)
-println(Ipopt.ApplicationReturnStatus[status])
 
-println(prob.x)
-println(prob.obj_val)
+prob.x = [1.0, 5.0, 5.0, 1.0]
+status = solveProblem(prob)
+
+@test Ipopt.ApplicationReturnStatus[status] == :Solve_Succeeded
+@test_approx_eq_eps prob.x[1] 1.0000000000000000 1e-5
+@test_approx_eq_eps prob.x[2] 4.7429996418092970 1e-5
+@test_approx_eq_eps prob.x[3] 3.8211499817883077 1e-5
+@test_approx_eq_eps prob.x[4] 1.3794082897556983 1e-5
+@test_approx_eq_eps prob.obj_val 17.014017145179164 1e-5

@@ -121,17 +121,14 @@ problem looks like in Julia with the Ipopt.jl interface::
     end
   end
 
-  prob = CreateProblem(n, x_L, x_U, m, g_L, g_U, 8, 10,
+  prob = createProblem(n, x_L, x_U, m, g_L, g_U, 8, 10,
                        eval_f, eval_g, eval_grad_f, eval_jac_g, eval_h)
-
-  # Approximate Hessian instead of providing it
-  AddOption(prob, "hessian_approximation", "limited-memory")
 
   # Set starting solution
   prob.x = [1.0, 5.0, 5.0, 1.0]
 
   # Solve
-  status = SolveProblem(prob)
+  status = solveProblem(prob)
   
   println(Ipopt.ApplicationReturnStatus[status])
   println(prob.x)
@@ -139,7 +136,7 @@ problem looks like in Julia with the Ipopt.jl interface::
 
 As you can see, the code mirrors the C interface fairly closely, with some C-specific
 features abstracted such as replacing the various option-adding functions with one
-``AddOption`` method.
+``addOption`` method.
 
 -----------------
 Wrapped Functions
@@ -150,9 +147,9 @@ We implement all functionality exposed through the C header file ``IpStdCInterfa
 CreateProblem
 ^^^^^^^^^^^^^
 
-(C function(s): ``CreateIpoptProblem``)::
+(C function: ``CreateIpoptProblem``)::
 
-  function CreateProblem(
+  function createProblem(
     n::Int,                     # Number of variables
     x_L::Vector{Float64},       # Variable lower bounds
     x_U::Vector{Float64},       # Variable upper bounds
@@ -165,18 +162,21 @@ CreateProblem
     eval_g,                     # Callback: constraint evaluation
     eval_grad_f,                # Callback: objective function gradient
     eval_jac_g,                 # Callback: Jacobian evaluation
-    eval_h)                     # Callback: Hessian evaluation
+    eval_h = nothing)           # Callback: Hessian evaluation
 
 Creates and returns an ``IpoptProblem`` with the given options. Raises error
 if something goes wrong during construction. See Callbacks section for more
-information about callback functions.
+information about format of callback functions. If you do not provide a callback
+for the Hessian, you must set the Hessian approximation option: 
+``addOption(prob, "hessian_approximation", "limited-memory")``
+
 
 FreeProblem
 ^^^^^^^^^^^
 
-(C function(s): ``FreeIpoptProblem``)::
+(C function: ``FreeIpoptProblem``)::
 
-  function FreeProblem(prob::IpoptProblem)
+  function freeProblem(prob::IpoptProblem)
 
 Destroys the internal reference to an ``IpoptProblem``. This function is
 automatically called when an ``IpoptProblem`` instance goes out of scope - you
@@ -185,15 +185,15 @@ should not need to call it yourself.
 AddOption
 ^^^^^^^^^
 
-(C functions(s): ``AddIpoptStrOption``, ``AddIpoptNumOption``, ``AddIpoptIntOption``)::
+(C functions: ``AddIpoptStrOption``, ``AddIpoptNumOption``, ``AddIpoptIntOption``)::
 
-  function AddOption(
+  function addOption(
     prob::IpoptProblem, keyword::ASCIIString, value::ASCIIString)
 
-  function AddOption(
+  function addOption(
     prob::IpoptProblem, keyword::ASCIIString, value::Float64)
 
-  function AddOption(
+  function addOption(
     prob::IpoptProblem, keyword::ASCIIString, value::Integer)
 
 Sets a solver option, the full list is available `here <http://www.coin-or.org/Ipopt/documentation/node39.html>`_. Returns nothing, raises error if option could not be set correctly.
@@ -201,9 +201,9 @@ Sets a solver option, the full list is available `here <http://www.coin-or.org/I
 OpenOutputFile
 ^^^^^^^^^^^^^^
 
-(C function(s): ``OpenIpoptOutputFile``)::
+(C function: ``OpenIpoptOutputFile``)::
   
-  function OpenOutputFile(
+  function openOutputFile(
     prob::IpoptProblem, file_name::ASCIIString, print_level::Int)
 
 Write Ipopt output to a file. Unclear what the acceptable inputs to print
@@ -212,9 +212,9 @@ levels are.
 SetProblemScaling
 ^^^^^^^^^^^^^^^^^
 
-(C function(s): ``SetIpoptProblemScaling``)::
+(C function: ``SetIpoptProblemScaling``)::
 
-  function SetProblemScaling(
+  function setProblemScaling(
     prob::IpoptProblem,
     obj_scaling::Float64,       # Objective scaling
     x_scaling = nothing,        # Variable scaling (n-length vector, optional)
@@ -226,14 +226,39 @@ constraint scaling vectors, no scaling is done.
 SetIntermediateCallback
 ^^^^^^^^^^^^^^^^^^^^^^^
 
-(C function(s): ``SetIntermediateCallback``)::
+(C function: ``SetIntermediateCallback``)::
 
-  function SetIntermediateCallback(
+  function setIntermediateCallback(
     prob::IpoptProblem,
     intermediate::Function)
 
 Sets a callback function that will be called after every iteration of the
 algorithm. See Callbacks section for more information.
+
+solveProblem
+^^^^^^^^^^^^
+
+(C function: ``IpoptSolve``)::
+
+  function solveProblem(prob::IpoptProblem)
+
+  function solveProblem(
+    prob::IpoptProblem
+    mult_g::Vector{Float64},
+    mult_x_L::Vector{Float64},
+    mult_x_U::Vector{Float64})
+
+Solves the model created with the above options. Will use the value of ``prob.x``
+as the starting point. Stores the final variable values in ``prob.x``, the final
+constraint values in ``prob.g``, the final objective in ``prob.obj_value``. The
+second version of the function accepts the multipliers on the constraints
+and variables bounds and stores the final multipliers in the same vectors. Both
+versions return an integer representing the final state. You can access a symbol
+representing the meaning of this integer using ``Ipopt.ApplicationReturnStatus``, e.g.::
+
+  status = solveProblem(prob)
+  println(Ipopt.ApplicationReturnStatus[status])
+
 
 ---------
 Callbacks
