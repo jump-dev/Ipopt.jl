@@ -8,18 +8,18 @@ using Ipopt
 # Start at (1,5,5,1)
 # End at (1.000..., 4.743..., 3.821..., 1.379...)
 
-function eval_f(prob::IpoptProblem, x::Vector{Float64}) 
+function eval_f(x::Vector{Float64}) 
   return x[1] * x[4] * (x[1] + x[2] + x[3]) + x[3]
 end
 
-function eval_g(prob::IpoptProblem, x::Vector{Float64}, g::Vector{Float64})
+function eval_g(x::Vector{Float64}, g::Vector{Float64})
   # Bad: g    = zeros(2)  # Allocates new array
   # OK:  g[:] = zeros(2)  # Modifies 'in place'
   g[1] = x[1]   * x[2]   * x[3]   * x[4]
   g[2] = x[1]^2 + x[2]^2 + x[3]^2 + x[4]^2
 end
 
-function eval_grad_f(prob::IpoptProblem, x::Vector{Float64}, grad_f::Vector{Float64})
+function eval_grad_f(x::Vector{Float64}, grad_f::Vector{Float64})
   # Bad: grad_f    = zeros(4)  # Allocates new array
   # OK:  grad_f[:] = zeros(4)  # Modifies 'in place'
   grad_f[1] = x[1] * x[4] + x[4] * (x[1] + x[2] + x[3])
@@ -28,7 +28,7 @@ function eval_grad_f(prob::IpoptProblem, x::Vector{Float64}, grad_f::Vector{Floa
   grad_f[4] = x[1] * (x[1] + x[2] + x[3])
 end
 
-function eval_jac_g(prob::IpoptProblem, x::Vector{Float64}, mode, rows::Vector{Int32}, cols::Vector{Int32}, values::Vector{Float64})
+function eval_jac_g(x::Vector{Float64}, mode, rows::Vector{Int32}, cols::Vector{Int32}, values::Vector{Float64})
   if mode == :Structure
     # Constraint (row) 1
     rows[1] = 1; cols[1] = 1
@@ -54,7 +54,7 @@ function eval_jac_g(prob::IpoptProblem, x::Vector{Float64}, mode, rows::Vector{I
   end
 end
 
-function eval_h(prob::IpoptProblem, x::Vector{Float64}, mode, rows::Vector{Int32}, cols::Vector{Int32}, obj_factor::Float64, lambda::Vector{Float64}, values::Vector{Float64})
+function eval_h(x::Vector{Float64}, mode, rows::Vector{Int32}, cols::Vector{Int32}, obj_factor::Float64, lambda::Vector{Float64}, values::Vector{Float64})
   if mode == :Structure
     # Symmetric matrix, fill the lower left triangle only
     idx = 1

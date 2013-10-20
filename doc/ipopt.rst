@@ -38,23 +38,23 @@ problem looks like in Julia with the Ipopt.jl interface::
   g_L = [25.0, 40.0]
   g_U = [2.0e19, 40.0]
 
-  function eval_f(prob, x) 
+  function eval_f(x) 
     return x[1] * x[4] * (x[1] + x[2] + x[3]) + x[3]
   end
 
-  function eval_g(prob, x, g)
+  function eval_g(x, g)
     g[1] = x[1]   * x[2]   * x[3]   * x[4]
     g[2] = x[1]^2 + x[2]^2 + x[3]^2 + x[4]^2
   end
 
-  function eval_grad_f(prob, x, grad_f)
+  function eval_grad_f(x, grad_f)
     grad_f[1] = x[1] * x[4] + x[4] * (x[1] + x[2] + x[3])
     grad_f[2] = x[1] * x[4]
     grad_f[3] = x[1] * x[4] + 1
     grad_f[4] = x[1] * (x[1] + x[2] + x[3])
   end
 
-  function eval_jac_g(prob, x, mode, rows, cols, values)
+  function eval_jac_g(x, mode, rows, cols, values)
     if mode == :Structure
       # Constraint (row) 1
       rows[1] = 1; cols[1] = 1
@@ -80,7 +80,7 @@ problem looks like in Julia with the Ipopt.jl interface::
     end
   end
 
-  function eval_h(prob, x, mode, rows, cols, obj_factor, lambda, values)
+  function eval_h(x, mode, rows, cols, obj_factor, lambda, values)
     if mode == :Structure
       # Symmetric matrix, fill the lower left triangle only
       idx = 1
@@ -245,7 +245,7 @@ eval_f
 
 Returns the value of the objective function at the current solution ``x``::
 
-  function eval_f(prob::IpoptProblem, x::Vector{Float64})
+  function eval_f(x::Vector{Float64})
     # ...
     return obj_value
   end
@@ -255,7 +255,7 @@ eval_g
 
 Sets the value of the constraint functions ``g`` at the current solution ``x``::
 
-  function eval_g(prob::IpoptProblem, x::Vector{Float64}, g::Vector{Float64})
+  function eval_g(x::Vector{Float64}, g::Vector{Float64})
     # ...
     # g[1] = ...
     # ...
@@ -271,7 +271,7 @@ eval_grad_f
 
 Sets the value of the gradient of the objective function at the current solution ``x``::
 
-  function eval_grad_f(prob::IpoptProblem, x::Vector{Float64}, grad_f::Vector{Float64})
+  function eval_grad_f(x::Vector{Float64}, grad_f::Vector{Float64})
     # ...
     # grad_f[1] = ...
     # ...
@@ -285,8 +285,7 @@ eval_jac_g
 
 This function has two modes of operation. In the first mode the user tells IPOPT the sparsity structure of the Jacobian of the constraints. In the second mode the user provides the actual Jacobian values. Julia is 1-based, in the sense that indexing always starts at 1 (unlike C, which starts at 0).::
 
-  function eval_jac_g(
-    prob::IpoptProblem,
+  function eval_jac_g(    
     x::Vector{Float64},         # Current solution
     mode,                       # Either :Structure or :Values
     rows::Vector{Int32},        # Sparsity structure - row indices
@@ -309,8 +308,7 @@ eval_h
 
 Similar to the Jacobian, except for the Hessian of the Lagrangian. See documentation for full details of the meaning of everything.::
 
-  function eval_h(
-    prob::IpoptProblem,         
+  function eval_h(       
     x::Vector{Float64},         # Current solution
     mode,                       # Either :Structure or :Values
     rows::Vector{Int32},        # Sparsity structure - row indices

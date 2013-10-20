@@ -68,7 +68,7 @@ module Ipopt
     # Extract Julia the problem from the pointer
     prob = unsafe_pointer_to_objref(user_data)::IpoptProblem
     # Calculate the new objective
-    new_obj = convert(Float64, prob.eval_f(prob, pointer_to_array(x_ptr, int(n))))
+    new_obj = convert(Float64, prob.eval_f(pointer_to_array(x_ptr, int(n))))
     # Fill out the pointer
     unsafe_store!(obj_ptr, new_obj)
     # Done
@@ -81,7 +81,7 @@ module Ipopt
     prob = unsafe_pointer_to_objref(user_data)::IpoptProblem
     # Calculate the new constraint values
     new_g = pointer_to_array(g_ptr, int(m))
-    prob.eval_g(prob, pointer_to_array(x_ptr, int(n)), new_g)
+    prob.eval_g(pointer_to_array(x_ptr, int(n)), new_g)
     # Done
     return int32(1)
   end
@@ -92,7 +92,7 @@ module Ipopt
     prob = unsafe_pointer_to_objref(user_data)::IpoptProblem
     # Calculate the gradient
     new_grad_f = pointer_to_array(grad_f_ptr, int(n))
-    prob.eval_grad_f(prob, pointer_to_array(x_ptr, int(n)), new_grad_f)
+    prob.eval_grad_f(pointer_to_array(x_ptr, int(n)), new_grad_f)
     # Done
     return int32(1)
   end
@@ -107,7 +107,7 @@ module Ipopt
     rows = pointer_to_array(iRow, int(nele_jac))
     cols = pointer_to_array(jCol, int(nele_jac))
     values = pointer_to_array(values, int(nele_jac))
-    prob.eval_jac_g(prob, x, mode, rows, cols, values)
+    prob.eval_jac_g(x, mode, rows, cols, values)
     # Done
     return int32(1)
   end
@@ -123,7 +123,7 @@ module Ipopt
     rows = pointer_to_array(iRow, int(nele_hess))
     cols = pointer_to_array(jCol, int(nele_hess))
     values = pointer_to_array(values, int(nele_hess))
-    prob.eval_h(prob, x, mode, rows, cols, obj_factor, lambda, values)
+    prob.eval_h(x, mode, rows, cols, obj_factor, lambda, values)
     # Done
     return int32(1)
   end
