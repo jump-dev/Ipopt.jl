@@ -229,7 +229,8 @@ SetIntermediateCallback
 (C function(s): ``SetIntermediateCallback``)::
 
   function SetIntermediateCallback(
-    prob::IpoptProblem, intermediate_cb)
+    prob::IpoptProblem,
+    intermediate::Function)
 
 Sets a callback function that will be called after every iteration of the
 algorithm. See Callbacks section for more information.

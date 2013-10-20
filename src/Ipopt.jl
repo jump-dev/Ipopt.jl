@@ -22,13 +22,14 @@ module Ipopt
     eval_grad_f::Function
     eval_jac_g::Function
     eval_h::Function
+    intermediate::Function
 
     function IpoptProblem(
       ref::Ptr{Void}, n, m,
       eval_f, eval_g, eval_grad_f, eval_jac_g, eval_h)
 
       prob = new(ref, n, m, zeros(Float64, n), 0.0,
-                 eval_f, eval_g, eval_grad_f, eval_jac_g, eval_h)
+                 eval_f, eval_g, eval_grad_f, eval_jac_g, eval_h, nothing)
       # Free the internal IpoptProblem structure when
       # the Julia IpoptProblem instance goes out of scope
       finalizer(prob, FreeProblem)
@@ -114,7 +115,7 @@ module Ipopt
 
   # Hessian
   function eval_h_wrapper(n::Cint, x_ptr::Ptr{Float64}, new_x::Cint, obj_factor::Float64, m::Cint, lambda_ptr::Ptr{Float64}, new_lambda::Cint, nele_hess::Cint, iRow::Ptr{Cint}, jCol::Ptr{Cint}, values::Ptr{Float64}, user_data::Ptr{Void})
-   # Extract Julia the problem from the pointer
+    # Extract Julia the problem from the pointer
     prob = unsafe_pointer_to_objref(user_data)::IpoptProblem
     # Determine mode
     mode = (values == C_NULL) ? (:Structure) : (:Values)
@@ -126,6 +127,15 @@ module Ipopt
     prob.eval_h(x, mode, rows, cols, obj_factor, lambda, values)
     # Done
     return int32(1)
+  end
+
+  # Intermediate
+  function intermediate_wrapper(alg_mod::Cint, iter_count::Cint, obj_value::Float64, inf_pr::Float64, inf_du::Float64, mu::Float64, d_norm::Float64, regularization_size::Float64, alpha_du::Float64, alpha_pr::Float64, ls_trials::Cint, user_data::Ptr{Void})
+    # Extract Julia the problem from the pointer
+    prob = unsafe_pointer_to_objref(user_data)::IpoptProblem
+    keepgoing = prob.intermediate(int(alg_mod), int(iter_count), obj_value, inf_pr, inf_du, mu, d_norm, regularization_size, alpha_du, alpha_pr, int(ls_trials))
+    # Done
+    return keepgoing ? int32(1) : int32(0)
   end
 
   ###########################################################################
@@ -241,26 +251,18 @@ module Ipopt
   end
 
   
-  function SetIntermediateCallback(prob::IpoptProblem, intermediate_cb)
-    #/** Setting a callback function for the "intermediate callback"
-    # *  method in the TNLP.  This gives control back to the user once
-    # *  per iteration.  If set, it provides the user with some
-    # *  information on the state of the optimization.  This can be used
-    # *  to print some user-defined output.  It also gives the user a way
-    # *  to terminate the optimization prematurely.  If the callback
-    # *  method returns false, Ipopt will terminate the optimization.
-    # *  Calling this set method to set the CB pointer to NULL disables
-    # *  the intermediate callback functionality. */
-    wrapper = cfunction(intermediate_cb, Cint, (Cint, Cint,
-                                                Float64, Float64, Float64, Float64,
-                                                Float64, Float64, Float64, Float64,
-                                                Cint, Ptr{Void}))
-    ret = ccall((:SetIntermediateCallback, libipopt), Cint, (Ptr{Void}, Ptr{Void}),
-                                                               prob.ref, wrapper)
+  function SetIntermediateCallback(prob::IpoptProblem, intermediate::Function)
+    intermediate_cb = cfunction(intermediate_wrapper, Cint,
+                        (Cint, Cint, Float64, Float64, Float64, Float64,
+                        Float64, Float64, Float64, Float64, Cint, Ptr{Void}))
+    ret = ccall((:SetIntermediateCallback, libipopt), Cint,
+                (Ptr{Void}, Ptr{Void}), prob.ref, intermediate_cb)
+    prob.intermediate = intermediate
     if ret == 0
       error("IPOPT: Something went wrong setting the intermediate callback.")
     end
   end
+
 
   # TODO: Expose full functionality
   function SolveProblem(prob::IpoptProblem)

@@ -95,14 +95,12 @@ function eval_h(x::Vector{Float64}, mode, rows::Vector{Int32}, cols::Vector{Int3
   end
 end
 
-function intermediate(alg_mod::Cint, iter_count::Cint, 
+function intermediate(alg_mod::Int, iter_count::Int, 
   obj_value::Float64, inf_pr::Float64, inf_du::Float64, mu::Float64,
   d_norm::Float64, regularization_size::Float64, alpha_du::Float64, alpha_pr::Float64, 
-  ls_trials::Cint, user_data::Ptr{Void})
-  println("Intermediate")
-  println(alg_mod)
-  println(obj_value)
-  return int32(1)
+  ls_trials::Int)
+  println("Iteration $iter_count, objective value is $obj_value.")
+  return true
 end
 
 n = 4
