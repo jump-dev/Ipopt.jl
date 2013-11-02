@@ -16,6 +16,7 @@ module Ipopt
     x::Vector{Float64}  # Starting and final solution
     g::Vector{Float64}  # Final constraint values
     obj_val::Float64  # Final objective
+    status::Int  # Final status
     
     # Callbacks
     eval_f::Function
@@ -25,12 +26,15 @@ module Ipopt
     eval_h  # Can be nothing
     intermediate  # Can be nothing
 
+    # For MathProgBase
+    sense::Symbol
+
     function IpoptProblem(
       ref::Ptr{Void}, n, m,
       eval_f, eval_g, eval_grad_f, eval_jac_g, eval_h)
-
-      prob = new(ref, n, m, zeros(Float64, n), zeros(Float64, m), 0.0,
-                 eval_f, eval_g, eval_grad_f, eval_jac_g, eval_h, nothing)
+      prob = new(ref, n, m, zeros(Float64, n), zeros(Float64, m), 0.0, 0,
+                 eval_f, eval_g, eval_grad_f, eval_jac_g, eval_h, nothing,
+                 :Min)
       # Free the internal IpoptProblem structure when
       # the Julia IpoptProblem instance goes out of scope
       finalizer(prob, freeProblem)
@@ -164,7 +168,6 @@ module Ipopt
     eval_h_cb = cfunction(eval_h_wrapper, Cint, 
                         (Cint, Ptr{Float64}, Cint, Float64, Cint, Ptr{Float64}, Cint, Cint, Ptr{Cint}, Ptr{Cint}, Ptr{Float64}, Ptr{Void}))
 
-
     ret = ccall((:CreateIpoptProblem, libipopt), Ptr{Void},
         (Cint, Ptr{Float64}, Ptr{Float64},  # Num vars, var lower and upper bounds
          Cint, Ptr{Float64}, Ptr{Float64},  # Num constraints, con lower and upper bounds
@@ -286,10 +289,12 @@ module Ipopt
                 Cint, (Ptr{Void}, Ptr{Float64}, Ptr{Float64}, Ptr{Float64}, Ptr{Float64}, Ptr{Float64}, Ptr{Float64}, Any),
                 prob.ref, prob.x, prob.g, final_objval, mult_g, mult_x_L, mult_x_U, prob)
     prob.obj_val = final_objval[1]
-    
+    prob.status = int(ret)
+
     return int(ret)
   end
 
 
+  include("IpoptSolverInterface.jl")
 
 end # module
