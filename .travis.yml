@@ -12,7 +12,7 @@ before_install:
     - git config --global user.name "Travis User"
     - git config --global user.email "travis@example.net"
 script:
-    - julia -e 'versioninfo(); Pkg.init(); Pkg.add("BinDeps");'
+    - julia -e 'versioninfo(); Pkg.init(); Pkg.add("BinDeps"); Pkg.add("MathProgBase")'
     - mkdir -p ~/.julia/Ipopt
     - cp -R ./* ~/.julia/Ipopt/
     - cd ~/.julia/Ipopt/deps
