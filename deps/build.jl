@@ -59,6 +59,6 @@ windir = WORD_SIZE == 32 ? "Win32" : "x64"
 
 @windows_only push!(BinDeps.defaults, BuildProcess)
 
-@BinDeps.install
+@BinDeps.install [:libipopt => :libipopt]
 
 @windows_only pop!(BinDeps.defaults)

@@ -1,7 +1,10 @@
 module Ipopt
 
-  using BinDeps
-  @BinDeps.load_dependencies
+if isfile(joinpath(Pkg.dir("Ipopt"),"deps","deps.jl"))
+    include("../deps/deps.jl")
+else
+    error("Ipopt not properly installed. Please run Pkg.build(\"Ipopt\")")
+end
   
   export createProblem, addOption
   export openOutputFile, setProblemScaling, setIntermediateCallback
