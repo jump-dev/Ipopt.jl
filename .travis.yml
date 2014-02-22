@@ -15,5 +15,5 @@ before_install:
     - git config --global user.name "Travis User"
     - git config --global user.email "travis@example.net"
 script:
-    - julia -e 'versioninfo(); Pkg.init(); Pkg.add("BinDeps"); Pkg.add("MathProgBase"); Pkg.clone(pwd());'
+    - julia -e 'versioninfo(); Pkg.init(); Pkg.add("BinDeps"); Pkg.add("MathProgBase"); Pkg.clone(pwd()); Pkg.build("Ipopt");'
     - julia ./test/runtests.jl
