@@ -5,7 +5,7 @@ using BinDeps
 windllname = "IpOpt-vc10"
 libipopt = library_dependency("libipopt", aliases=[windllname])
 
-ipoptname = "Ipopt-3.11.4"
+ipoptname = "Ipopt-3.11.7"
 
 provides(Sources, URI("http://www.coin-or.org/download/source/Ipopt/$ipoptname.tgz"),
     libipopt, os = :Unix)
@@ -19,12 +19,11 @@ provides(SimpleBuild,
         GetSources(libipopt)
         @build_steps begin
             ChangeDirectory(srcdir)
-            `cat $patchdir/ipopt-shlibs.patch` |> `patch -p1`
             @build_steps begin
                 ChangeDirectory(joinpath(srcdir,"ThirdParty","Mumps"))
                 `./get.Mumps`
             end
-            `./configure --prefix=$prefix`
+            `./configure --prefix=$prefix --enable-dependency-linking`
             `make install`
         end
     end),libipopt, os = :Unix)
