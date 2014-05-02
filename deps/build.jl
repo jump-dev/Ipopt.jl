@@ -20,10 +20,30 @@ provides(SimpleBuild,
         @build_steps begin
             ChangeDirectory(srcdir)
             @build_steps begin
+                ChangeDirectory(joinpath(srcdir,"ThirdParty","Blas"))
+                CreateDirectory("build", true)
+                `./get.Blas`
+            end
+            @build_steps begin
+                ChangeDirectory(joinpath(srcdir,"ThirdParty","Blas","build"))
+                `../configure --prefix=$prefix --disable-shared --with-pic`
+                `make install`
+            end
+            @build_steps begin
+                ChangeDirectory(joinpath(srcdir,"ThirdParty","Lapack"))
+                CreateDirectory("build", true)
+                `./get.Lapack`
+            end
+            @build_steps begin
+                ChangeDirectory(joinpath(srcdir,"ThirdParty","Lapack","build"))
+                `../configure --prefix=$prefix --disable-shared --with-pic`
+                `make install`
+            end
+            @build_steps begin
                 ChangeDirectory(joinpath(srcdir,"ThirdParty","Mumps"))
                 `./get.Mumps`
             end
-            `./configure --prefix=$prefix --enable-dependency-linking`
+            `./configure --prefix=$prefix --enable-dependency-linking --with-blas=$prefix/lib/libcoinblas.a --with-lapack=$prefix/lib/libcoinlapack.a`
             `make install`
         end
     end),libipopt, os = :Unix)
