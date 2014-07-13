@@ -94,6 +94,62 @@ function loadproblem!(model::IpoptMathProgModel, A, l, u, c, lb, ub, sense)
   end
 end
 
+# generic nonlinear interface
+function loadnonlinearproblem!(m::IpoptMathProgModel, numVar::Integer, numConstr::Integer, x_l, x_u, g_lb, g_ub, sense::Symbol, d::AbstractNLPEvaluator)
+
+    initialize(d, [:Grad, :Jac, :Hess])
+    Ijac, Jjac = jac_structure(d)
+    Ihess, Jhess = hesslag_structure(d)
+    @assert length(Ijac) == length(Jjac)
+    @assert length(Ihess) == length(Jhess)
+    @assert sense == :Min # for now
+
+    # Objective callback
+    eval_f_cb(x) = eval_f(d,x)
+
+    # Objective gradient callback
+    eval_grad_f_cb(x, grad_f) = eval_grad_f(d, grad_f, x)
+
+    # Constraint value callback
+    eval_g_cb(x, g) = eval_g(d, g, x)
+
+    # Jacobian callback
+    function eval_jac_g_cb(x, mode, rows, cols, values)
+        if mode == :Structure
+            for i in 1:length(Ijac)
+                rows[i] = Ijac[i]
+                cols[i] = Jjac[i]
+            end
+        else
+            eval_jac_g(d, values, x)
+        end
+    end
+
+    # Hessian callback
+    function eval_h_cb(x, mode, rows, cols, obj_factor,
+        lambda, values)
+        if mode == :Structure
+            for i in 1:length(Ihess)
+                rows[i] = Ihess[i]
+                cols[i] = Jhess[i]
+            end
+        else
+            eval_hesslag(d, values, x, obj_factor, lambda)
+        end
+    end
+
+
+    m.inner = createProblem(numVar, float(x_l), float(x_u), numConstr,
+                                float(g_lb), float(g_ub), length(Ijac), length(Ihess),
+                                eval_f_cb, eval_g_cb, eval_grad_f_cb, eval_jac_g_cb,
+                                eval_h_cb)
+    m.inner.sense = sense
+
+    for (name,value) in m.options
+        addOption(m.inner, string(name), value)
+    end
+end
+
 getsense(m::IpoptMathProgModel) = m.inner.sense
 numvar(m::IpoptMathProgModel) = m.inner.n
 numconstr(m::IpoptMathProgModel) = m.inner.m
@@ -110,3 +166,4 @@ getconstrsolution(m::IpoptMathProgModel) = m.inner.g
 getreducedcosts(m::IpoptMathProgModel) = zeros(m.inner.n)
 getconstrduals(m::IpoptMathProgModel) = zeros(m.inner.m)
 getrawsolver(m::IpoptMathProgModel) = m.inner
+setwarmstart!(m::IpoptMathProgModel, x) = copy!(m.inner.x, x) # starting point

@@ -49,3 +49,7 @@ openOutputFile(prob, "blah.txt", 5)
     # x,y >= 0
     sol = linprog([-1,-1],[-1 2],'<',[0],solver)
 #    @test sol.status == :Unbounded
+
+
+include(joinpath(Pkg.dir("MathProgBase"),"test","nlp.jl"))
+nlptest(IpoptSolver())
