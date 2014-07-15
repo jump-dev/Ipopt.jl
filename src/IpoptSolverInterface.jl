@@ -102,13 +102,22 @@ function loadnonlinearproblem!(m::IpoptMathProgModel, numVar::Integer, numConstr
     Ihess, Jhess = hesslag_structure(d)
     @assert length(Ijac) == length(Jjac)
     @assert length(Ihess) == length(Jhess)
-    @assert sense == :Min # for now
+    @assert sense == :Min || sense == :Max
 
     # Objective callback
-    eval_f_cb(x) = eval_f(d,x)
+    if sense == :Min
+        eval_f_cb(x) = eval_f(d,x)
+    else
+        eval_f_cb(x) = -eval_f(d,x)
+    end
 
     # Objective gradient callback
-    eval_grad_f_cb(x, grad_f) = eval_grad_f(d, grad_f, x)
+    if sense == :Min
+        eval_grad_f_cb(x, grad_f) = eval_grad_f(d, grad_f, x)
+    else
+        eval_grad_f_cb(x, grad_f) = (eval_grad_f(d, grad_f, x); scale!(grad_f,-1))
+    end
+
 
     # Constraint value callback
     eval_g_cb(x, g) = eval_g(d, g, x)
@@ -134,6 +143,9 @@ function loadnonlinearproblem!(m::IpoptMathProgModel, numVar::Integer, numConstr
                 cols[i] = Jhess[i]
             end
         else
+            if sense == :Max
+                obj_factor *= -1
+            end
             eval_hesslag(d, values, x, obj_factor, lambda)
         end
     end
