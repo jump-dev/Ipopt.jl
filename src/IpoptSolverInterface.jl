@@ -1,6 +1,5 @@
 # Standard LP interface
-require(joinpath(Pkg.dir("MathProgBase"),"src","MathProgSolverInterface.jl"))
-importall MathProgSolverInterface
+importall MathProgBase.SolverInterface
 
 ###############################################################################
 # Solver objects
