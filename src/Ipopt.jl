@@ -77,7 +77,7 @@ end
     # Extract Julia the problem from the pointer
     prob = unsafe_pointer_to_objref(user_data)::IpoptProblem
     # Calculate the new objective
-    new_obj = convert(Float64, prob.eval_f(pointer_to_array(x_ptr, int(n))))
+    new_obj = convert(Float64, prob.eval_f(pointer_to_array(x_ptr, int(n))))::Float64
     # Fill out the pointer
     unsafe_store!(obj_ptr, new_obj)
     # Done
@@ -107,36 +107,36 @@ end
   end
 
   # Jacobian (eval_jac_g)
-  function eval_jac_g_wrapper(n::Cint, x_ptr::Ptr{Float64}, new_x::Cint, m::Cint, nele_jac::Cint, iRow::Ptr{Cint}, jCol::Ptr{Cint}, values::Ptr{Float64}, user_data::Ptr{Void})
+  function eval_jac_g_wrapper(n::Cint, x_ptr::Ptr{Float64}, new_x::Cint, m::Cint, nele_jac::Cint, iRow::Ptr{Cint}, jCol::Ptr{Cint}, values_ptr::Ptr{Float64}, user_data::Ptr{Void})
     # Extract Julia the problem from the pointer
     prob = unsafe_pointer_to_objref(user_data)::IpoptProblem
     # Determine mode
-    mode = (values == C_NULL) ? (:Structure) : (:Values)
+    mode = (values_ptr == C_NULL) ? (:Structure) : (:Values)
     x = pointer_to_array(x_ptr, int(n))
     rows = pointer_to_array(iRow, int(nele_jac))
     cols = pointer_to_array(jCol, int(nele_jac))
-    values = pointer_to_array(values, int(nele_jac))
+    values = pointer_to_array(values_ptr, int(nele_jac))
     prob.eval_jac_g(x, mode, rows, cols, values)
     # Done
     return int32(1)
   end
 
   # Hessian
-  function eval_h_wrapper(n::Cint, x_ptr::Ptr{Float64}, new_x::Cint, obj_factor::Float64, m::Cint, lambda_ptr::Ptr{Float64}, new_lambda::Cint, nele_hess::Cint, iRow::Ptr{Cint}, jCol::Ptr{Cint}, values::Ptr{Float64}, user_data::Ptr{Void})
+  function eval_h_wrapper(n::Cint, x_ptr::Ptr{Float64}, new_x::Cint, obj_factor::Float64, m::Cint, lambda_ptr::Ptr{Float64}, new_lambda::Cint, nele_hess::Cint, iRow::Ptr{Cint}, jCol::Ptr{Cint}, values_ptr::Ptr{Float64}, user_data::Ptr{Void})
     # Extract Julia the problem from the pointer
     prob = unsafe_pointer_to_objref(user_data)::IpoptProblem
     # Did the user specify a Hessian
-    if prob.eval_h == nothing
+    if prob.eval_h === nothing
       # No Hessian provided
       return int32(0)
     else
       # Determine mode
-      mode = (values == C_NULL) ? (:Structure) : (:Values)
+      mode = (values_ptr == C_NULL) ? (:Structure) : (:Values)
       x = pointer_to_array(x_ptr, int(n))
       lambda = pointer_to_array(lambda_ptr, int(m))
       rows = pointer_to_array(iRow, int(nele_hess))
       cols = pointer_to_array(jCol, int(nele_hess))
-      values = pointer_to_array(values, int(nele_hess))
+      values = pointer_to_array(values_ptr, int(nele_hess))
       prob.eval_h(x, mode, rows, cols, obj_factor, lambda, values)
       # Done
       return int32(1)
