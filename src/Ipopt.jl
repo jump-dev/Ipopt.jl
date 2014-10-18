@@ -282,6 +282,7 @@ end
                 Cint, (Ptr{Void}, Ptr{Float64}, Ptr{Float64}, Ptr{Float64}, Ptr{Float64}, Ptr{Float64}, Ptr{Float64}, Any),
                 prob.ref, prob.x, prob.g, final_objval, C_NULL, C_NULL, C_NULL, prob)
     prob.obj_val = final_objval[1]
+    prob.status = int(ret)
     
     return int(ret)
   end
