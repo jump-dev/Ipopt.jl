@@ -166,10 +166,43 @@ numvar(m::IpoptMathProgModel) = m.inner.n
 numconstr(m::IpoptMathProgModel) = m.inner.m
 optimize!(m::IpoptMathProgModel) = solveProblem(m.inner)
 function status(m::IpoptMathProgModel)
-  if m.inner.status == 0 || m.inner.status == 1
-    return :Optimal
-  end
-  return :Infeasible
+    # Map all the possible return codes, as enumerated in
+    # Ipopt.ApplicationReturnStatus, to the MPB statuses:
+    # :Optimal, :Infeasible, :Unbounded, :UserLimit, and :Error
+    stat_sym = ApplicationReturnStatus[m.inner.status]
+    if  stat_sym == :Solve_Succeeded || 
+        stat_sym == :Solved_To_Acceptable_Level
+        return :Optimal
+    elseif stat_sym == :Infeasible_Problem_Detected
+        return :Infeasible
+    elseif stat_sym == :Diverging_Iterates
+        return :Unbounded
+    # Things that are more likely to be fixable by changing
+    # a parameter will be treated as UserLimit, although
+    # some are error-like too.
+    elseif stat_sym == :User_Requested_Stop ||
+           stat_sym == :Maximum_Iterations_Exceeded ||
+           stat_sym == :Maximum_CpuTime_Exceeded
+        return :UserLimit
+    else
+        # Default is to not mislead user that it worked
+        # Includes:
+        #   :Search_Direction_Becomes_Too_Small
+        #   :Feasible_Point_Found
+        #   :Restoration_Failed
+        #   :Error_In_Step_Computation
+        #   :Not_Enough_Degrees_Of_Freedom
+        #   :Invalid_Problem_Definition
+        #   :Invalid_Option
+        #   :Invalid_Number_Detected
+        #   :Unrecoverable_Exception
+        #   :NonIpopt_Exception_Thrown
+        #   :Insufficient_Memory
+        #   :Internal_Error
+        warn("Ipopt finished with status $stat_sym")
+        return :Error
+    end
+
 end
 getobjval(m::IpoptMathProgModel) = m.inner.obj_val * (m.inner.sense == :Max ? -1 : +1)
 getsolution(m::IpoptMathProgModel) = m.inner.x

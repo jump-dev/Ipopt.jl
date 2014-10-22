@@ -46,7 +46,7 @@ end
     end
   end
 
-
+  # From Ipopt/src/Interfaces/IpReturnCodes_inc.h
   ApplicationReturnStatus = {
     0=>:Solve_Succeeded,
     1=>:Solved_To_Acceptable_Level,
