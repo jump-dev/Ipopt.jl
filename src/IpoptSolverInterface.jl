@@ -5,16 +5,18 @@ importall MathProgBase.SolverInterface
 # Solver objects
 export IpoptSolver
 immutable IpoptSolver <: AbstractMathProgSolver
-  options
+    options
 end
 IpoptSolver(;kwargs...) = IpoptSolver(kwargs)
 
 type IpoptMathProgModel <: AbstractMathProgModel
-  inner::Any
-  options
+    inner::Any
+    LPdata
+    state::Symbol # Uninitialized, LoadLinear, LoadNonlinear
+    options
 end
 function IpoptMathProgModel(;options...)
-  return IpoptMathProgModel(nothing,options)
+    return IpoptMathProgModel(nothing,nothing,:Uninitialized,options)
 end
 model(s::IpoptSolver) = IpoptMathProgModel(;s.options...)
 export model
@@ -22,75 +24,80 @@ export model
 ###############################################################################
 # Begin interface implementation
 function loadproblem!(model::IpoptMathProgModel, A, l, u, c, lb, ub, sense)
-  Asparse = convert(SparseMatrixCSC{Float64,Int32}, A)
-  n = int(Asparse.n)
-  m = int(Asparse.m)
-  nnz = int(length(Asparse.rowval))
-  c_correct = float(c)
-  if sense == :Max
-    c_correct .*= -1.0
-  end
+    model.LPdata = (A,l,u,c,lb,ub,sense)
+    model.state = :LoadLinear
+end
 
-
-  # Objective callback
-  function eval_f(x)
-    return dot(x,c_correct)
-  end
-
-  # Objective gradient callback
-  function eval_grad_f(x, grad_f)
-    for j = 1:n
-      grad_f[j] = c_correct[j]
+function createQPcallbacks(model::IpoptMathProgModel)
+    @assert model.state == :LoadLinear
+    A,l,u,c,lb,ub,sense = model.LPdata
+    Asparse = convert(SparseMatrixCSC{Float64,Int32}, A)::SparseMatrixCSC{Float64,Int32}
+    n = int(Asparse.n)
+    m = int(Asparse.m)
+    nnz = int(length(Asparse.rowval))
+    c_correct = float(c)::Vector{Float64}
+    if sense == :Max
+        c_correct .*= -1.0
     end
-  end
 
-  # Constraint value callback
-  function eval_g(x, g)
-    g_val = A*x
-    for i = 1:m
-      g[i] = g_val[i]
+
+    # Objective callback
+    function eval_f(x)
+        return dot(x,c_correct)
     end
-  end
 
-  # Jacobian callback
-  function eval_jac_g(x, mode, rows, cols, values)
-    if mode == :Structure
-      # Convert column wise sparse to triple format
-      idx = 1
-      for col = 1:n
-        for pos = Asparse.colptr[col]:(Asparse.colptr[col+1]-1)
-          rows[idx] = Asparse.rowval[pos]
-          cols[idx] = col
-          idx += 1
+    # Objective gradient callback
+    function eval_grad_f(x, grad_f)
+        for j = 1:n
+            grad_f[j] = c_correct[j]
         end
-      end
-    else
-      # Values
-      idx = 1
-      for col = 1:n
-        for pos = Asparse.colptr[col]:(Asparse.colptr[col+1]-1)
-          values[idx] = Asparse.nzval[pos]
-          idx += 1
-        end
-      end
     end
-  end
 
-  x_L = float(l)
-  x_U = float(u)
-  g_L = float(lb)
-  g_U = float(ub)
-  model.inner = createProblem(n, x_L, x_U, m, g_L, g_U, nnz, 0,
-                              eval_f, eval_g, eval_grad_f, eval_jac_g, nothing)
-  model.inner.sense = sense
-  addOption(model.inner, "jac_c_constant", "yes")
-  addOption(model.inner, "jac_d_constant", "yes")
-  addOption(model.inner, "hessian_constant", "yes")
-  addOption(model.inner, "hessian_approximation", "limited-memory")
-  addOption(model.inner, "mehrotra_algorithm", "yes")
-  for (name,value) in model.options
-    addOption(model.inner, string(name), value)
-  end
+    # Constraint value callback
+    function eval_g(x, g)
+        g_val = A*x
+        for i = 1:m
+            g[i] = g_val[i]
+        end
+    end
+
+    # Jacobian callback
+    function eval_jac_g(x, mode, rows, cols, values)
+        if mode == :Structure
+            # Convert column wise sparse to triple format
+            idx = 1
+            for col = 1:n
+                for pos = Asparse.colptr[col]:(Asparse.colptr[col+1]-1)
+                    rows[idx] = Asparse.rowval[pos]
+                    cols[idx] = col
+                    idx += 1
+                end
+            end
+        else
+            # Values
+            idx = 1
+            for col = 1:n
+                for pos = Asparse.colptr[col]:(Asparse.colptr[col+1]-1)
+                    values[idx] = Asparse.nzval[pos]
+                    idx += 1
+                end
+            end
+        end
+    end
+
+    x_L = float(l)
+    x_U = float(u)
+    g_L = float(lb)
+    g_U = float(ub)
+    model.inner = createProblem(n, x_L, x_U, m, g_L, g_U, nnz, 0,
+    eval_f, eval_g, eval_grad_f, eval_jac_g, nothing)
+    model.inner.sense = sense
+    addOption(model.inner, "jac_c_constant", "yes")
+    addOption(model.inner, "jac_d_constant", "yes")
+    addOption(model.inner, "hessian_constant", "yes")
+    addOption(model.inner, "hessian_approximation", "limited-memory")
+    addOption(model.inner, "mehrotra_algorithm", "yes")
+
 end
 
 # generic nonlinear interface
@@ -151,20 +158,31 @@ function loadnonlinearproblem!(m::IpoptMathProgModel, numVar::Integer, numConstr
 
 
     m.inner = createProblem(numVar, float(x_l), float(x_u), numConstr,
-                                float(g_lb), float(g_ub), length(Ijac), length(Ihess),
-                                eval_f_cb, eval_g_cb, eval_grad_f_cb, eval_jac_g_cb,
-                                eval_h_cb)
+    float(g_lb), float(g_ub), length(Ijac), length(Ihess),
+    eval_f_cb, eval_g_cb, eval_grad_f_cb, eval_jac_g_cb,
+    eval_h_cb)
     m.inner.sense = sense
+    
+    m.state = :LoadNonlinear
 
-    for (name,value) in m.options
-        addOption(m.inner, string(name), value)
-    end
 end
 
 getsense(m::IpoptMathProgModel) = m.inner.sense
 numvar(m::IpoptMathProgModel) = m.inner.n
 numconstr(m::IpoptMathProgModel) = m.inner.m
-optimize!(m::IpoptMathProgModel) = solveProblem(m.inner)
+
+function optimize!(m::IpoptMathProgModel)
+    if m.state == :LoadLinear
+        createQPcallbacks(m)
+    else
+        @assert m.state == :LoadNonlinear
+    end
+    for (name,value) in m.options
+        addOption(m.inner, string(name), value)
+    end
+    solveProblem(m.inner)
+end
+
 function status(m::IpoptMathProgModel)
     # Map all the possible return codes, as enumerated in
     # Ipopt.ApplicationReturnStatus, to the MPB statuses:
@@ -177,12 +195,12 @@ function status(m::IpoptMathProgModel)
         return :Infeasible
     elseif stat_sym == :Diverging_Iterates
         return :Unbounded
-    # Things that are more likely to be fixable by changing
-    # a parameter will be treated as UserLimit, although
-    # some are error-like too.
+        # Things that are more likely to be fixable by changing
+        # a parameter will be treated as UserLimit, although
+        # some are error-like too.
     elseif stat_sym == :User_Requested_Stop ||
-           stat_sym == :Maximum_Iterations_Exceeded ||
-           stat_sym == :Maximum_CpuTime_Exceeded
+        stat_sym == :Maximum_Iterations_Exceeded ||
+        stat_sym == :Maximum_CpuTime_Exceeded
         return :UserLimit
     else
         # Default is to not mislead user that it worked
