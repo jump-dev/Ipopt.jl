@@ -55,3 +55,9 @@ include(joinpath(Pkg.dir("MathProgBase"),"test","nlp.jl"))
 nlptest(IpoptSolver())
 convexnlptest(IpoptSolver())
 rosenbrocktest(IpoptSolver())
+
+# QP test
+sol = quadprog([0., 0., 0.],[2. 1. 0.; 1. 2. 1.; 0. 1. 2.],[1. 2. 3.; 1. 1. 0.],'>',[4., 1.],-Inf,Inf,IpoptSolver())
+@test sol.status == :Optimal
+@test_approx_eq_eps sol.objval 130/70 1e-6
+@test_approx_eq_eps norm(sol.sol[1:3] - [0.5714285714285715,0.4285714285714285,0.8571428571428572]) 0.0 1e-6

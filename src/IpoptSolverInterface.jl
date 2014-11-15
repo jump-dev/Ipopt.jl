@@ -12,11 +12,15 @@ IpoptSolver(;kwargs...) = IpoptSolver(kwargs)
 type IpoptMathProgModel <: AbstractMathProgModel
     inner::Any
     LPdata
+    Qobj::(Vector{Int},Vector{Int},Vector{Float64})
     state::Symbol # Uninitialized, LoadLinear, LoadNonlinear
+    numvar::Int
+    numconstr::Int
+    warmstart::Vector{Float64}
     options
 end
 function IpoptMathProgModel(;options...)
-    return IpoptMathProgModel(nothing,nothing,:Uninitialized,options)
+    return IpoptMathProgModel(nothing,nothing,(Int[],Int[],Float64[]),:Uninitialized,0,0,Float64[],options)
 end
 model(s::IpoptSolver) = IpoptMathProgModel(;s.options...)
 export model
@@ -26,6 +30,13 @@ export model
 function loadproblem!(model::IpoptMathProgModel, A, l, u, c, lb, ub, sense)
     model.LPdata = (A,l,u,c,lb,ub,sense)
     model.state = :LoadLinear
+    model.numvar = size(A,2)
+    model.numconstr = size(A,1)
+end
+
+function setquadobj!(model::IpoptMathProgModel, rowidx, colidx, quadval)
+    @assert model.state == :LoadLinear # must be called after loadproblem!
+    model.Qobj = (rowidx, colidx, quadval)
 end
 
 function createQPcallbacks(model::IpoptMathProgModel)
@@ -36,20 +47,40 @@ function createQPcallbacks(model::IpoptMathProgModel)
     m = int(Asparse.m)
     nnz = int(length(Asparse.rowval))
     c_correct = float(c)::Vector{Float64}
+    Qi,Qj,Qv = model.Qobj
     if sense == :Max
         c_correct .*= -1.0
+        Qv .*= -1.0
     end
+    @assert length(Qi) == length(Qj) == length(Qv)
+
 
 
     # Objective callback
     function eval_f(x)
-        return dot(x,c_correct)
+        obj = dot(x,c_correct)
+        for k in 1:length(Qi)
+            if Qi[k] == Qj[k]
+                obj += Qv[k]*x[Qi[k]]*x[Qi[k]]/2
+            else
+                obj += Qv[k]*x[Qi[k]]*x[Qj[k]]
+            end
+        end
+        return obj
     end
 
     # Objective gradient callback
     function eval_grad_f(x, grad_f)
         for j = 1:n
             grad_f[j] = c_correct[j]
+        end
+        for k in 1:length(Qi)
+            if Qi[k] == Qj[k]
+                grad_f[Qi[k]] += Qv[k]*x[Qj[k]]
+            else
+                grad_f[Qi[k]] += Qv[k]*x[Qj[k]]
+                grad_f[Qj[k]] += Qv[k]*x[Qi[k]]
+            end
         end
     end
 
@@ -85,17 +116,31 @@ function createQPcallbacks(model::IpoptMathProgModel)
         end
     end
 
+    # Hessian callback
+    function eval_h(x, mode, rows, cols, obj_factor,
+        lambda, values)
+        if mode == :Structure
+            for k in 1:length(Qi)
+                rows[k] = Qi[k]
+                cols[k] = Qj[k]
+            end
+        else
+            for k in 1:length(Qi)
+                values[k] = obj_factor*Qv[k]
+            end
+        end
+    end
+
     x_L = float(l)
     x_U = float(u)
     g_L = float(lb)
     g_U = float(ub)
-    model.inner = createProblem(n, x_L, x_U, m, g_L, g_U, nnz, 0,
-    eval_f, eval_g, eval_grad_f, eval_jac_g, nothing)
+    model.inner = createProblem(n, x_L, x_U, m, g_L, g_U, nnz, length(Qv),
+    eval_f, eval_g, eval_grad_f, eval_jac_g, eval_h)
     model.inner.sense = sense
-    addOption(model.inner, "jac_c_constant", "yes")
-    addOption(model.inner, "jac_d_constant", "yes")
+    addOption(model.inner, "jac_c_constant", "yes") # all equality constraints linear
+    addOption(model.inner, "jac_d_constant", "yes") # all inequality constraints linear
     addOption(model.inner, "hessian_constant", "yes")
-    addOption(model.inner, "hessian_approximation", "limited-memory")
     addOption(model.inner, "mehrotra_algorithm", "yes")
 
 end
@@ -168,8 +213,8 @@ function loadnonlinearproblem!(m::IpoptMathProgModel, numVar::Integer, numConstr
 end
 
 getsense(m::IpoptMathProgModel) = m.inner.sense
-numvar(m::IpoptMathProgModel) = m.inner.n
-numconstr(m::IpoptMathProgModel) = m.inner.m
+numvar(m::IpoptMathProgModel) = m.numvar
+numconstr(m::IpoptMathProgModel) = m.numconstr
 
 function optimize!(m::IpoptMathProgModel)
     if m.state == :LoadLinear
@@ -177,6 +222,7 @@ function optimize!(m::IpoptMathProgModel)
     else
         @assert m.state == :LoadNonlinear
     end
+    copy!(m.inner.x, m.warmstart) # set warmstart
     for (name,value) in m.options
         addOption(m.inner, string(name), value)
     end
@@ -228,4 +274,4 @@ getconstrsolution(m::IpoptMathProgModel) = m.inner.g
 getreducedcosts(m::IpoptMathProgModel) = zeros(m.inner.n)
 getconstrduals(m::IpoptMathProgModel) = zeros(m.inner.m)
 getrawsolver(m::IpoptMathProgModel) = m.inner
-setwarmstart!(m::IpoptMathProgModel, x) = copy!(m.inner.x, x) # starting point
+setwarmstart!(m::IpoptMathProgModel, x) = (m.warmstart = x)
