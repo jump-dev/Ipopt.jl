@@ -271,7 +271,8 @@ end
 getobjval(m::IpoptMathProgModel) = m.inner.obj_val * (m.inner.sense == :Max ? -1 : +1)
 getsolution(m::IpoptMathProgModel) = m.inner.x
 getconstrsolution(m::IpoptMathProgModel) = m.inner.g
-getreducedcosts(m::IpoptMathProgModel) = zeros(m.inner.n)
-getconstrduals(m::IpoptMathProgModel) = zeros(m.inner.m)
+getreducedcosts(m::IpoptMathProgModel) = m.inner.mult_x_U - m.inner.mult_x_L
+# TODO: only valid when all constraints linear
+getconstrduals(m::IpoptMathProgModel) = m.inner.mult_g
 getrawsolver(m::IpoptMathProgModel) = m.inner
 setwarmstart!(m::IpoptMathProgModel, x) = (m.warmstart = x)

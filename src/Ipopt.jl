@@ -18,6 +18,9 @@ end
     m::Int  # Num cons
     x::Vector{Float64}  # Starting and final solution
     g::Vector{Float64}  # Final constraint values
+    mult_g::Vector{Float64} # lagrange multipliers on constraints
+    mult_x_L::Vector{Float64} # lagrange multipliers on lower bounds
+    mult_x_U::Vector{Float64} # lagrange multipliers on upper bounds
     obj_val::Float64  # Final objective
     status::Int  # Final status
     
@@ -35,7 +38,8 @@ end
     function IpoptProblem(
       ref::Ptr{Void}, n, m,
       eval_f, eval_g, eval_grad_f, eval_jac_g, eval_h)
-      prob = new(ref, n, m, zeros(Float64, n), zeros(Float64, m), 0.0, 0,
+      prob = new(ref, n, m, zeros(Float64, n), zeros(Float64, m), zeros(Float64,m),
+                 zeros(Float64,n), zeros(Float64,n), 0.0, 0,
                  eval_f, eval_g, eval_grad_f, eval_jac_g, eval_h, nothing,
                  :Min)
       # Free the internal IpoptProblem structure when
@@ -280,24 +284,12 @@ end
     final_objval = [0.0]
     ret = ccall((:IpoptSolve, libipopt),
                 Cint, (Ptr{Void}, Ptr{Float64}, Ptr{Float64}, Ptr{Float64}, Ptr{Float64}, Ptr{Float64}, Ptr{Float64}, Any),
-                prob.ref, prob.x, prob.g, final_objval, C_NULL, C_NULL, C_NULL, prob)
+                prob.ref, prob.x, prob.g, final_objval, prob.mult_g, prob.mult_x_L, prob.mult_x_U, prob)
     prob.obj_val = final_objval[1]
     prob.status = int(ret)
     
     return int(ret)
   end
-
-  function solveProblem(prob::IpoptProblem, mult_g::Vector{Float64}, mult_x_L::Vector{Float64}, mult_x_U::Vector{Float64})
-    final_objval = [0.0]
-    ret = ccall((:IpoptSolve, libipopt),
-                Cint, (Ptr{Void}, Ptr{Float64}, Ptr{Float64}, Ptr{Float64}, Ptr{Float64}, Ptr{Float64}, Ptr{Float64}, Any),
-                prob.ref, prob.x, prob.g, final_objval, mult_g, mult_x_L, mult_x_U, prob)
-    prob.obj_val = final_objval[1]
-    prob.status = int(ret)
-
-    return int(ret)
-  end
-
 
   include("IpoptSolverInterface.jl")
 
