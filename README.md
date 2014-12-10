@@ -1,4 +1,5 @@
-# Ipopt.jl
+Ipopt.jl
+========
 
 [![Build Status](https://travis-ci.org/JuliaOpt/Ipopt.jl.png?branch=master)](https://travis-ci.org/JuliaOpt/Ipopt.jl)
 [![Coverage Status](https://img.shields.io/coveralls/JuliaOpt/Ipopt.jl.svg)](https://coveralls.io/r/JuliaOpt/Ipopt.jl)
@@ -16,4 +17,15 @@ the required packages before installing, e.g.
 sudo apt-get install build-essential gfortran pkg-config
 ```
 
-Full documentation is available [here](http://ipoptjl.readthedocs.org/en/latest/ipopt.html).
+MathProgBase Interface
+----------------------
+
+Ipopt implements the solver-independent [MathProgBase](https://github.com/JuliaOpt/MathProgBase.jl) interface,
+and so can be used within modeling software like [JuMP](https://github.com/JuliaOpt/JuMP.jl).
+The solver object is called ``IpoptSolver``. All options listed in the [Ipopt documentation](http://www.coin-or.org/Ipopt/documentation/node39.html) may be passed directly. For example, you can suppress output by saying ``IpoptSolver(print_level=0)``.
+
+C Interface Wrapper
+-------------------
+
+Full documentation for the Ipopt C wrapper is available [here](http://ipoptjl.readthedocs.org/en/latest/ipopt.html). Use of the [nonlinear MathProgBase interface](http://mathprogbasejl.readthedocs.org/en/latest/nlp.html) is recommended over the low-level C interface because it permits one to easily switch between solvers.
+
