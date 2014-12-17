@@ -163,6 +163,8 @@ function createProblem(n::Int, x_L::Vector{Float64}, x_U::Vector{Float64},
     m::Int, g_L::Vector{Float64}, g_U::Vector{Float64},
     nele_jac::Int, nele_hess::Int, 
     eval_f, eval_g, eval_grad_f, eval_jac_g, eval_h = nothing)
+    @assert n == length(x_L) == length(x_U)
+    @assert m == length(g_L) == length(g_U)
     # Wrap callbacks
     eval_f_cb = cfunction(eval_f_wrapper, Cint,
     (Cint, Ptr{Float64}, Cint, Ptr{Float64}, Ptr{Void}))

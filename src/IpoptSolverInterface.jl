@@ -9,10 +9,22 @@ immutable IpoptSolver <: AbstractMathProgSolver
 end
 IpoptSolver(;kwargs...) = IpoptSolver(kwargs)
 
+type QuadConstr
+    linearidx::Vector{Int}
+    linearval::Vector{Float64}
+    quadrowidx::Vector{Int}
+    quadcolidx::Vector{Int}
+    quadval::Vector{Float64}
+    sense::Char
+    rhs::Float64
+end
+getdata(q::QuadConstr) = q.linearidx, q.linearval, q.quadrowidx, q.quadcolidx, q.quadval
+
 type IpoptMathProgModel <: AbstractMathProgModel
     inner::Any
     LPdata
     Qobj::(Vector{Int},Vector{Int},Vector{Float64})
+    Qconstr::Vector{QuadConstr}
     state::Symbol # Uninitialized, LoadLinear, LoadNonlinear
     numvar::Int
     numconstr::Int
@@ -20,7 +32,7 @@ type IpoptMathProgModel <: AbstractMathProgModel
     options
 end
 function IpoptMathProgModel(;options...)
-    return IpoptMathProgModel(nothing,nothing,(Int[],Int[],Float64[]),:Uninitialized,0,0,Float64[],options)
+    return IpoptMathProgModel(nothing,nothing,(Int[],Int[],Float64[]),QuadConstr[],:Uninitialized,0,0,Float64[],options)
 end
 model(s::IpoptSolver) = IpoptMathProgModel(;s.options...)
 export model
@@ -39,13 +51,21 @@ function setquadobj!(model::IpoptMathProgModel, rowidx, colidx, quadval)
     model.Qobj = (rowidx, colidx, quadval)
 end
 
+function addquadconstr!(model::AbstractMathProgModel, linearidx, linearval, quadrowidx, quadcolidx, quadval, sense, rhs)
+    @assert model.state == :LoadLinear # must be called after loadproblem!
+    push!(model.Qconstr, QuadConstr(linearidx, linearval, quadrowidx, quadcolidx, quadval, sense, rhs))
+    model.numconstr += 1
+end
+
 function createQPcallbacks(model::IpoptMathProgModel)
     @assert model.state == :LoadLinear
     A,l,u,c,lb,ub,sense = model.LPdata
     Asparse = convert(SparseMatrixCSC{Float64,Int32}, A)::SparseMatrixCSC{Float64,Int32}
-    n = int(Asparse.n)
-    m = int(Asparse.m)
-    nnz = int(length(Asparse.rowval))
+    n = size(Asparse,2)
+    m_lin = size(Asparse,1)
+    m_quad = length(model.Qconstr)
+    @assert m_lin + m_quad == model.numconstr
+    nnz_A = nnz(Asparse)
     c_correct = float(c)::Vector{Float64}
     Qi,Qj,Qv = model.Qobj
     if sense == :Max
@@ -53,6 +73,14 @@ function createQPcallbacks(model::IpoptMathProgModel)
         Qv .*= -1.0
     end
     @assert length(Qi) == length(Qj) == length(Qv)
+
+    jacQ_nnz = 0
+    hessQ_nnz = 0
+    for i in 1:m_quad
+        jacQ_nnz += length(model.Qconstr[i].linearidx)
+        jacQ_nnz += 2*length(model.Qconstr[i].quadrowidx)
+        hessQ_nnz += length(model.Qconstr[i].quadrowidx)
+    end
 
 
 
@@ -87,8 +115,19 @@ function createQPcallbacks(model::IpoptMathProgModel)
     # Constraint value callback
     function eval_g(x, g)
         g_val = A*x
-        for i = 1:m
+        for i = 1:m_lin
             g[i] = g_val[i]
+        end
+        for i in 1:m_quad
+            linearidx, linearval, quadrowidx, quadcolidx, quadval = getdata(model.Qconstr[i])
+            val = 0.0
+            for k in 1:length(linearidx)
+                val += linearval[k]*x[linearidx[k]]
+            end
+            for k in 1:length(quadrowidx)
+                val += quadval[k]*x[quadrowidx[k]]*x[quadcolidx[k]]
+            end
+            g[i+m_lin] = val
         end
     end
 
@@ -104,6 +143,21 @@ function createQPcallbacks(model::IpoptMathProgModel)
                     idx += 1
                 end
             end
+            for i in 1:m_quad
+                linearidx, linearval, quadrowidx, quadcolidx, quadval = getdata(model.Qconstr[i])
+                for k in 1:length(linearidx)
+                    rows[idx] = i+m_lin
+                    cols[idx] = linearidx[k]
+                    idx += 1
+                end
+                for k in 1:length(quadrowidx)
+                    rows[idx] = i+m_lin
+                    rows[idx+1] = i+m_lin
+                    cols[idx] = quadrowidx[k]
+                    cols[idx+1] = quadcolidx[k]
+                    idx += 2
+                end
+            end
         else
             # Values
             idx = 1
@@ -111,6 +165,18 @@ function createQPcallbacks(model::IpoptMathProgModel)
                 for pos = Asparse.colptr[col]:(Asparse.colptr[col+1]-1)
                     values[idx] = Asparse.nzval[pos]
                     idx += 1
+                end
+            end
+            for i in 1:m_quad
+                linearidx, linearval, quadrowidx, quadcolidx, quadval = getdata(model.Qconstr[i])
+                for k in 1:length(linearidx)
+                    values[idx] = linearval[k]
+                    idx += 1
+                end
+                for k in 1:length(quadrowidx)
+                    values[idx] = quadval[k]*x[quadcolidx[k]]
+                    values[idx+1] = quadval[k]*x[quadrowidx[k]]
+                    idx += 2
                 end
             end
         end
@@ -124,10 +190,43 @@ function createQPcallbacks(model::IpoptMathProgModel)
                 rows[k] = Qi[k]
                 cols[k] = Qj[k]
             end
+            idx = length(Qi)+1
+            for i in 1:m_quad
+                linearidx, linearval, quadrowidx, quadcolidx, quadval = getdata(model.Qconstr[i])
+                for k in 1:length(quadrowidx)
+                    qidx1 = quadrowidx[k]
+                    qidx2 = quadcolidx[k]
+                    if qidx2 > qidx1
+                        qidx1, qidx2 = qidx2, qidx1
+                    end
+                    rows[idx] = qidx1
+                    cols[idx] = qidx2
+                    idx += 1
+                end
+            end
         else
             for k in 1:length(Qi)
                 values[k] = obj_factor*Qv[k]
             end
+            idx = length(Qi) + 1
+            @show values
+            for i in 1:m_quad
+                println("QUAD CONSTR $i")
+                linearidx, linearval, quadrowidx, quadcolidx, quadval = getdata(model.Qconstr[i])
+                for k in 1:length(quadrowidx)
+                    l = lambda[m_lin+i]
+                    @show l, quadval[k]
+                    @show k
+                    if quadrowidx[k] == quadcolidx[k]
+                        values[idx] = l*2*quadval[k]
+                    else
+                        values[idx] = l*quadval[k]
+                    end
+                    idx += 1
+                end
+            end
+            @show lambda, x, values
+
         end
     end
 
@@ -135,12 +234,36 @@ function createQPcallbacks(model::IpoptMathProgModel)
     x_U = float(u)
     g_L = float(lb)
     g_U = float(ub)
-    model.inner = createProblem(n, x_L, x_U, m, g_L, g_U, nnz, length(Qv),
+    quadequality = false
+    quadinequality = false
+    for i in 1:m_quad
+        if model.Qconstr[i].sense == '<'
+            quadinequality = true
+            push!(g_L,-Inf)
+            push!(g_U,model.Qconstr[i].rhs)
+        elseif model.Qconstr[i].sense == '>'
+            quadinequality = true
+            push!(g_L,model.Qconstr[i].rhs)
+            push!(g_U,Inf)
+        else
+            @assert model.Qconstr[i].sense == '='
+            quadequality = true
+            push!(g_L,model.Qconstr[i].rhs)
+            push!(g_U,model.Qconstr[i].rhs)
+        end
+    end
+    model.inner = createProblem(n, x_L, x_U, m_lin + m_quad, g_L, g_U, nnz_A + jacQ_nnz, length(Qv) + hessQ_nnz,
     eval_f, eval_g, eval_grad_f, eval_jac_g, eval_h)
     model.inner.sense = sense
-    addOption(model.inner, "jac_c_constant", "yes") # all equality constraints linear
-    addOption(model.inner, "jac_d_constant", "yes") # all inequality constraints linear
-    addOption(model.inner, "hessian_constant", "yes")
+    if !quadequality
+        addOption(model.inner, "jac_c_constant", "yes") # all equality constraints linear
+    end
+    if !quadinequality
+        addOption(model.inner, "jac_d_constant", "yes") # all inequality constraints linear
+    end
+    if m_quad == 0
+        addOption(model.inner, "hessian_constant", "yes")
+    end
     addOption(model.inner, "mehrotra_algorithm", "yes")
 
 end
@@ -216,6 +339,23 @@ getsense(m::IpoptMathProgModel) = m.inner.sense
 numvar(m::IpoptMathProgModel) = m.numvar
 numconstr(m::IpoptMathProgModel) = m.numconstr
 
+function numlinconstr(m::IpoptMathProgModel)
+    if m.state == :LoadLinear
+        A,l,u,c,lb,ub,sense = m.LPdata
+        return size(A,1)
+    else
+        return 0
+    end
+end
+
+function numquadconstr(m::IpoptMathProgModel)
+    if m.state == :LoadLinear
+        return length(m.Qconstr)
+    else
+        return 0
+    end
+end
+
 function optimize!(m::IpoptMathProgModel)
     if m.state == :LoadLinear
         createQPcallbacks(m)
@@ -270,9 +410,23 @@ function status(m::IpoptMathProgModel)
 end
 getobjval(m::IpoptMathProgModel) = m.inner.obj_val * (m.inner.sense == :Max ? -1 : +1)
 getsolution(m::IpoptMathProgModel) = m.inner.x
-getconstrsolution(m::IpoptMathProgModel) = m.inner.g
+function getconstrsolution(m::IpoptMathProgModel)
+    @assert m.state == :LoadLinear
+    return m.inner.g[1:numlinconstr(m)]
+end
 getreducedcosts(m::IpoptMathProgModel) = m.inner.mult_x_U - m.inner.mult_x_L
-# TODO: only valid when all constraints linear
-getconstrduals(m::IpoptMathProgModel) = m.inner.mult_g
+function getconstrduals(m::IpoptMathProgModel)
+    @assert m.state == :LoadLinear
+    A,l,u,c,lb,ub,sense = m.LPdata
+    v = m.inner.mult_g[1:numlinconstr(m)]
+    return sense == :Max ? v : -v
+end
+function getquadconstrduals(m::IpoptMathProgModel)
+    @assert m.state == :LoadLinear
+    A,l,u,c,lb,ub,sense = m.LPdata
+    v = m.inner.mult_g[(numlinconstr(m)+1):end]
+    return sense == :Max ? v : -v
+end
+
 getrawsolver(m::IpoptMathProgModel) = m.inner
 setwarmstart!(m::IpoptMathProgModel, x) = (m.warmstart = x)

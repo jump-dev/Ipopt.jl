@@ -115,9 +115,9 @@ prob = createProblem(n, x_L, x_U, m, g_L, g_U, 8, 10,
                      eval_f, eval_g, eval_grad_f, eval_jac_g, eval_h)
 
 prob.x = [1.0, 5.0, 5.0, 1.0]
-status = solveProblem(prob)
+stat = solveProblem(prob)
 
-@test Ipopt.ApplicationReturnStatus[status] == :Solve_Succeeded
+@test Ipopt.ApplicationReturnStatus[stat] == :Solve_Succeeded
 @test_approx_eq_eps prob.x[1] 1.0000000000000000 1e-5
 @test_approx_eq_eps prob.x[2] 4.7429996418092970 1e-5
 @test_approx_eq_eps prob.x[3] 3.8211499817883077 1e-5
