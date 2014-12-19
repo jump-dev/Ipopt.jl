@@ -209,14 +209,10 @@ function createQPcallbacks(model::IpoptMathProgModel)
                 values[k] = obj_factor*Qv[k]
             end
             idx = length(Qi) + 1
-            @show values
             for i in 1:m_quad
-                println("QUAD CONSTR $i")
                 linearidx, linearval, quadrowidx, quadcolidx, quadval = getdata(model.Qconstr[i])
                 for k in 1:length(quadrowidx)
                     l = lambda[m_lin+i]
-                    @show l, quadval[k]
-                    @show k
                     if quadrowidx[k] == quadcolidx[k]
                         values[idx] = l*2*quadval[k]
                     else
@@ -225,7 +221,6 @@ function createQPcallbacks(model::IpoptMathProgModel)
                     idx += 1
                 end
             end
-            @show lambda, x, values
 
         end
     end
