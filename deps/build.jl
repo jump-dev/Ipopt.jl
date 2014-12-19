@@ -43,7 +43,7 @@ provides(SimpleBuild,
                 ChangeDirectory(joinpath(srcdir,"ThirdParty","Mumps"))
                 `./get.Mumps`
             end
-            `./configure --prefix=$prefix --enable-dependency-linking --with-blas=$prefix/lib/libcoinblas.a --with-lapack=$prefix/lib/libcoinlapack.a`
+            `./configure --prefix=$prefix --enable-dependency-linking coin_skip_warn_cxxflags=yes --with-blas=$prefix/lib/libcoinblas.a --with-lapack=$prefix/lib/libcoinlapack.a`
             `make install`
         end
     end),libipopt, os = :Unix)
