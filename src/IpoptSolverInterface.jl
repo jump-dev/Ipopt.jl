@@ -409,7 +409,12 @@ function getconstrsolution(m::IpoptMathProgModel)
     @assert m.state == :LoadLinear
     return m.inner.g[1:numlinconstr(m)]
 end
-getreducedcosts(m::IpoptMathProgModel) = m.inner.mult_x_U - m.inner.mult_x_L
+function getreducedcosts(m::IpoptMathProgModel)
+    @assert m.state == :LoadLinear
+    A,l,u,c,lb,ub,sense = m.LPdata
+    redcost = m.inner.mult_x_U - m.inner.mult_x_L
+    return sense == :Max ? redcost : -redcost
+end
 function getconstrduals(m::IpoptMathProgModel)
     @assert m.state == :LoadLinear
     A,l,u,c,lb,ub,sense = m.LPdata
