@@ -51,7 +51,7 @@ function setquadobj!(model::IpoptMathProgModel, rowidx, colidx, quadval)
     model.Qobj = (rowidx, colidx, quadval)
 end
 
-function addquadconstr!(model::AbstractMathProgModel, linearidx, linearval, quadrowidx, quadcolidx, quadval, sense, rhs)
+function addquadconstr!(model::IpoptMathProgModel, linearidx, linearval, quadrowidx, quadcolidx, quadval, sense, rhs)
     @assert model.state == :LoadLinear # must be called after loadproblem!
     push!(model.Qconstr, QuadConstr(linearidx, linearval, quadrowidx, quadcolidx, quadval, sense, rhs))
     model.numconstr += 1
