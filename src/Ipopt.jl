@@ -6,6 +6,8 @@ else
     error("Ipopt not properly installed. Please run Pkg.build(\"Ipopt\")")
 end
 
+using Compat
+
 export createProblem, addOption
 export openOutputFile, setProblemScaling, setIntermediateCallback
 export solveProblem
@@ -51,7 +53,7 @@ type IpoptProblem
 end
 
 # From Ipopt/src/Interfaces/IpReturnCodes_inc.h
-ApplicationReturnStatus = {
+ApplicationReturnStatus = @compat Dict(
 0=>:Solve_Succeeded,
 1=>:Solved_To_Acceptable_Level,
 2=>:Infeasible_Problem_Detected,
@@ -70,7 +72,7 @@ ApplicationReturnStatus = {
 -100=>:Unrecoverable_Exception,
 -101=>:NonIpopt_Exception_Thrown,
 -102=>:Insufficient_Memory,
--199=>:Internal_Error}
+-199=>:Internal_Error)
 
 
 ###########################################################################
