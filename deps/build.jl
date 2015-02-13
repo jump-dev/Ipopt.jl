@@ -5,7 +5,7 @@ using BinDeps
 windllname = "IpOpt-vc10"
 libipopt = library_dependency("libipopt", aliases=[windllname])
 
-ipoptname = "Ipopt-3.11.7"
+ipoptname = "Ipopt-3.12.1"
 
 provides(Sources, URI("http://www.coin-or.org/download/source/Ipopt/$ipoptname.tgz"),
     libipopt, os = :Unix)
@@ -40,11 +40,19 @@ provides(SimpleBuild,
                 `make install`
             end
             @build_steps begin
+                ChangeDirectory(joinpath(srcdir,"ThirdParty","ASL"))
+                `./get.ASL`
+            end
+            @build_steps begin
                 ChangeDirectory(joinpath(srcdir,"ThirdParty","Mumps"))
                 `./get.Mumps`
             end
-            `./configure --prefix=$prefix --enable-dependency-linking coin_skip_warn_cxxflags=yes --with-blas=$prefix/lib/libcoinblas.a --with-lapack=$prefix/lib/libcoinlapack.a`
-            `make install`
+            `./configure --prefix=$prefix coin_skip_warn_cxxflags=yes
+                         --with-blas="$prefix/lib/libcoinblas.a -lgfortran"
+                         --with-lapack=$prefix/lib/libcoinlapack.a`
+            `make`
+            `make test`
+            `make -j1 install`
         end
     end),libipopt, os = :Unix)
 
