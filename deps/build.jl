@@ -66,9 +66,6 @@ end
 # Windows
 @windows_only begin
     using WinRPM
-    # TODO: remove the next 2 lines once package is submitted to official repository
-    push!(WinRPM.sources, "http://download.opensuse.org/repositories/home:/kelman:/mingw-coinor/openSUSE_13.1")
-    WinRPM.update()
     provides(WinRPM.RPM, "Ipopt", [libipopt], os = :Windows)
 end
 
