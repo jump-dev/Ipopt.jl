@@ -3,3 +3,4 @@ BinDeps
 MathProgBase 0.3.7 0.4.0-
 @osx Homebrew
 Compat
+@windows WinRPM
