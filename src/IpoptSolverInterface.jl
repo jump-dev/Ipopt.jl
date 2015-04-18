@@ -23,7 +23,7 @@ getdata(q::QuadConstr) = q.linearidx, q.linearval, q.quadrowidx, q.quadcolidx, q
 type IpoptMathProgModel <: AbstractMathProgModel
     inner::Any
     LPdata
-    Qobj::(Vector{Int},Vector{Int},Vector{Float64})
+    Qobj::@compat Tuple{Vector{Int},Vector{Int},Vector{Float64}}
     Qconstr::Vector{QuadConstr}
     state::Symbol # Uninitialized, LoadLinear, LoadNonlinear
     numvar::Int
