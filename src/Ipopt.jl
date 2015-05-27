@@ -135,7 +135,7 @@ function eval_h_wrapper(n::Cint, x_ptr::Ptr{Float64}, new_x::Cint, obj_factor::F
     # Did the user specify a Hessian
     if prob.eval_h === nothing
         # No Hessian provided
-        return int32(0)
+        return @compat Int32(0)
     else
         # Determine mode
         mode = (values_ptr == C_NULL) ? (:Structure) : (:Values)
