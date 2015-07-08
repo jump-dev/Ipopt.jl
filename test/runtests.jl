@@ -59,3 +59,17 @@ rosenbrocktest(IpoptSolver())
 include(joinpath(Pkg.dir("MathProgBase"),"test","quadprog.jl"))
 quadprogtest(IpoptSolver())
 qpdualtest(IpoptSolver())
+
+# Test retoration only options
+#
+# Warm start with infeasible solution, force restoration on initial iteration. 
+# But limit to 0 iterations. Forces :UserLimit exit.
+m = MathProgSolverInterface.model(IpoptSolver(start_with_resto="yes", resto_max_iter=0))
+l = [1,1,1,1]
+u = [5,5,5,5]
+lb = [25, 40]
+ub = [Inf, 40]
+MathProgSolverInterface.loadnonlinearproblem!(m, 4, 2, l, u, lb, ub, :Min, HS071())
+MathProgSolverInterface.setwarmstart!(m,[0,15,15,11])
+MathProgSolverInterface.optimize!(m)
+@test MathProgSolverInterface.status(m) == :UserLimit

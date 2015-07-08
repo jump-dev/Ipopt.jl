@@ -1,10 +1,11 @@
 module Ipopt
 
-if isfile(joinpath(Pkg.dir("Ipopt"),"deps","deps.jl"))
+if isfile(joinpath(dirname(@__FILE__),"..","deps","deps.jl"))
     include("../deps/deps.jl")
 else
     error("Ipopt not properly installed. Please run Pkg.build(\"Ipopt\")")
 end
+amplexe = joinpath(dirname(libipopt), "..", "bin", "ipopt")
 
 using Compat
 
@@ -83,11 +84,11 @@ function eval_f_wrapper(n::Cint, x_ptr::Ptr{Float64}, new_x::Cint, obj_ptr::Ptr{
     # Extract Julia the problem from the pointer
     prob = unsafe_pointer_to_objref(user_data)::IpoptProblem
     # Calculate the new objective
-    new_obj = convert(Float64, prob.eval_f(pointer_to_array(x_ptr, int(n))))::Float64
+    new_obj = convert(Float64, prob.eval_f(pointer_to_array(x_ptr, @compat(Int(n)))))::Float64
     # Fill out the pointer
     unsafe_store!(obj_ptr, new_obj)
     # Done
-    return int32(1)
+    return @compat Int32(1)
 end
 
 # Constraints (eval_g)
@@ -95,10 +96,10 @@ function eval_g_wrapper(n::Cint, x_ptr::Ptr{Float64}, new_x::Cint, m::Cint, g_pt
     # Extract Julia the problem from the pointer
     prob = unsafe_pointer_to_objref(user_data)::IpoptProblem
     # Calculate the new constraint values
-    new_g = pointer_to_array(g_ptr, int(m))
-    prob.eval_g(pointer_to_array(x_ptr, int(n)), new_g)
+    new_g = pointer_to_array(g_ptr, @compat(Int(m)))
+    prob.eval_g(pointer_to_array(x_ptr, @compat(Int(n))), new_g)
     # Done
-    return int32(1)
+    return @compat Int32(1)
 end
 
 # Objective gradient (eval_grad_f)
@@ -106,10 +107,10 @@ function eval_grad_f_wrapper(n::Cint, x_ptr::Ptr{Float64}, new_x::Cint, grad_f_p
     # Extract Julia the problem from the pointer
     prob = unsafe_pointer_to_objref(user_data)::IpoptProblem
     # Calculate the gradient
-    new_grad_f = pointer_to_array(grad_f_ptr, int(n))
-    prob.eval_grad_f(pointer_to_array(x_ptr, int(n)), new_grad_f)
+    new_grad_f = pointer_to_array(grad_f_ptr, @compat(Int(n)))
+    prob.eval_grad_f(pointer_to_array(x_ptr, @compat(Int(n))), new_grad_f)
     # Done
-    return int32(1)
+    return @compat Int32(1)
 end
 
 # Jacobian (eval_jac_g)
@@ -118,13 +119,13 @@ function eval_jac_g_wrapper(n::Cint, x_ptr::Ptr{Float64}, new_x::Cint, m::Cint, 
     prob = unsafe_pointer_to_objref(user_data)::IpoptProblem
     # Determine mode
     mode = (values_ptr == C_NULL) ? (:Structure) : (:Values)
-    x = pointer_to_array(x_ptr, int(n))
-    rows = pointer_to_array(iRow, int(nele_jac))
-    cols = pointer_to_array(jCol, int(nele_jac))
-    values = pointer_to_array(values_ptr, int(nele_jac))
+    x = pointer_to_array(x_ptr, @compat(Int(n)))
+    rows = pointer_to_array(iRow, @compat(Int(nele_jac)))
+    cols = pointer_to_array(jCol, @compat(Int(nele_jac)))
+    values = pointer_to_array(values_ptr, @compat(Int(nele_jac)))
     prob.eval_jac_g(x, mode, rows, cols, values)
     # Done
-    return int32(1)
+    return @compat Int32(1)
 end
 
 # Hessian
@@ -134,18 +135,18 @@ function eval_h_wrapper(n::Cint, x_ptr::Ptr{Float64}, new_x::Cint, obj_factor::F
     # Did the user specify a Hessian
     if prob.eval_h === nothing
         # No Hessian provided
-        return int32(0)
+        return @compat Int32(0)
     else
         # Determine mode
         mode = (values_ptr == C_NULL) ? (:Structure) : (:Values)
-        x = pointer_to_array(x_ptr, int(n))
-        lambda = pointer_to_array(lambda_ptr, int(m))
-        rows = pointer_to_array(iRow, int(nele_hess))
-        cols = pointer_to_array(jCol, int(nele_hess))
-        values = pointer_to_array(values_ptr, int(nele_hess))
+        x = pointer_to_array(x_ptr, @compat(Int(n)))
+        lambda = pointer_to_array(lambda_ptr, @compat(Int(m)))
+        rows = pointer_to_array(iRow, @compat(Int(nele_hess)))
+        cols = pointer_to_array(jCol, @compat(Int(nele_hess)))
+        values = pointer_to_array(values_ptr, @compat(Int(nele_hess)))
         prob.eval_h(x, mode, rows, cols, obj_factor, lambda, values)
         # Done
-        return int32(1)
+        return @compat Int32(1)
     end
 end
 
@@ -153,9 +154,9 @@ end
 function intermediate_wrapper(alg_mod::Cint, iter_count::Cint, obj_value::Float64, inf_pr::Float64, inf_du::Float64, mu::Float64, d_norm::Float64, regularization_size::Float64, alpha_du::Float64, alpha_pr::Float64, ls_trials::Cint, user_data::Ptr{Void})
     # Extract Julia the problem from the pointer
     prob = unsafe_pointer_to_objref(user_data)::IpoptProblem
-    keepgoing = prob.intermediate(int(alg_mod), int(iter_count), obj_value, inf_pr, inf_du, mu, d_norm, regularization_size, alpha_du, alpha_pr, int(ls_trials))
+    keepgoing = prob.intermediate(@compat(Int(alg_mod)), @compat(Int(iter_count)), obj_value, inf_pr, inf_du, mu, d_norm, regularization_size, alpha_du, alpha_pr, @compat(Int(ls_trials)))
     # Done
-    return keepgoing ? int32(1) : int32(0)
+    return keepgoing ? @compat(Int32(1)) : @compat(Int32(0))
 end
 
 ###########################################################################
@@ -290,9 +291,9 @@ function solveProblem(prob::IpoptProblem)
     Cint, (Ptr{Void}, Ptr{Float64}, Ptr{Float64}, Ptr{Float64}, Ptr{Float64}, Ptr{Float64}, Ptr{Float64}, Any),
     prob.ref, prob.x, prob.g, final_objval, prob.mult_g, prob.mult_x_L, prob.mult_x_U, prob)
     prob.obj_val = final_objval[1]
-    prob.status = int(ret)
+    prob.status = @compat Int(ret)
 
-    return int(ret)
+    return @compat Int(ret)
 end
 
 include("IpoptSolverInterface.jl")

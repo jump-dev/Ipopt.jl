@@ -23,7 +23,7 @@ getdata(q::QuadConstr) = q.linearidx, q.linearval, q.quadrowidx, q.quadcolidx, q
 type IpoptMathProgModel <: AbstractMathProgModel
     inner::Any
     LPdata
-    Qobj::(Vector{Int},Vector{Int},Vector{Float64})
+    Qobj::@compat Tuple{Vector{Int},Vector{Int},Vector{Float64}}
     Qconstr::Vector{QuadConstr}
     state::Symbol # Uninitialized, LoadLinear, LoadNonlinear
     numvar::Int
@@ -359,7 +359,11 @@ function optimize!(m::IpoptMathProgModel)
     end
     copy!(m.inner.x, m.warmstart) # set warmstart
     for (name,value) in m.options
-        addOption(m.inner, string(name), value)
+        sname = string(name)
+        if match(r"(^resto_)", sname) != nothing
+            sname = replace(sname, r"(^resto_)", "resto.")
+        end
+        addOption(m.inner, sname, value)
     end
     solveProblem(m.inner)
 end
