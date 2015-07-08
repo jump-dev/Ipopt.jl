@@ -410,16 +410,25 @@ function getconstrsolution(m::IpoptMathProgModel)
     return m.inner.g[1:numlinconstr(m)]
 end
 function getreducedcosts(m::IpoptMathProgModel)
-    @assert m.state == :LoadLinear
-    A,l,u,c,lb,ub,sense = m.LPdata
-    redcost = m.inner.mult_x_U - m.inner.mult_x_L
-    return sense == :Max ? redcost : -redcost
+    if m.state == :LoadLinear
+        A,l,u,c,lb,ub,sense = m.LPdata
+        redcost = m.inner.mult_x_U - m.inner.mult_x_L
+        return sense == :Max ? redcost : -redcost
+    else
+        sense = m.inner.sense
+        redcost = m.inner.mult_x_U - m.inner.mult_x_L
+        return sense == :Max ? redcost : -redcost
+    end
 end
 function getconstrduals(m::IpoptMathProgModel)
-    @assert m.state == :LoadLinear
-    A,l,u,c,lb,ub,sense = m.LPdata
-    v = m.inner.mult_g[1:numlinconstr(m)]
-    return sense == :Max ? v : -v
+    if m.state == :LoadLinear
+        A,l,u,c,lb,ub,sense = m.LPdata
+        v = m.inner.mult_g[1:numlinconstr(m)]
+        return sense == :Max ? v : -v
+    else
+        v = m.inner.mult_g # return multipliers for all constraints
+        return m.inner.sense == :Max ? copy(v) : -v
+    end
 end
 function getquadconstrduals(m::IpoptMathProgModel)
     @assert m.state == :LoadLinear
