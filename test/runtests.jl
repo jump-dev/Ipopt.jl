@@ -53,6 +53,7 @@ openOutputFile(prob, "blah.txt", 5)
 
 include(joinpath(Pkg.dir("MathProgBase"),"test","nlp.jl"))
 nlptest(IpoptSolver())
+nlptest_nohessian(IpoptSolver())
 convexnlptest(IpoptSolver())
 rosenbrocktest(IpoptSolver())
 

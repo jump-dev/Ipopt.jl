@@ -266,9 +266,17 @@ end
 # generic nonlinear interface
 function loadnonlinearproblem!(m::IpoptMathProgModel, numVar::Integer, numConstr::Integer, x_l, x_u, g_lb, g_ub, sense::Symbol, d::AbstractNLPEvaluator)
 
-    initialize(d, [:Grad, :Jac, :Hess])
+    features = features_available(d)
+    has_hessian = (:Hess in features)
+    if has_hessian
+        initialize(d, [:Grad, :Jac, :Hess])
+        Ihess, Jhess = hesslag_structure(d)
+    else
+        initialize(d, [:Grad, :Jac])
+        Ihess = Int[]
+        Jhess = Int[]
+    end
     Ijac, Jjac = jac_structure(d)
-    Ihess, Jhess = hesslag_structure(d)
     @assert length(Ijac) == length(Jjac)
     @assert length(Ihess) == length(Jhess)
     @assert sense == :Min || sense == :Max
@@ -303,20 +311,24 @@ function loadnonlinearproblem!(m::IpoptMathProgModel, numVar::Integer, numConstr
         end
     end
 
-    # Hessian callback
-    function eval_h_cb(x, mode, rows, cols, obj_factor,
-        lambda, values)
-        if mode == :Structure
-            for i in 1:length(Ihess)
-                rows[i] = Ihess[i]
-                cols[i] = Jhess[i]
+    if has_hessian
+        # Hessian callback
+        function eval_h_cb(x, mode, rows, cols, obj_factor,
+            lambda, values)
+            if mode == :Structure
+                for i in 1:length(Ihess)
+                    rows[i] = Ihess[i]
+                    cols[i] = Jhess[i]
+                end
+            else
+                if sense == :Max
+                    obj_factor *= -1
+                end
+                eval_hesslag(d, values, x, obj_factor, lambda)
             end
-        else
-            if sense == :Max
-                obj_factor *= -1
-            end
-            eval_hesslag(d, values, x, obj_factor, lambda)
         end
+    else
+        eval_h_cb = nothing
     end
 
 
@@ -325,6 +337,9 @@ function loadnonlinearproblem!(m::IpoptMathProgModel, numVar::Integer, numConstr
     eval_f_cb, eval_g_cb, eval_grad_f_cb, eval_jac_g_cb,
     eval_h_cb)
     m.inner.sense = sense
+    if !has_hessian
+        addOption(m.inner, "hessian_approximation", "limited-memory")
+    end
     
     m.state = :LoadNonlinear
 
