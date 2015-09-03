@@ -1,7 +1,7 @@
 Ipopt.jl
 ========
 
-[![Build Status](https://travis-ci.org/JuliaOpt/Ipopt.jl.png?branch=master)](https://travis-ci.org/JuliaOpt/Ipopt.jl)
+[![Build Status](https://travis-ci.org/JuliaOpt/Ipopt.jl.svg?branch=master)](https://travis-ci.org/JuliaOpt/Ipopt.jl)
 [![Coverage Status](https://img.shields.io/coveralls/JuliaOpt/Ipopt.jl.svg)](https://coveralls.io/r/JuliaOpt/Ipopt.jl)
 
 [![Ipopt](http://pkg.julialang.org/badges/Ipopt_0.3.svg)](http://pkg.julialang.org/?pkg=Ipopt&ver=0.3)
