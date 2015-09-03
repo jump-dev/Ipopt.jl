@@ -3,7 +3,9 @@ Ipopt.jl
 
 [![Build Status](https://travis-ci.org/JuliaOpt/Ipopt.jl.png?branch=master)](https://travis-ci.org/JuliaOpt/Ipopt.jl)
 [![Coverage Status](https://img.shields.io/coveralls/JuliaOpt/Ipopt.jl.svg)](https://coveralls.io/r/JuliaOpt/Ipopt.jl)
-[![Ipopt](http://pkg.julialang.org/badges/Ipopt_release.svg)](http://pkg.julialang.org/?pkg=Ipopt&ver=release)
+
+[![Ipopt](http://pkg.julialang.org/badges/Ipopt_0.3.svg)](http://pkg.julialang.org/?pkg=Ipopt&ver=0.3)
+[![Ipopt](http://pkg.julialang.org/badges/Ipopt_0.4.svg)](http://pkg.julialang.org/?pkg=Ipopt&ver=0.4)
 
 **Ipopt.jl** is a [Julia](http://julialang.org/) interface to the [Ipopt](http://www.coin-or.org/Ipopt/documentation/documentation.html) nonlinear solver.
 
