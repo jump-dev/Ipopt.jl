@@ -208,7 +208,7 @@ function addOption(prob::IpoptProblem, keyword::ASCIIString, value::ASCIIString)
     #/** Function for adding a string option.  Returns FALSE the option
     # *  could not be set (e.g., if keyword is unknown) */
     ret = ccall((:AddIpoptStrOption, libipopt), 
-    Cint, (Ptr{Void}, Ptr{Uint8}, Ptr{Uint8}),
+    Cint, (Ptr{Void}, Ptr{UInt8}, Ptr{UInt8}),
     prob.ref, keyword, value)
     if ret == 0
         error("IPOPT: Couldn't set option '$keyword' to value '$value'.")
@@ -220,7 +220,7 @@ function addOption(prob::IpoptProblem, keyword::ASCIIString, value::Float64)
     #/** Function for adding a Number option.  Returns FALSE the option
     # *  could not be set (e.g., if keyword is unknown) */
     ret = ccall((:AddIpoptNumOption, libipopt),
-    Cint, (Ptr{Void}, Ptr{Uint8}, Float64),
+    Cint, (Ptr{Void}, Ptr{UInt8}, Float64),
     prob.ref, keyword, value)
     if ret == 0
         error("IPOPT: Couldn't set option '$keyword' to value '$value'.")
@@ -232,7 +232,7 @@ function addOption(prob::IpoptProblem, keyword::ASCIIString, value::Integer)
     #/** Function for adding an Int option.  Returns FALSE the option
     # *  could not be set (e.g., if keyword is unknown) */
     ret = ccall((:AddIpoptIntOption, libipopt),
-    Cint, (Ptr{Void}, Ptr{Uint8}, Cint),
+    Cint, (Ptr{Void}, Ptr{UInt8}, Cint),
     prob.ref, keyword, value)
     if ret == 0
         error("IPOPT: Couldn't set option '$keyword' to value '$value'.")
@@ -245,7 +245,7 @@ function openOutputFile(prob::IpoptProblem, file_name::ASCIIString, print_level:
     # *  printlevel.  Returns false, if there was a problem opening the
     # *  file. */
     ret = ccall((:OpenIpoptOutputFile, libipopt),
-    Cint, (Ptr{Void}, Ptr{Uint8}, Cint),
+    Cint, (Ptr{Void}, Ptr{UInt8}, Cint),
     prob.ref, file_name, print_level)
     if ret == 0
         error("IPOPT: Couldn't open output file.")
