@@ -1,3 +1,5 @@
+isdefined(Base, :__precompile__) && __precompile__()
+
 module Ipopt
 
 if isfile(joinpath(dirname(@__FILE__),"..","deps","deps.jl"))
@@ -164,7 +166,7 @@ end
 ###########################################################################
 function createProblem(n::Int, x_L::Vector{Float64}, x_U::Vector{Float64},
     m::Int, g_L::Vector{Float64}, g_U::Vector{Float64},
-    nele_jac::Int, nele_hess::Int, 
+    nele_jac::Int, nele_hess::Int,
     eval_f, eval_g, eval_grad_f, eval_jac_g, eval_h = nothing)
     @assert n == length(x_L) == length(x_U)
     @assert m == length(g_L) == length(g_U)
@@ -177,7 +179,7 @@ function createProblem(n::Int, x_L::Vector{Float64}, x_U::Vector{Float64},
     (Cint, Ptr{Float64}, Cint, Ptr{Float64}, Ptr{Void}))
     eval_jac_g_cb = cfunction(eval_jac_g_wrapper, Cint,
     (Cint, Ptr{Float64}, Cint, Cint, Cint, Ptr{Cint}, Ptr{Cint}, Ptr{Float64}, Ptr{Void}))
-    eval_h_cb = cfunction(eval_h_wrapper, Cint, 
+    eval_h_cb = cfunction(eval_h_wrapper, Cint,
     (Cint, Ptr{Float64}, Cint, Float64, Cint, Ptr{Float64}, Cint, Cint, Ptr{Cint}, Ptr{Cint}, Ptr{Float64}, Ptr{Void}))
 
     ret = ccall((:CreateIpoptProblem, libipopt), Ptr{Void},
@@ -207,7 +209,7 @@ end
 function addOption(prob::IpoptProblem, keyword::ASCIIString, value::ASCIIString)
     #/** Function for adding a string option.  Returns FALSE the option
     # *  could not be set (e.g., if keyword is unknown) */
-    ret = ccall((:AddIpoptStrOption, libipopt), 
+    ret = ccall((:AddIpoptStrOption, libipopt),
     Cint, (Ptr{Void}, Ptr{UInt8}, Ptr{UInt8}),
     prob.ref, keyword, value)
     if ret == 0
