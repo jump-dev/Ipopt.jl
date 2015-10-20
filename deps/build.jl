@@ -15,6 +15,13 @@ prefix=joinpath(BinDeps.depsdir(libipopt),"usr")
 patchdir=BinDeps.depsdir(libipopt)
 srcdir = joinpath(BinDeps.depsdir(libipopt),"src",ipoptname)
 
+# fpu_control flag for building on ARM
+if Sys.ARCH == :arm
+    fpu_control = "ADD_CFLAGS=-DNO_fpu_control"
+else
+    fpu_control = ""
+end
+
 provides(SimpleBuild,
     (@build_steps begin
         GetSources(libipopt)
@@ -50,7 +57,8 @@ provides(SimpleBuild,
             end
             `./configure --prefix=$prefix coin_skip_warn_cxxflags=yes
                          --with-blas="$prefix/lib/libcoinblas.a -lgfortran"
-                         --with-lapack=$prefix/lib/libcoinlapack.a`
+                         --with-lapack=$prefix/lib/libcoinlapack.a
+                         $fpu_control`
             `make`
             `make test`
             `make -j1 install`
