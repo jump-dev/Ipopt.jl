@@ -266,6 +266,7 @@ end
 # generic nonlinear interface
 function loadnonlinearproblem!(m::IpoptMathProgModel, numVar::Integer, numConstr::Integer, x_l, x_u, g_lb, g_ub, sense::Symbol, d::AbstractNLPEvaluator)
 
+    m.numvar = numVar
     features = features_available(d)
     has_hessian = (:Hess in features)
     if has_hessian
