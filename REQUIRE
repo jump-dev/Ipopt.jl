@@ -1,6 +1,5 @@
-julia 0.3
+julia 0.4
 BinDeps
 MathProgBase 0.3.7 0.4.0-
 @osx Homebrew
-Compat 0.4.0
 @windows WinRPM
