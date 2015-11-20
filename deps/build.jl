@@ -1,5 +1,4 @@
 using BinDeps
-using Compat
 
 @BinDeps.setup
 
@@ -78,4 +77,4 @@ end
     provides(WinRPM.RPM, "Ipopt", [libipopt], os = :Windows)
 end
 
-@BinDeps.install @compat Dict(:libipopt => :libipopt)
+@BinDeps.install Dict(:libipopt => :libipopt)
