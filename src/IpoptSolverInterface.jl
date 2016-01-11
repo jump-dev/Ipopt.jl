@@ -10,14 +10,20 @@ end
 IpoptSolver(;kwargs...) = IpoptSolver(kwargs)
 
 type IpoptMathProgModel <: AbstractNonlinearModel
-    inner::Any
+    inner::IpoptProblem
     numvar::Int
     numconstr::Int
     warmstart::Vector{Float64}
     options
-end
-function IpoptMathProgModel(;options...)
-    return IpoptMathProgModel(nothing,0,0,Float64[],options)
+
+    function IpoptMathProgModel(;options...)
+        model = new()
+        model.options   = options
+        model.numvar    = 0
+        model.numconstr = 0
+        model.warmstart = Float64[]
+        model
+    end
 end
 NonlinearModel(s::IpoptSolver) = IpoptMathProgModel(;s.options...)
 LinearQuadraticModel(s::IpoptSolver) = NonlinearToLPQPBridge(NonlinearModel(s))
@@ -103,7 +109,7 @@ function loadproblem!(m::IpoptMathProgModel, numVar::Integer, numConstr::Integer
     if !has_hessian
         addOption(m.inner, "hessian_approximation", "limited-memory")
     end
-    
+
 end
 
 getsense(m::IpoptMathProgModel) = m.inner.sense
@@ -131,7 +137,7 @@ function status(m::IpoptMathProgModel)
     # Ipopt.ApplicationReturnStatus, to the MPB statuses:
     # :Optimal, :Infeasible, :Unbounded, :UserLimit, and :Error
     stat_sym = ApplicationReturnStatus[m.inner.status]
-    if  stat_sym == :Solve_Succeeded || 
+    if  stat_sym == :Solve_Succeeded ||
         stat_sym == :Solved_To_Acceptable_Level
         return :Optimal
     elseif stat_sym == :Infeasible_Problem_Detected
