@@ -51,19 +51,11 @@ function loadproblem!(m::IpoptMathProgModel, numVar::Integer, numConstr::Integer
     @assert sense == :Min || sense == :Max
 
     # Objective callback
-    if sense == :Min
-        eval_f_cb(x) = eval_f(d,x)
-    else
-        eval_f_cb(x) = -eval_f(d,x)
-    end
+    scl = (sense == :Min) ? 1.0 : -1.0
+    eval_f_cb(x) = scl*eval_f(d,x)
 
     # Objective gradient callback
-    if sense == :Min
-        eval_grad_f_cb(x, grad_f) = eval_grad_f(d, grad_f, x)
-    else
-        eval_grad_f_cb(x, grad_f) = (eval_grad_f(d, grad_f, x); scale!(grad_f,-1))
-    end
-
+    eval_grad_f_cb(x, grad_f) = (eval_grad_f(d, grad_f, x); scale!(grad_f,scl))
 
     # Constraint value callback
     eval_g_cb(x, g) = eval_g(d, g, x)
@@ -90,9 +82,7 @@ function loadproblem!(m::IpoptMathProgModel, numVar::Integer, numConstr::Integer
                     cols[i] = Jhess[i]
                 end
             else
-                if sense == :Max
-                    obj_factor *= -1
-                end
+                obj_factor *= scl
                 eval_hesslag(d, values, x, obj_factor, lambda)
             end
         end
