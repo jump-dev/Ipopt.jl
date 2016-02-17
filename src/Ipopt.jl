@@ -297,5 +297,5 @@ function solveProblem(prob::IpoptProblem)
 end
 
 include("IpoptSolverInterface.jl")
-
+include("precompile.jl")
 end # module
