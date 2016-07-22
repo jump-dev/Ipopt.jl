@@ -67,7 +67,7 @@ provides(SimpleBuild,
 # OS X
 @osx_only begin
     using Homebrew
-    provides(Homebrew.HB, "ipopt", libipopt, os = :Darwin)
+    provides(Homebrew.HB, "staticfloat/juliadeps/ipopt", libipopt, os = :Darwin)
 end
 
 
