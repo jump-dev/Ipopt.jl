@@ -24,7 +24,7 @@ MathProgBase Interface
 
 Ipopt implements the solver-independent [MathProgBase](https://github.com/JuliaOpt/MathProgBase.jl) interface,
 and so can be used within modeling software like [JuMP](https://github.com/JuliaOpt/JuMP.jl).
-The solver object is called ``IpoptSolver``. All options listed in the [Ipopt documentation](http://www.coin-or.org/Ipopt/documentation/node35.html) may be passed directly. For example, you can suppress output by saying ``IpoptSolver(print_level=0)``. If you wish to pass an option specifically for the restoration phase, instead of using the prefix ``resto.``, use the prefix ``resto_``. For example ``IpoptSolver(resto_max_iter=0)``.
+The solver object is called ``IpoptSolver``. All options listed in the [Ipopt documentation](http://www.coin-or.org/Ipopt/documentation/node40.html) may be passed directly. For example, you can suppress output by saying ``IpoptSolver(print_level=0)``. If you wish to pass an option specifically for the restoration phase, instead of using the prefix ``resto.``, use the prefix ``resto_``. For example ``IpoptSolver(resto_max_iter=0)``.
 
 C Interface Wrapper
 -------------------
