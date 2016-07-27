@@ -1,6 +1,7 @@
 isdefined(Base, :__precompile__) && __precompile__()
 
 module Ipopt
+using Compat
 
 if isfile(joinpath(dirname(@__FILE__),"..","deps","deps.jl"))
     include("../deps/deps.jl")
@@ -84,7 +85,7 @@ function eval_f_wrapper(n::Cint, x_ptr::Ptr{Float64}, new_x::Cint, obj_ptr::Ptr{
     # Extract Julia the problem from the pointer
     prob = unsafe_pointer_to_objref(user_data)::IpoptProblem
     # Calculate the new objective
-    new_obj = convert(Float64, prob.eval_f(pointer_to_array(x_ptr, Int(n))))::Float64
+    new_obj = convert(Float64, prob.eval_f(unsafe_wrap(Array,x_ptr, Int(n))))::Float64
     # Fill out the pointer
     unsafe_store!(obj_ptr, new_obj)
     # Done
@@ -96,8 +97,8 @@ function eval_g_wrapper(n::Cint, x_ptr::Ptr{Float64}, new_x::Cint, m::Cint, g_pt
     # Extract Julia the problem from the pointer
     prob = unsafe_pointer_to_objref(user_data)::IpoptProblem
     # Calculate the new constraint values
-    new_g = pointer_to_array(g_ptr, Int(m))
-    prob.eval_g(pointer_to_array(x_ptr, Int(n)), new_g)
+    new_g = unsafe_wrap(Array,g_ptr, Int(m))
+    prob.eval_g(unsafe_wrap(Array,x_ptr, Int(n)), new_g)
     # Done
     return Int32(1)
 end
@@ -107,8 +108,8 @@ function eval_grad_f_wrapper(n::Cint, x_ptr::Ptr{Float64}, new_x::Cint, grad_f_p
     # Extract Julia the problem from the pointer
     prob = unsafe_pointer_to_objref(user_data)::IpoptProblem
     # Calculate the gradient
-    new_grad_f = pointer_to_array(grad_f_ptr, Int(n))
-    prob.eval_grad_f(pointer_to_array(x_ptr, Int(n)), new_grad_f)
+    new_grad_f = unsafe_wrap(Array,grad_f_ptr, Int(n))
+    prob.eval_grad_f(unsafe_wrap(Array,x_ptr, Int(n)), new_grad_f)
     # Done
     return Int32(1)
 end
@@ -119,10 +120,10 @@ function eval_jac_g_wrapper(n::Cint, x_ptr::Ptr{Float64}, new_x::Cint, m::Cint, 
     prob = unsafe_pointer_to_objref(user_data)::IpoptProblem
     # Determine mode
     mode = (values_ptr == C_NULL) ? (:Structure) : (:Values)
-    x = pointer_to_array(x_ptr, Int(n))
-    rows = pointer_to_array(iRow, Int(nele_jac))
-    cols = pointer_to_array(jCol, Int(nele_jac))
-    values = pointer_to_array(values_ptr, Int(nele_jac))
+    x = unsafe_wrap(Array, x_ptr, Int(n))
+    rows = unsafe_wrap(Array, iRow, Int(nele_jac))
+    cols = unsafe_wrap(Array,jCol, Int(nele_jac))
+    values = unsafe_wrap(Array,values_ptr, Int(nele_jac))
     prob.eval_jac_g(x, mode, rows, cols, values)
     # Done
     return Int32(1)
@@ -139,11 +140,11 @@ function eval_h_wrapper(n::Cint, x_ptr::Ptr{Float64}, new_x::Cint, obj_factor::F
     else
         # Determine mode
         mode = (values_ptr == C_NULL) ? (:Structure) : (:Values)
-        x = pointer_to_array(x_ptr, Int(n))
-        lambda = pointer_to_array(lambda_ptr, Int(m))
-        rows = pointer_to_array(iRow, Int(nele_hess))
-        cols = pointer_to_array(jCol, Int(nele_hess))
-        values = pointer_to_array(values_ptr, Int(nele_hess))
+        x = unsafe_wrap(Array,x_ptr, Int(n))
+        lambda = unsafe_wrap(Array,lambda_ptr, Int(m))
+        rows = unsafe_wrap(Array,iRow, Int(nele_hess))
+        cols = unsafe_wrap(Array,jCol, Int(nele_hess))
+        values = unsafe_wrap(Array,values_ptr, Int(nele_hess))
         prob.eval_h(x, mode, rows, cols, obj_factor, lambda, values)
         # Done
         return Int32(1)
@@ -204,9 +205,12 @@ function freeProblem(prob::IpoptProblem)
 end
 
 
-function addOption(prob::IpoptProblem, keyword::ASCIIString, value::ASCIIString)
+function addOption(prob::IpoptProblem, keyword::String, value::String)
     #/** Function for adding a string option.  Returns FALSE the option
     # *  could not be set (e.g., if keyword is unknown) */
+    if !(isascii(keyword) && isascii(value))
+        error("IPOPT: Non ASCII parameters not supported")
+    end
     ret = ccall((:AddIpoptStrOption, libipopt),
     Cint, (Ptr{Void}, Ptr{UInt8}, Ptr{UInt8}),
     prob.ref, keyword, value)
@@ -216,9 +220,12 @@ function addOption(prob::IpoptProblem, keyword::ASCIIString, value::ASCIIString)
 end
 
 
-function addOption(prob::IpoptProblem, keyword::ASCIIString, value::Float64)
+function addOption(prob::IpoptProblem, keyword::String, value::Float64)
     #/** Function for adding a Number option.  Returns FALSE the option
     # *  could not be set (e.g., if keyword is unknown) */
+    if !isascii(keyword)
+        error("IPOPT: Non ASCII parameters not supported")
+    end
     ret = ccall((:AddIpoptNumOption, libipopt),
     Cint, (Ptr{Void}, Ptr{UInt8}, Float64),
     prob.ref, keyword, value)
@@ -228,9 +235,12 @@ function addOption(prob::IpoptProblem, keyword::ASCIIString, value::Float64)
 end
 
 
-function addOption(prob::IpoptProblem, keyword::ASCIIString, value::Integer)
+function addOption(prob::IpoptProblem, keyword::String, value::Integer)
     #/** Function for adding an Int option.  Returns FALSE the option
     # *  could not be set (e.g., if keyword is unknown) */
+    if !isascii(keyword)
+        error("IPOPT: Non ASCII parameters not supported")
+    end
     ret = ccall((:AddIpoptIntOption, libipopt),
     Cint, (Ptr{Void}, Ptr{UInt8}, Cint),
     prob.ref, keyword, value)
@@ -240,10 +250,13 @@ function addOption(prob::IpoptProblem, keyword::ASCIIString, value::Integer)
 end
 
 
-function openOutputFile(prob::IpoptProblem, file_name::ASCIIString, print_level::Int)
+function openOutputFile(prob::IpoptProblem, file_name::String, print_level::Int)
     #/** Function for opening an output file for a given name with given
     # *  printlevel.  Returns false, if there was a problem opening the
     # *  file. */
+    if !isascii(file_name)
+        error("IPOPT: Non ASCII parameters not supported")
+    end
     ret = ccall((:OpenIpoptOutputFile, libipopt),
     Cint, (Ptr{Void}, Ptr{UInt8}, Cint),
     prob.ref, file_name, print_level)

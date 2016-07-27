@@ -1,4 +1,5 @@
 using BinDeps
+using Compat
 
 @BinDeps.setup
 
@@ -65,7 +66,7 @@ provides(SimpleBuild,
     end),libipopt, os = :Unix)
 
 # OS X
-@osx_only begin
+if is_apple()
     using Homebrew
     provides(Homebrew.HB, "staticfloat/juliadeps/ipopt", libipopt, os = :Darwin)
 end
