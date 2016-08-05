@@ -1,7 +1,8 @@
-isdefined(Base, :__precompile__) && __precompile__()
+__precompile__()
 
 module Ipopt
 using Compat
+import Compat: String
 
 if isfile(joinpath(dirname(@__FILE__),"..","deps","deps.jl"))
     include("../deps/deps.jl")
