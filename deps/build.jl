@@ -73,7 +73,7 @@ end
 
 
 # Windows
-@windows_only begin
+if is_windows()
     using WinRPM
     provides(WinRPM.RPM, "Ipopt", [libipopt], os = :Windows)
 end
