@@ -71,11 +71,20 @@ if is_apple()
     provides(Homebrew.HB, "staticfloat/juliadeps/ipopt", libipopt, os = :Darwin)
 end
 
-
 # Windows
 if is_windows()
     using WinRPM
     provides(WinRPM.RPM, "Ipopt", [libipopt], os = :Windows)
 end
 
+# Avoid Issue #62, building into /lib64 on OpenSUSE
+configsite = nothing
+if haskey(ENV, "CONFIG_SITE")
+    configsite = pop!(ENV, "CONFIG_SITE")
+end
+
 @BinDeps.install Dict(:libipopt => :libipopt)
+
+if configsite !== nothing
+    ENV["CONFIG_SITE"] = configsite
+end
