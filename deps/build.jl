@@ -44,7 +44,8 @@ provides(SimpleBuild,
             end
             @build_steps begin
                 ChangeDirectory(joinpath(srcdir,"ThirdParty","Lapack","build"))
-                `../configure --prefix=$prefix --disable-shared --with-pic`
+                `../configure --prefix=$prefix --disable-shared --with-pic
+                              --with-blas="$prefix/lib/libcoinblas.a -lgfortran"`
                 `make install`
             end
             @build_steps begin
