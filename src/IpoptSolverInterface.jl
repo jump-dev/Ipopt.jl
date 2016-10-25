@@ -37,15 +37,13 @@ function loadproblem!(m::IpoptMathProgModel, numVar::Integer, numConstr::Integer
     m.numvar = numVar
     features = features_available(d)
     has_hessian = (:Hess in features)
-    if has_hessian
-        initialize(d, [:Grad, :Jac, :Hess])
-        Ihess, Jhess = hesslag_structure(d)
-    else
-        initialize(d, [:Grad, :Jac])
-        Ihess = Int[]
-        Jhess = Int[]
-    end
-    Ijac, Jjac = jac_structure(d)
+    init_feat = [:Grad]
+    has_hessian && push!(init_feat, :Hess)
+    numConstr > 0 && push!(init_feat, :Jac)
+
+    initialize(d, init_feat)
+    Ihess, Jhess = has_hessian ? hesslag_structure(d) : (Int[], Int[])
+    Ijac, Jjac = numConstr > 0 ? jac_structure(d) : (Int[], Int[])
     @assert length(Ijac) == length(Jjac)
     @assert length(Ihess) == length(Jhess)
     @assert sense == :Min || sense == :Max
