@@ -30,6 +30,7 @@ provides(SimpleBuild,
             @build_steps begin
                 ChangeDirectory(joinpath(srcdir,"ThirdParty","Blas"))
                 CreateDirectory("build", true)
+                `sed -i 's/wget"/wget --no-check-certificate"/g' get.Blas`
                 `./get.Blas`
             end
             @build_steps begin
@@ -40,6 +41,7 @@ provides(SimpleBuild,
             @build_steps begin
                 ChangeDirectory(joinpath(srcdir,"ThirdParty","Lapack"))
                 CreateDirectory("build", true)
+                `sed -i 's/wget"/wget --no-check-certificate"/g' get.Lapack`
                 `./get.Lapack`
             end
             @build_steps begin
