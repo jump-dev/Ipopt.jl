@@ -8,11 +8,13 @@ julia:
     - nightly
 notifications:
     email: false
-sudo: false
-addons:
-    apt_packages:
-        - gfortran
+dist: trusty
+sudo: required
+#addons:
+#    apt_packages:
+#        - gfortran
 script:
+    - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then sudo apt-get -y install gfortran ; fi
     - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
     - julia -e 'Pkg.clone(pwd()); Pkg.build("Ipopt")'
     - julia -e 'Pkg.test("Ipopt", coverage=true)'
