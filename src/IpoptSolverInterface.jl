@@ -108,6 +108,37 @@ numlinconstr(m::IpoptMathProgModel) = 0
 
 numquadconstr(m::IpoptMathProgModel) = 0
 
+function setparameters!(s::IpoptSolver; mpboptions...)
+    opts = collect(Any,s.options)
+    for (optname, optval) in mpboptions
+        if optname == :TimeLimit
+            push!(opts, (:max_cpu_time,optval))
+        elseif optname == :Silent
+            if optval == true
+                push!(opts, (:log_level,0))
+            end
+        else
+            error("Unrecognized parameter $optname")
+        end
+    end
+    s.options = opts
+    return
+end
+
+function setparameters!(m::IpoptMathProgModel; mpboptions...)
+    for (optname, optval) in mpboptions
+        if optname == :TimeLimit
+            setparam!(m.inner, "max_cpu_time", optval)
+        elseif optname == :Silent
+            if optval == true
+                setparam!(m.inner,"log_level",0)
+            end
+        else
+            error("Unrecognized parameter $optname")
+        end
+    end
+end
+
 function optimize!(m::IpoptMathProgModel)
     copy!(m.inner.x, m.warmstart) # set warmstart
     for (name,value) in m.options
