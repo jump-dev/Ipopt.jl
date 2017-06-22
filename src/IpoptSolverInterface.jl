@@ -115,7 +115,7 @@ function setparameters!(s::IpoptSolver; mpboptions...)
             push!(opts, (:max_cpu_time,optval))
         elseif optname == :Silent
             if optval == true
-                push!(opts, (:log_level,0))
+                push!(opts, (:print_level,0))
             end
         else
             error("Unrecognized parameter $optname")
@@ -128,10 +128,10 @@ end
 function setparameters!(m::IpoptMathProgModel; mpboptions...)
     for (optname, optval) in mpboptions
         if optname == :TimeLimit
-            setparam!(m.inner, "max_cpu_time", optval)
+            addOption(m.inner, "max_cpu_time", optval)
         elseif optname == :Silent
             if optval == true
-                setparam!(m.inner,"log_level",0)
+                addOption(m.inner,"print_level",0)
             end
         else
             error("Unrecognized parameter $optname")
