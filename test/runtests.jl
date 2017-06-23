@@ -26,6 +26,11 @@ openOutputFile(prob, "blah.txt", 5)
 #linprogtest(IpoptSolver())
     using MathProgBase
     solver = IpoptSolver()
+
+    MathProgBase.setparameters!(solver, Silent=true, TimeLimit=100.0)
+    @test solver.options[end-1] == (:print_level, 0)
+    @test solver.options[end] == (:max_cpu_time, 100.0)
+
     sol = linprog([-1,0],[2 1],'<',1.5,solver)
     @test sol.status == :Optimal
     @test abs(sol.objval - -0.75) <= 1e-6
@@ -52,18 +57,21 @@ openOutputFile(prob, "blah.txt", 5)
 
 
 include(joinpath(Pkg.dir("MathProgBase"),"test","nlp.jl"))
-nlptest(IpoptSolver())
-nlptest_nohessian(IpoptSolver())
-convexnlptest(IpoptSolver())
-rosenbrocktest(IpoptSolver())
+solver = IpoptSolver()
+MathProgBase.setparameters!(solver, Silent=true, TimeLimit=100.0)
+println("Ipopt should not display any output from these tests")
+nlptest(solver)
+nlptest_nohessian(solver)
+convexnlptest(solver)
+rosenbrocktest(solver)
 
 include(joinpath(Pkg.dir("MathProgBase"),"test","quadprog.jl"))
-quadprogtest(IpoptSolver())
-qpdualtest(IpoptSolver())
+quadprogtest(solver)
+qpdualtest(solver)
 
 # Test retoration only options
 #
-# Warm start with infeasible solution, force restoration on initial iteration. 
+# Warm start with infeasible solution, force restoration on initial iteration.
 # But limit to 0 iterations. Forces :UserLimit exit.
 m = MathProgBase.NonlinearModel(IpoptSolver(start_with_resto="yes", resto_max_iter=0))
 l = [1,1,1,1]
@@ -72,5 +80,7 @@ lb = [25, 40]
 ub = [Inf, 40]
 MathProgBase.loadproblem!(m, 4, 2, l, u, lb, ub, :Min, HS071())
 MathProgBase.setwarmstart!(m,[0,15,15,11])
+MathProgBase.setparameters!(m, Silent=true, TimeLimit=100.0)
+println("Ipopt should not display any output for the following problem.")
 MathProgBase.optimize!(m)
 @test MathProgBase.status(m) == :UserLimit
