@@ -4,12 +4,12 @@ importall MathProgBase.SolverInterface
 ###############################################################################
 # Solver objects
 export IpoptSolver
-immutable IpoptSolver <: AbstractMathProgSolver
+struct IpoptSolver <: AbstractMathProgSolver
     options
 end
 IpoptSolver(;kwargs...) = IpoptSolver(kwargs)
 
-type IpoptMathProgModel <: AbstractNonlinearModel
+mutable struct IpoptMathProgModel <: AbstractNonlinearModel
     inner::IpoptProblem
     numvar::Int
     numconstr::Int
