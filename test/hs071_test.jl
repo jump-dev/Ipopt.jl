@@ -8,7 +8,7 @@ using Ipopt
 # Start at (1,5,5,1)
 # End at (1.000..., 4.743..., 3.821..., 1.379...)
 
-function eval_f(x::Vector{Float64}) 
+function eval_f(x::Vector{Float64})
   return x[1] * x[4] * (x[1] + x[2] + x[3]) + x[3]
 end
 
@@ -95,9 +95,9 @@ function eval_h(x::Vector{Float64}, mode, rows::Vector{Int32}, cols::Vector{Int3
   end
 end
 
-function intermediate(alg_mod::Int, iter_count::Int, 
+function intermediate(alg_mod::Int, iter_count::Int,
   obj_value::Float64, inf_pr::Float64, inf_du::Float64, mu::Float64,
-  d_norm::Float64, regularization_size::Float64, alpha_du::Float64, alpha_pr::Float64, 
+  d_norm::Float64, regularization_size::Float64, alpha_du::Float64, alpha_pr::Float64,
   ls_trials::Int)
   println("Iteration $iter_count, objective value is $obj_value.")
   return true
@@ -115,11 +115,11 @@ prob = createProblem(n, x_L, x_U, m, g_L, g_U, 8, 10,
                      eval_f, eval_g, eval_grad_f, eval_jac_g, eval_h)
 
 prob.x = [1.0, 5.0, 5.0, 1.0]
-stat = solveProblem(prob)
+solvestat = solveProblem(prob)
 
-@test Ipopt.ApplicationReturnStatus[stat] == :Solve_Succeeded
-@test_approx_eq_eps prob.x[1] 1.0000000000000000 1e-5
-@test_approx_eq_eps prob.x[2] 4.7429996418092970 1e-5
-@test_approx_eq_eps prob.x[3] 3.8211499817883077 1e-5
-@test_approx_eq_eps prob.x[4] 1.3794082897556983 1e-5
-@test_approx_eq_eps prob.obj_val 17.014017145179164 1e-5
+@test Ipopt.ApplicationReturnStatus[solvestat] == :Solve_Succeeded
+@test prob.x[1] ≈ 1.0000000000000000 atol=1e-5
+@test prob.x[2] ≈ 4.7429996418092970 atol=1e-5
+@test prob.x[3] ≈ 3.8211499817883077 atol=1e-5
+@test prob.x[4] ≈ 1.3794082897556983 atol=1e-5
+@test prob.obj_val ≈ 17.014017145179164 atol=1e-5

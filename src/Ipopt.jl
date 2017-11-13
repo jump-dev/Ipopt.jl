@@ -15,7 +15,7 @@ export solveProblem
 export IpoptProblem
 
 
-type IpoptProblem
+mutable struct IpoptProblem
     ref::Ptr{Void}  # Reference to the internal data structure
     n::Int  # Num vars
     m::Int  # Num cons
@@ -170,15 +170,15 @@ function createProblem(n::Int, x_L::Vector{Float64}, x_U::Vector{Float64},
     @assert m == length(g_L) == length(g_U)
     # Wrap callbacks
     eval_f_cb = cfunction(eval_f_wrapper, Cint,
-    (Cint, Ptr{Float64}, Cint, Ptr{Float64}, Ptr{Void}))
+    Tuple{Cint, Ptr{Float64}, Cint, Ptr{Float64}, Ptr{Void}})
     eval_g_cb = cfunction(eval_g_wrapper, Cint,
-    (Cint, Ptr{Float64}, Cint, Cint, Ptr{Float64}, Ptr{Void}))
+    Tuple{Cint, Ptr{Float64}, Cint, Cint, Ptr{Float64}, Ptr{Void}})
     eval_grad_f_cb = cfunction(eval_grad_f_wrapper, Cint,
-    (Cint, Ptr{Float64}, Cint, Ptr{Float64}, Ptr{Void}))
+    Tuple{Cint, Ptr{Float64}, Cint, Ptr{Float64}, Ptr{Void}})
     eval_jac_g_cb = cfunction(eval_jac_g_wrapper, Cint,
-    (Cint, Ptr{Float64}, Cint, Cint, Cint, Ptr{Cint}, Ptr{Cint}, Ptr{Float64}, Ptr{Void}))
+    Tuple{Cint, Ptr{Float64}, Cint, Cint, Cint, Ptr{Cint}, Ptr{Cint}, Ptr{Float64}, Ptr{Void}})
     eval_h_cb = cfunction(eval_h_wrapper, Cint,
-    (Cint, Ptr{Float64}, Cint, Float64, Cint, Ptr{Float64}, Cint, Cint, Ptr{Cint}, Ptr{Cint}, Ptr{Float64}, Ptr{Void}))
+    Tuple{Cint, Ptr{Float64}, Cint, Float64, Cint, Ptr{Float64}, Cint, Cint, Ptr{Cint}, Ptr{Cint}, Ptr{Float64}, Ptr{Void}})
 
     ret = ccall((:CreateIpoptProblem, libipopt), Ptr{Void},
     (Cint, Ptr{Float64}, Ptr{Float64},  # Num vars, var lower and upper bounds
@@ -286,8 +286,8 @@ end
 
 function setIntermediateCallback(prob::IpoptProblem, intermediate::Function)
     intermediate_cb = cfunction(intermediate_wrapper, Cint,
-    (Cint, Cint, Float64, Float64, Float64, Float64,
-    Float64, Float64, Float64, Float64, Cint, Ptr{Void}))
+    Tuple{Cint, Cint, Float64, Float64, Float64, Float64,
+    Float64, Float64, Float64, Float64, Cint, Ptr{Void}})
     ret = ccall((:SetIntermediateCallback, libipopt), Cint,
     (Ptr{Void}, Ptr{Void}), prob.ref, intermediate_cb)
     prob.intermediate = intermediate
