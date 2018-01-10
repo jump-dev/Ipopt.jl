@@ -6,7 +6,7 @@ using Compat
 windllname = "libipopt-1"
 libipopt = library_dependency("libipopt", aliases=[windllname])
 
-ipoptname = "Ipopt-3.12.1"
+ipoptname = "Ipopt-3.12.8"
 
 provides(Sources, URI("http://www.coin-or.org/download/source/Ipopt/$ipoptname.tgz"),
     libipopt, os = :Unix)
