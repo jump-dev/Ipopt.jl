@@ -7,7 +7,6 @@ if isfile(joinpath(dirname(@__FILE__),"..","deps","deps.jl"))
 else
     error("Ipopt not properly installed. Please run Pkg.build(\"Ipopt\")")
 end
-amplexe = joinpath(dirname(libipopt), "..", "bin", "ipopt")
 
 export createProblem, addOption
 export openOutputFile, setProblemScaling, setIntermediateCallback
