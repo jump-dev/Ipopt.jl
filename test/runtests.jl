@@ -63,7 +63,7 @@ qpdualtest(IpoptSolver())
 
 # Test retoration only options
 #
-# Warm start with infeasible solution, force restoration on initial iteration. 
+# Warm start with infeasible solution, force restoration on initial iteration.
 # But limit to 0 iterations. Forces :UserLimit exit.
 m = MathProgBase.NonlinearModel(IpoptSolver(start_with_resto="yes", resto_max_iter=0))
 l = [1,1,1,1]
@@ -74,3 +74,6 @@ MathProgBase.loadproblem!(m, 4, 2, l, u, lb, ub, :Min, HS071())
 MathProgBase.setwarmstart!(m,[0,15,15,11])
 MathProgBase.optimize!(m)
 @test MathProgBase.status(m) == :UserLimit
+
+# Test that the ipopt binary works
+@test success(`$(Ipopt.amplexe) -v`)

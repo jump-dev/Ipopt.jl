@@ -4,18 +4,62 @@ Ipopt.jl
 [![Build Status](https://travis-ci.org/JuliaOpt/Ipopt.jl.svg?branch=master)](https://travis-ci.org/JuliaOpt/Ipopt.jl)
 [![Coverage Status](https://img.shields.io/coveralls/JuliaOpt/Ipopt.jl.svg)](https://coveralls.io/r/JuliaOpt/Ipopt.jl)
 
-[![Ipopt](http://pkg.julialang.org/badges/Ipopt_0.5.svg)](http://pkg.julialang.org/?pkg=Ipopt&ver=0.5)
+[![Ipopt](http://pkg.julialang.org/badges/Ipopt_0.6.svg)](http://pkg.julialang.org/?pkg=Ipopt&ver=0.6)
+[![Ipopt](http://pkg.julialang.org/badges/Ipopt_0.7.svg)](http://pkg.julialang.org/?pkg=Ipopt&ver=0.7)
 
 **Ipopt.jl** is a [Julia](http://julialang.org/) interface to the [Ipopt](http://www.coin-or.org/Ipopt/documentation/documentation.html) nonlinear solver.
 
-**Installation**: `julia> Pkg.add("Ipopt")`
+**Default Installation**: `julia> Pkg.add("Ipopt")`
 
-This will install Ipopt.jl, as well as Ipopt itself. A binary will be downloaded on Windows and
-on OSX (via Homebrew), but it will be built from source on Linux. You should make sure you have
-the required packages before installing, e.g.
+This will install Ipopt.jl, as well as Ipopt itself. A binary will be downloaded
+by default on all supported platforms (Linux, macOS, and Windows). If your
+platform is not supported, or if you prefer to compile your own version of Ipopt
+in order to use commercial sparse linear algebra libraries, use the instructions
+below.
+
+**Custom Installation**:
+
+Make sure you have the required packages before installing, e.g.,
 
 ```bash
-sudo apt-get install build-essential gfortran pkg-config
+sudo apt-get install build-essential gfortran pkg-config liblapack-dev libblas-dev
+```
+
+The script below was tested successfully for installing Ipopt. You may modify
+the configuration options, but be sure to install Ipopt into the correct
+prefix location. The Julia package will only search in `deps/usr` within the
+package directory; it will not detect system installs.
+
+```bash
+wget https://www.coin-or.org/download/source/Ipopt/Ipopt-3.12.8.tgz
+tar xvzf Ipopt-3.12.8.tgz
+cd Ipopt-3.12.8/
+# Blas and Lapack must be installed already. If not, run
+# ThirdParty/Blas/get.Blas and ThirdParty/Lapack/get.Lapack.
+# ASL is required even if you do not plan to use it.
+cd ThirdParty/ASL/
+./get.ASL
+cd ..
+cd Mumps
+# Compiling Mumps requires gfortran.
+./get.Mumps
+cd ../..
+# Update the prefix location! The following is correct only for Julia 0.6.
+./configure --prefix=$HOME/.julia/v0.6/Ipopt/deps/usr
+make
+make test
+make install
+```
+
+Now in Julia:
+
+```julia
+julia> Pkg.build("Ipopt")
+INFO: Building Ipopt
+
+julia> Pkg.test("Ipopt")
+...
+INFO: Ipopt tests passed
 ```
 
 MathProgBase Interface
@@ -29,4 +73,3 @@ C Interface Wrapper
 -------------------
 
 Full documentation for the Ipopt C wrapper is available [here](http://ipoptjl.readthedocs.org/en/latest/ipopt.html). Use of the [nonlinear MathProgBase interface](http://mathprogbasejl.readthedocs.org/en/latest/nlp.html) is recommended over the low-level C interface because it permits one to easily switch between solvers.
-
