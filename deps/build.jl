@@ -28,9 +28,6 @@ if any(!satisfied(p; verbose=verbose) for p in products)
         # Download and install binaries
         url, tarball_hash = download_info[platform_key()]
         install(url, tarball_hash; prefix=prefix, force=true, verbose=verbose)
-
-        # Write out a deps.jl file that will contain mappings for our products
-        write_deps_file(joinpath(@__DIR__, "deps.jl"), products)
     else
         # If we don't have a BinaryProvider-compatible .tar.gz to download, complain.
         # Alternatively, you could attempt to install from a separate provider,
@@ -38,3 +35,6 @@ if any(!satisfied(p; verbose=verbose) for p in products)
         error("Your platform $(Sys.MACHINE) is not supported by this package!")
     end
 end
+
+# Write out a deps.jl file that will contain mappings for our products
+write_deps_file(joinpath(@__DIR__, "deps.jl"), products)
