@@ -17,6 +17,13 @@ platform is not supported, or if you prefer to compile your own version of Ipopt
 in order to use commercial sparse linear algebra libraries, use the instructions
 below.
 
+Note that currently the only supported configuration for the
+default installation is to use the
+[official Julia binaries](https://julialang.org/downloads/). If you build
+Julia from source or install Julia through a package manager, you may need to
+follow the custom installation instructions below.
+
+
 **Custom Installation**:
 
 Make sure you have the required packages before installing, e.g.,
