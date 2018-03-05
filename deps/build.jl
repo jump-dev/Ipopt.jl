@@ -2,7 +2,7 @@ using BinaryProvider
 using BinDeps
 using Compat
 
-use_BinaryProvider = Compat.Sys.isapple()
+use_BinaryProvider = Compat.Sys.isapple() || Compat.Sys.iswindows()
 
 @BinDeps.setup
 if use_BinaryProvider
@@ -109,12 +109,6 @@ else # !use_BinaryProvider
                 `make -j1 install`
             end
         end),libipopt, os = :Unix)
-
-    # Windows
-    if is_windows()
-        using WinRPM
-        provides(WinRPM.RPM, "Ipopt", [libipopt], os = :Windows)
-    end
 
     # Avoid Issue #62, building into /lib64 on OpenSUSE
     configsite = nothing
