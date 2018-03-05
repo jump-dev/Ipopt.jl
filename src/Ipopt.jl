@@ -8,7 +8,7 @@ if isfile(joinpath(dirname(@__FILE__),"..","deps","deps.jl"))
 else
     error("Ipopt not properly installed. Please run Pkg.build(\"Ipopt\")")
 end
-if !use_BinaryProvider
+if !use_BinaryProvider # defined in deps.jl
     amplexe = joinpath(dirname(libipopt), "..", "bin", "ipopt")
 end
 
