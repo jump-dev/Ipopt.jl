@@ -8,6 +8,9 @@ if isfile(joinpath(dirname(@__FILE__),"..","deps","deps.jl"))
 else
     error("Ipopt not properly installed. Please run Pkg.build(\"Ipopt\")")
 end
+if !use_BinaryProvider
+    amplexe = joinpath(dirname(libipopt), "..", "bin", "ipopt")
+end
 
 export createProblem, addOption
 export openOutputFile, setProblemScaling, setIntermediateCallback
@@ -15,7 +18,7 @@ export solveProblem
 export IpoptProblem
 
 function __init__()
-    check_deps()
+    use_BinaryProvider && check_deps()
     # Sets up the library paths so that we can run the ipopt binary from Julia.
     # TODO: Restructure into a function that wraps the call to the binary and
     # doesn't leave environment variables changed.

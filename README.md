@@ -12,10 +12,10 @@ Ipopt.jl
 **Default Installation**: `julia> Pkg.add("Ipopt")`
 
 This will install Ipopt.jl, as well as Ipopt itself. A binary will be downloaded
-by default on all supported platforms (Linux, macOS, and Windows). If your
-platform is not supported, or if you prefer to compile your own version of Ipopt
-in order to use commercial sparse linear algebra libraries, use the instructions
-below.
+by default on macOS or Windows, and Ipopt will be automatically built from source
+on Linux. If your platform is not supported, or if you prefer to compile your own
+version of Ipopt in order to use commercial sparse linear algebra libraries, use
+the instructions below.
 
 **Custom Installation**:
 
