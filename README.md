@@ -12,10 +12,11 @@ Ipopt.jl
 **Default Installation**: `julia> Pkg.add("Ipopt")`
 
 This will install Ipopt.jl, as well as Ipopt itself. A binary will be downloaded
-by default on all supported platforms (Linux, macOS, and Windows). If your
-platform is not supported, or if you prefer to compile your own version of Ipopt
-in order to use commercial sparse linear algebra libraries, use the instructions
-below.
+by default on macOS or Windows, and Ipopt will be automatically built from source
+on Linux unless a pre-existing version is found on the `LD_LIBRARY_PATH`.
+If your platform is not supported, or if you prefer to compile your own version
+of Ipopt in order to use commercial sparse linear algebra libraries, use
+the instructions below.
 
 **Custom Installation**:
 
@@ -27,8 +28,7 @@ sudo apt-get install build-essential gfortran pkg-config liblapack-dev libblas-d
 
 The script below was tested successfully for installing Ipopt. You may modify
 the configuration options, but be sure to install Ipopt into the correct
-prefix location. The Julia package will only search in `deps/usr` within the
-package directory; it will not detect system installs.
+prefix location.
 
 ```bash
 wget https://www.coin-or.org/download/source/Ipopt/Ipopt-3.12.8.tgz
