@@ -58,9 +58,9 @@ mutable struct IpoptProblem
         ref::Ptr{Void}, n, m,
         eval_f, eval_g, eval_grad_f, eval_jac_g, eval_h)
         prob = new(ref, n, m, zeros(Float64, n), zeros(Float64, m), zeros(Float64,m),
-        zeros(Float64,n), zeros(Float64,n), 0.0, 0,
-        eval_f, eval_g, eval_grad_f, eval_jac_g, eval_h, nothing,
-        :Min)
+                   zeros(Float64,n), zeros(Float64,n), 0.0, 0,
+                   eval_f, eval_g, eval_grad_f, eval_jac_g, eval_h, nothing,
+                   :Min)
         # Free the internal IpoptProblem structure when
         # the Julia IpoptProblem instance goes out of scope
         finalizer(prob, freeProblem)
@@ -324,6 +324,7 @@ function solveProblem(prob::IpoptProblem)
     return Int(ret)
 end
 
-include("IpoptSolverInterface.jl")
+include("mathprogbase_wrapper.jl")
+include("mathoptinterface_wrapper.jl")
 
 end # module

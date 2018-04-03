@@ -20,6 +20,7 @@ addOption(prob, "derivative_test_tol", 0.5)
 
 # Test opening an output file
 openOutputFile(prob, "blah.txt", 5)
+rm("blah.txt")
 
 # Test MathProgBase stuff
 #include(joinpath(Pkg.dir("MathProgBase"),"test","linprog.jl"))
@@ -77,3 +78,13 @@ MathProgBase.optimize!(m)
 
 # Test that the ipopt binary works
 @test success(`$(Ipopt.amplexe) -v`)
+
+using MathOptInterface
+const MOI = MathOptInterface
+
+const optimizer = IpoptOptimizer()
+const config = MOI.Test.TestConfig(atol=1e-4, rtol=1e-4)
+
+@testset "MOI NLP tests" begin
+    MOI.Test.nlptest(optimizer, config)
+end
