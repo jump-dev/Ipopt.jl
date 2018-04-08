@@ -2,12 +2,14 @@ using MathOptInterface
 const MOI = MathOptInterface
 
 mutable struct VariableInfo
-    lower_bound::Float64
-    upper_bound::Float64
+    lower_bound::Float64  # May be -Inf even if has_lower_bound == true
+    has_lower_bound::Bool # Implies lower_bound == Inf
+    upper_bound::Float64  # May be Inf even if has_upper_bound == true
+    has_upper_bound::Bool # Implies upper_bound == Inf
     start::Float64
 end
 # The default start value is zero.
-VariableInfo() = VariableInfo(-Inf, Inf, 0.0)
+VariableInfo() = VariableInfo(-Inf, false, Inf, false, 0.0)
 
 export IpoptOptimizer
 mutable struct IpoptOptimizer <: MOI.AbstractOptimizer
@@ -69,10 +71,15 @@ MOI.canset(::IpoptOptimizer, ::MOI.VariablePrimalStart, ::Type{MOI.VariableIndex
 MOI.canset(::IpoptOptimizer, ::MOI.ObjectiveSense) = true
 MOI.canset(::IpoptOptimizer, ::MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}) = true
 
-MOI.copy!(m::IpoptOptimizer, src::MOI.ModelLike) = MOI.Utilities.defaultcopy!(m, src)
+MOI.copy!(m::IpoptOptimizer, src::MOI.ModelLike; copynames = false) = MOI.Utilities.defaultcopy!(m, src, copynames)
 
 MOI.canget(::IpoptOptimizer, ::MOI.NumberOfVariables) = true
 MOI.get(m::IpoptOptimizer, ::MOI.NumberOfVariables) = length(m.variable_info)
+
+MOI.canget(::IpoptOptimizer, ::MOI.ListOfVariableIndices) = true
+function MOI.get(m::IpoptOptimizer, ::MOI.ListOfVariableIndices)
+    return [MOI.VariableIndex(i) for i in 1:length(m.variable_info)]
+end
 
 
 function MOI.set!(m::IpoptOptimizer, ::MOI.ObjectiveSense, sense::MOI.OptimizationSense)
@@ -115,36 +122,38 @@ function check_inbounds(m::IpoptOptimizer, aff::MOI.ScalarAffineFunction)
 end
 
 function has_upper_bound(m::IpoptOptimizer, vi::MOI.VariableIndex)
-    return m.variable_info[vi.value].upper_bound != Inf
+    return m.variable_info[vi.value].has_upper_bound
 end
 
 function has_lower_bound(m::IpoptOptimizer, vi::MOI.VariableIndex)
-    return m.variable_info[vi.value].lower_bound != -Inf
+    return m.variable_info[vi.value].has_lower_bound
 end
 
 function MOI.addconstraint!(m::IpoptOptimizer, v::MOI.SingleVariable, lt::MOI.LessThan{Float64})
     vi = v.variable
     check_inbounds(m, vi)
-    if !isfinite(lt.upper)
+    if isnan(lt.upper)
         error("Invalid upper bound value $(lt.upper).")
     end
     if has_upper_bound(m, vi)
         error("Upper bound on variable $vi already exists.")
     end
     m.variable_info[vi.value].upper_bound = lt.upper
+    m.variable_info[vi.value].has_upper_bound = true
     return MOI.ConstraintIndex{MOI.SingleVariable, MOI.LessThan{Float64}}(vi.value)
 end
 
 function MOI.addconstraint!(m::IpoptOptimizer, v::MOI.SingleVariable, gt::MOI.GreaterThan{Float64})
     vi = v.variable
     check_inbounds(m, vi)
-    if !isfinite(gt.lower)
+    if isnan(gt.lower)
         error("Invalid lower bound value $(gt.lower).")
     end
     if has_lower_bound(m, vi)
         error("Lower bound on variable $vi already exists.")
     end
     m.variable_info[vi.value].lower_bound = gt.lower
+    m.variable_info[vi.value].has_lower_bound = true
     return MOI.ConstraintIndex{MOI.SingleVariable, MOI.GreaterThan{Float64}}(vi.value)
 end
 
