@@ -413,7 +413,8 @@ function MOI.optimize!(m::IpoptOptimizer)
 
     m.inner = createProblem(num_variables, x_l, x_u, num_constraints,
                             constraint_lb, constraint_ub,
-                            length(jacobian_sparsity), length(nlp_hessian_sparsity),
+                            length(jacobian_sparsity),
+                            length(nlp_hessian_sparsity),
                             eval_f_cb, eval_g_cb, eval_grad_f_cb, eval_jac_g_cb,
                             eval_h_cb)
     if !has_hessian
