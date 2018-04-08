@@ -79,12 +79,4 @@ MathProgBase.optimize!(m)
 # Test that the ipopt binary works
 @test success(`$(Ipopt.amplexe) -v`)
 
-using MathOptInterface
-const MOI = MathOptInterface
-
-const optimizer = IpoptOptimizer()
-const config = MOI.Test.TestConfig(atol=1e-4, rtol=1e-4)
-
-@testset "MOI NLP tests" begin
-    MOI.Test.nlptest(optimizer, config)
-end
+include("moi.jl")
