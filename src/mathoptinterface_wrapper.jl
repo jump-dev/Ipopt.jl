@@ -402,7 +402,7 @@ function MOI.optimize!(m::IpoptOptimizer)
             lambda, values)
             if mode == :Structure
                 for i in 1:length(nlp_hessian_sparsity)
-                    rows[i] = nlp_hessian_sparsity[i][1] + nlp_row_offset
+                    rows[i] = nlp_hessian_sparsity[i][1]
                     cols[i] = nlp_hessian_sparsity[i][2]
                 end
             else
