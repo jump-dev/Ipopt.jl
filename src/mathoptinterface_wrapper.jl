@@ -69,6 +69,7 @@ MOI.canaddconstraint(::IpoptOptimizer, ::Type{MOI.ScalarAffineFunction{Float64}}
 
 MOI.canset(::IpoptOptimizer, ::MOI.VariablePrimalStart, ::Type{MOI.VariableIndex}) = true
 MOI.canset(::IpoptOptimizer, ::MOI.ObjectiveSense) = true
+MOI.canset(::IpoptOptimizer, ::MOI.NLPBlock) = true
 MOI.canset(::IpoptOptimizer, ::MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}) = true
 
 MOI.copy!(m::IpoptOptimizer, src::MOI.ModelLike; copynames = false) = MOI.Utilities.defaultcopy!(m, src, copynames)
@@ -536,6 +537,9 @@ function MOI.get(m::IpoptOptimizer, ::MOI.ObjectiveValue)
     return scale*m.inner.obj_val
 end
 
+# TODO: This is a bit off, because the variable primal should be available
+# only after a solve. If m.inner is initialized but we haven't solved, then
+# the primal values we return do not have the intended meaning.
 function MOI.canget(m::IpoptOptimizer, ::MOI.VariablePrimal, ::Type{MOI.VariableIndex})
     return m.inner !== nothing
 end
@@ -641,4 +645,10 @@ function MOI.get(m::IpoptOptimizer, ::MOI.ConstraintDual, ci::MOI.ConstraintInde
         error("No lower bound -- ConstraintDual not defined.")
     end
     return m.inner.mult_x_L[vi.value]
+end
+
+MOI.canget(m::IpoptOptimizer, ::MOI.NLPBlockDual) = m.inner !== nothing
+
+function MOI.get(m::IpoptOptimizer, ::MOI.NLPBlockDual)
+    return -1*m.inner.mult_g[1+nlp_constraint_offset(m):end]
 end
