@@ -17,7 +17,7 @@ mutable struct IpoptOptimizer <: MOI.AbstractOptimizer
     variable_info::Vector{VariableInfo}
     nlp_data::MOI.NLPBlockData
     sense::MOI.OptimizationSense
-    objective::Union{MOI.ScalarAffineFunction,Nothing}
+    objective::Union{MOI.ScalarAffineFunction,MOI.ScalarQuadraticFunction,Nothing}
     linear_le_constraints::Vector{Tuple{MOI.ScalarAffineFunction{Float64}, MOI.LessThan{Float64}}}
     linear_ge_constraints::Vector{Tuple{MOI.ScalarAffineFunction{Float64}, MOI.GreaterThan{Float64}}}
     linear_eq_constraints::Vector{Tuple{MOI.ScalarAffineFunction{Float64}, MOI.EqualTo{Float64}}}
@@ -52,6 +52,7 @@ IpoptOptimizer(;options...) = IpoptOptimizer(nothing, [], empty_nlp_data(), MOI.
 
 MOI.supports(::IpoptOptimizer, ::MOI.NLPBlock) = true
 MOI.supports(::IpoptOptimizer, ::MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}) = true
+MOI.supports(::IpoptOptimizer, ::MOI.ObjectiveFunction{MOI.ScalarQuadraticFunction{Float64}}) = true
 MOI.supports(::IpoptOptimizer, ::MOI.ObjectiveSense) = true
 MOI.supportsconstraint(::IpoptOptimizer, ::Type{MOI.SingleVariable}, ::Type{MOI.LessThan{Float64}}) = true
 MOI.supportsconstraint(::IpoptOptimizer, ::Type{MOI.SingleVariable}, ::Type{MOI.GreaterThan{Float64}}) = true
@@ -71,6 +72,7 @@ MOI.canset(::IpoptOptimizer, ::MOI.VariablePrimalStart, ::Type{MOI.VariableIndex
 MOI.canset(::IpoptOptimizer, ::MOI.ObjectiveSense) = true
 MOI.canset(::IpoptOptimizer, ::MOI.NLPBlock) = true
 MOI.canset(::IpoptOptimizer, ::MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}) = true
+MOI.canset(::IpoptOptimizer, ::MOI.ObjectiveFunction{MOI.ScalarQuadraticFunction{Float64}}) = true
 
 MOI.copy!(m::IpoptOptimizer, src::MOI.ModelLike; copynames = false) = MOI.Utilities.defaultcopy!(m, src, copynames)
 
@@ -118,6 +120,18 @@ end
 
 function check_inbounds(m::IpoptOptimizer, aff::MOI.ScalarAffineFunction)
     for v in aff.variables
+        check_inbounds(m, v)
+    end
+end
+
+function check_inbounds(m::IpoptOptimizer, quad::MOI.ScalarQuadraticFunction)
+    for v in quad.affine_variables
+        check_inbounds(m, v)
+    end
+    for v in quad.quadratic_rowvariables
+        check_inbounds(m, v)
+    end
+    for v in quad.quadratic_colvariables
         check_inbounds(m, v)
     end
 end
@@ -187,7 +201,7 @@ function MOI.set!(m::IpoptOptimizer, ::MOI.NLPBlock, nlp_data::MOI.NLPBlockData)
     return
 end
 
-function MOI.set!(m::IpoptOptimizer, ::MOI.ObjectiveFunction, func::MOI.ScalarAffineFunction)
+function MOI.set!(m::IpoptOptimizer, ::MOI.ObjectiveFunction, func::Union{MOI.ScalarAffineFunction,MOI.ScalarQuadraticFunction})
     check_inbounds(m, func)
     m.objective = func
     return
@@ -239,6 +253,25 @@ function jacobian_structure(m::IpoptOptimizer)
     return jacobian_sparsity
 end
 
+append_to_hessian_sparsity!(hessian_sparsity, ::MOI.ScalarAffineFunction) = nothing
+
+function append_to_hessian_sparsity!(hessian_sparsity, quad::MOI.ScalarQuadraticFunction)
+    for i in 1:length(quad.quadratic_rowvariables)
+        push!(hessian_sparsity, (quad.quadratic_rowvariables[i].value,
+                                 quad.quadratic_colvariables[i].value))
+    end
+end
+
+function hessian_lagrangian_structure(m::IpoptOptimizer)
+    hessian_sparsity = Tuple{Int64,Int64}[]
+    if m.objective !== nothing
+        append_to_hessian_sparsity!(hessian_sparsity, m.objective)
+    end
+    nlp_hessian_sparsity = MOI.hessian_lagrangian_structure(m.nlp_data.evaluator)
+    append!(hessian_sparsity, nlp_hessian_sparsity)
+    return hessian_sparsity
+end
+
 function eval_function(aff::MOI.ScalarAffineFunction, x)
     function_value = aff.constant
     for i in 1:length(aff.variables)
@@ -248,6 +281,27 @@ function eval_function(aff::MOI.ScalarAffineFunction, x)
         # x indices. This is valid because in this wrapper ListOfVariableIndices
         # is always [1, ..., NumberOfVariables].
         function_value += coefficient*x[var_idx.value]
+    end
+    return function_value
+end
+
+function eval_function(quad::MOI.ScalarQuadraticFunction, x)
+    function_value = quad.constant
+    for i in 1:length(quad.affine_variables)
+        var_idx = quad.affine_variables[i]
+        coefficient = quad.affine_coefficients[i]
+        function_value += coefficient*x[var_idx.value]
+    end
+    for i in 1:length(quad.quadratic_rowvariables)
+        row_idx = quad.quadratic_rowvariables[i]
+        col_idx = quad.quadratic_colvariables[i]
+        coefficient = quad.quadratic_coefficients[i]
+        term = coefficient*x[row_idx.value]*x[col_idx.value]
+        if row_idx == col_idx
+            function_value += 0.5*term
+        else
+            function_value += term
+        end
     end
     return function_value
 end
@@ -263,18 +317,41 @@ function eval_objective(m::IpoptOptimizer, x)
     end
 end
 
+function fill_gradient!(grad, x, aff::MOI.ScalarAffineFunction{Float64})
+    fill!(grad, 0.0)
+    for i in 1:length(aff.variables)
+        var_idx = aff.variables[i]
+        coefficient = aff.coefficients[i]
+        grad[var_idx.value] += coefficient
+    end
+end
+
+function fill_gradient!(grad, x, quad::MOI.ScalarQuadraticFunction{Float64})
+    fill!(grad, 0.0)
+    for i in 1:length(quad.affine_variables)
+        var_idx = quad.affine_variables[i]
+        coefficient = quad.affine_coefficients[i]
+        grad[var_idx.value] += coefficient
+    end
+    for i in 1:length(quad.quadratic_rowvariables)
+        row_idx = quad.quadratic_rowvariables[i]
+        col_idx = quad.quadratic_colvariables[i]
+        coefficient = quad.quadratic_coefficients[i]
+        if row_idx == col_idx
+            grad[row_idx.value] += coefficient*x[row_idx.value]
+        else
+            grad[row_idx.value] += coefficient*x[col_idx.value]
+            grad[col_idx.value] += coefficient*x[row_idx.value]
+        end
+    end
+end
+
 function eval_objective_gradient(m::IpoptOptimizer, grad, x)
     @assert !(m.nlp_data.has_objective && m.objective !== nothing)
     if m.nlp_data.has_objective
         MOI.eval_objective_gradient(m.nlp_data.evaluator, grad, x)
     elseif m.objective !== nothing
-        aff = m.objective::MOI.ScalarAffineFunction{Float64}
-        fill!(grad, 0.0)
-        for i in 1:length(aff.variables)
-            var_idx = aff.variables[i]
-            coefficient = aff.coefficients[i]
-            grad[var_idx.value] += coefficient
-        end
+        fill_gradient!(grad, x, m.objective)
     else
         error("No objective function set!")
     end
@@ -322,6 +399,27 @@ function eval_constraint_jacobian(m::IpoptOptimizer, values, x)
     return
 end
 
+
+
+function fill_hessian_lagrangian!(values, start_offset, scale_factor, ::Union{MOI.ScalarAffineFunction,Nothing})
+    return start_offset
+end
+
+function fill_hessian_lagrangian!(values, start_offset, scale_factor, quad::MOI.ScalarQuadraticFunction)
+    coefficients = quad.quadratic_coefficients
+    for i in 1:length(coefficients)
+        values[start_offset + i] = scale_factor*coefficients[i]
+    end
+    return start_offset + length(coefficients)
+end
+
+function eval_hessian_lagrangian(m::IpoptOptimizer, values, x, obj_factor, lambda)
+    nlp_offset = fill_hessian_lagrangian!(values, 0, obj_factor, m.objective)
+    nlp_values = view(values, 1 + nlp_offset : length(values))
+    nlp_lambda = view(lambda, 1 + nlp_constraint_offset(m) : length(lambda))
+    MOI.eval_hessian_lagrangian(m.nlp_data.evaluator, nlp_values, x, obj_factor, nlp_lambda)
+end
+
 function constraint_bounds(m::IpoptOptimizer)
     constraint_lb = Float64[]
     constraint_ub = Float64[]
@@ -363,7 +461,7 @@ function MOI.optimize!(m::IpoptOptimizer)
 
     MOI.initialize!(evaluator, init_feat)
     jacobian_sparsity = jacobian_structure(m)
-    nlp_hessian_sparsity = has_hessian ? MOI.hessian_lagrangian_structure(evaluator) : []
+    hessian_sparsity = has_hessian ? hessian_lagrangian_structure(m) : []
 
     # Objective callback
     if m.sense == MOI.MinSense
@@ -402,14 +500,13 @@ function MOI.optimize!(m::IpoptOptimizer)
         function eval_h_cb(x, mode, rows, cols, obj_factor,
             lambda, values)
             if mode == :Structure
-                for i in 1:length(nlp_hessian_sparsity)
-                    rows[i] = nlp_hessian_sparsity[i][1]
-                    cols[i] = nlp_hessian_sparsity[i][2]
+                for i in 1:length(hessian_sparsity)
+                    rows[i] = hessian_sparsity[i][1]
+                    cols[i] = hessian_sparsity[i][2]
                 end
             else
                 obj_factor *= objective_scale
-                nlp_lambda = view(lambda, 1 + nlp_row_offset : length(lambda))
-                MOI.eval_hessian_lagrangian(evaluator, values, x, obj_factor, nlp_lambda)
+                eval_hessian_lagrangian(m, values, x, objective_scale*obj_factor, lambda)
             end
         end
     else
@@ -424,7 +521,7 @@ function MOI.optimize!(m::IpoptOptimizer)
     m.inner = createProblem(num_variables, x_l, x_u, num_constraints,
                             constraint_lb, constraint_ub,
                             length(jacobian_sparsity),
-                            length(nlp_hessian_sparsity),
+                            length(hessian_sparsity),
                             eval_f_cb, eval_g_cb, eval_grad_f_cb, eval_jac_g_cb,
                             eval_h_cb)
     if !has_hessian
@@ -434,7 +531,9 @@ function MOI.optimize!(m::IpoptOptimizer)
         # TODO: this changes when we support quadratic
         addOption(m.inner, "jac_c_constant", "yes")
         addOption(m.inner, "jac_d_constant", "yes")
-        addOption(m.inner, "hessian_constant", "yes")
+        if !isa(m.objective, MOI.ScalarQuadraticFunction)
+            addOption(m.inner, "hessian_constant", "yes")
+        end
     end
 
     m.inner.x = [v.start for v in m.variable_info]
