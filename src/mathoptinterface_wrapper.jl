@@ -21,6 +21,9 @@ mutable struct IpoptOptimizer <: MOI.AbstractOptimizer
     linear_le_constraints::Vector{Tuple{MOI.ScalarAffineFunction{Float64}, MOI.LessThan{Float64}}}
     linear_ge_constraints::Vector{Tuple{MOI.ScalarAffineFunction{Float64}, MOI.GreaterThan{Float64}}}
     linear_eq_constraints::Vector{Tuple{MOI.ScalarAffineFunction{Float64}, MOI.EqualTo{Float64}}}
+    quadratic_le_constraints::Vector{Tuple{MOI.ScalarQuadraticFunction{Float64}, MOI.LessThan{Float64}}}
+    quadratic_ge_constraints::Vector{Tuple{MOI.ScalarQuadraticFunction{Float64}, MOI.GreaterThan{Float64}}}
+    quadratic_eq_constraints::Vector{Tuple{MOI.ScalarQuadraticFunction{Float64}, MOI.EqualTo{Float64}}}
     options
 end
 
@@ -48,7 +51,7 @@ end
 empty_nlp_data() = MOI.NLPBlockData([], EmptyNLPEvaluator(), false)
 
 
-IpoptOptimizer(;options...) = IpoptOptimizer(nothing, [], empty_nlp_data(), MOI.FeasibilitySense, nothing, [], [], [], options)
+IpoptOptimizer(;options...) = IpoptOptimizer(nothing, [], empty_nlp_data(), MOI.FeasibilitySense, nothing, [], [], [], [], [], [], options)
 
 MOI.supports(::IpoptOptimizer, ::MOI.NLPBlock) = true
 MOI.supports(::IpoptOptimizer, ::MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}) = true
@@ -59,6 +62,9 @@ MOI.supportsconstraint(::IpoptOptimizer, ::Type{MOI.SingleVariable}, ::Type{MOI.
 MOI.supportsconstraint(::IpoptOptimizer, ::Type{MOI.ScalarAffineFunction{Float64}}, ::Type{MOI.LessThan{Float64}}) = true
 MOI.supportsconstraint(::IpoptOptimizer, ::Type{MOI.ScalarAffineFunction{Float64}}, ::Type{MOI.GreaterThan{Float64}}) = true
 MOI.supportsconstraint(::IpoptOptimizer, ::Type{MOI.ScalarAffineFunction{Float64}}, ::Type{MOI.EqualTo{Float64}}) = true
+MOI.supportsconstraint(::IpoptOptimizer, ::Type{MOI.ScalarQuadraticFunction{Float64}}, ::Type{MOI.LessThan{Float64}}) = true
+MOI.supportsconstraint(::IpoptOptimizer, ::Type{MOI.ScalarQuadraticFunction{Float64}}, ::Type{MOI.GreaterThan{Float64}}) = true
+MOI.supportsconstraint(::IpoptOptimizer, ::Type{MOI.ScalarQuadraticFunction{Float64}}, ::Type{MOI.EqualTo{Float64}}) = true
 
 MOI.canaddvariable(::IpoptOptimizer) = true
 # TODO: The distinction between supportsconstraint and canaddconstraint is maybe too subtle.
@@ -67,6 +73,9 @@ MOI.canaddconstraint(::IpoptOptimizer, ::Type{MOI.SingleVariable}, ::Type{MOI.Gr
 MOI.canaddconstraint(::IpoptOptimizer, ::Type{MOI.ScalarAffineFunction{Float64}}, ::Type{MOI.LessThan{Float64}}) = true
 MOI.canaddconstraint(::IpoptOptimizer, ::Type{MOI.ScalarAffineFunction{Float64}}, ::Type{MOI.GreaterThan{Float64}}) = true
 MOI.canaddconstraint(::IpoptOptimizer, ::Type{MOI.ScalarAffineFunction{Float64}}, ::Type{MOI.EqualTo{Float64}}) = true
+MOI.canaddconstraint(::IpoptOptimizer, ::Type{MOI.ScalarQuadraticFunction{Float64}}, ::Type{MOI.LessThan{Float64}}) = true
+MOI.canaddconstraint(::IpoptOptimizer, ::Type{MOI.ScalarQuadraticFunction{Float64}}, ::Type{MOI.GreaterThan{Float64}}) = true
+MOI.canaddconstraint(::IpoptOptimizer, ::Type{MOI.ScalarQuadraticFunction{Float64}}, ::Type{MOI.EqualTo{Float64}}) = true
 
 MOI.canset(::IpoptOptimizer, ::MOI.VariablePrimalStart, ::Type{MOI.VariableIndex}) = true
 MOI.canset(::IpoptOptimizer, ::MOI.ObjectiveSense) = true
@@ -99,10 +108,21 @@ function MOI.empty!(m::IpoptOptimizer)
     empty!(m.linear_le_constraints)
     empty!(m.linear_ge_constraints)
     empty!(m.linear_eq_constraints)
+    empty!(m.quadratic_le_constraints)
+    empty!(m.quadratic_ge_constraints)
+    empty!(m.quadratic_eq_constraints)
 end
 
 function MOI.isempty(m::IpoptOptimizer)
-    return isempty(m.variable_info) && m.nlp_data.evaluator isa EmptyNLPEvaluator && m.sense == MOI.FeasibilitySense
+    return isempty(m.variable_info) &&
+           m.nlp_data.evaluator isa EmptyNLPEvaluator &&
+           m.sense == MOI.FeasibilitySense &&
+           isempty(m.linear_le_constraints) &&
+           isempty(m.linear_ge_constraints) &&
+           isempty(m.linear_eq_constraints) &&
+           isempty(m.quadratic_le_constraints) &&
+           isempty(m.quadratic_ge_constraints) &&
+           isempty(m.quadratic_eq_constraints)
 end
 
 function MOI.addvariable!(m::IpoptOptimizer)
@@ -172,22 +192,20 @@ function MOI.addconstraint!(m::IpoptOptimizer, v::MOI.SingleVariable, gt::MOI.Gr
     return MOI.ConstraintIndex{MOI.SingleVariable, MOI.GreaterThan{Float64}}(vi.value)
 end
 
-function MOI.addconstraint!(m::IpoptOptimizer, func::MOI.ScalarAffineFunction{Float64}, lt::MOI.LessThan{Float64})
-    check_inbounds(m, func)
-    push!(m.linear_le_constraints, (func, lt))
-    return MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64}, MOI.LessThan{Float64}}(length(m.linear_le_constraints))
-end
+const constraint_map = [
+   (MOI.ScalarAffineFunction{Float64}, MOI.LessThan{Float64}) => :linear_le_constraints,
+   (MOI.ScalarAffineFunction{Float64}, MOI.GreaterThan{Float64}) => :linear_ge_constraints,
+   (MOI.ScalarAffineFunction{Float64}, MOI.EqualTo{Float64}) => :linear_eq_constraints,
+   (MOI.ScalarQuadraticFunction{Float64}, MOI.LessThan{Float64}) => :quadratic_le_constraints,
+   (MOI.ScalarQuadraticFunction{Float64}, MOI.GreaterThan{Float64}) => :quadratic_ge_constraints,
+   (MOI.ScalarQuadraticFunction{Float64}, MOI.EqualTo{Float64}) => :quadratic_eq_constraints]
 
-function MOI.addconstraint!(m::IpoptOptimizer, func::MOI.ScalarAffineFunction{Float64}, gt::MOI.GreaterThan{Float64})
-    check_inbounds(m, func)
-    push!(m.linear_ge_constraints, (func, gt))
-    return MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64}, MOI.GreaterThan{Float64}}(length(m.linear_ge_constraints))
-end
-
-function MOI.addconstraint!(m::IpoptOptimizer, func::MOI.ScalarAffineFunction{Float64}, eq::MOI.EqualTo{Float64})
-    check_inbounds(m, func)
-    push!(m.linear_eq_constraints, (func, eq))
-    return MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64}, MOI.EqualTo{Float64}}(length(m.linear_eq_constraints))
+for ((func, set), array_name) in constraint_map
+    @eval function MOI.addconstraint!(m::IpoptOptimizer, func::$func, set::$set)
+        check_inbounds(m, func)
+        push!(m.$(array_name), (func, set))
+        return MOI.ConstraintIndex{$func, $set}(length(m.$(array_name)))
+    end
 end
 
 function MOI.set!(m::IpoptOptimizer, ::MOI.VariablePrimalStart, vi::MOI.VariableIndex, value::Real)
@@ -211,12 +229,18 @@ end
 # - linear_le_constraints
 # - linear_ge_constraints
 # - linear_eq_constraints
+# - quadratic_le_constraints
+# - quadratic_ge_constraints
+# - quadratic_eq_constraints
 # - nonlinear constraints from nlp_data
 
 linear_le_offset(m::IpoptOptimizer) = 0
 linear_ge_offset(m::IpoptOptimizer) = length(m.linear_le_constraints)
-linear_eq_offset(m::IpoptOptimizer) = length(m.linear_le_constraints) + length(m.linear_ge_constraints)
-nlp_constraint_offset(m::IpoptOptimizer) = linear_eq_offset(m) + length(m.linear_eq_constraints)
+linear_eq_offset(m::IpoptOptimizer) = linear_ge_offset(m) + length(m.linear_ge_constraints)
+quadratic_le_offset(m::IpoptOptimizer) = linear_eq_offset(m) + length(m.linear_eq_constraints)
+quadratic_ge_offset(m::IpoptOptimizer) = quadratic_le_offset(m) + length(m.quadratic_le_constraints)
+quadratic_eq_offset(m::IpoptOptimizer) = quadratic_ge_offset(m) + length(m.quadratic_ge_constraints)
+nlp_constraint_offset(m::IpoptOptimizer) = quadratic_eq_offset(m) + length(m.quadratic_eq_constraints)
 
 # Convenience functions used only in optimize!
 
@@ -225,6 +249,34 @@ function append_to_jacobian_sparsity!(jacobian_sparsity, aff::MOI.ScalarAffineFu
         push!(jacobian_sparsity, (row, variable_index.value))
     end
 end
+
+function append_to_jacobian_sparsity!(jacobian_sparsity, quad::MOI.ScalarQuadraticFunction, row)
+    for variable_index in quad.affine_variables
+        push!(jacobian_sparsity, (row, variable_index.value))
+    end
+    for i in 1:length(quad.quadratic_rowvariables)
+        row_idx = quad.quadratic_rowvariables[i]
+        col_idx = quad.quadratic_colvariables[i]
+        if row_idx == col_idx
+            push!(jacobian_sparsity, (row, row_idx.value))
+        else
+            push!(jacobian_sparsity, (row, row_idx.value))
+            push!(jacobian_sparsity, (row, col_idx.value))
+        end
+    end
+end
+
+# Refers to local variables in jacobian_structure() below.
+macro append_to_jacobian_sparsity(array_name)
+    escrow = esc(:row)
+    quote
+        for (func, set) in $(esc(array_name))
+            append_to_jacobian_sparsity!($(esc(:jacobian_sparsity)), func, $escrow)
+            $escrow += 1
+        end
+    end
+end
+
 function jacobian_structure(m::IpoptOptimizer)
     num_nlp_constraints = length(m.nlp_data.constraint_bounds)
     if num_nlp_constraints > 0
@@ -235,18 +287,12 @@ function jacobian_structure(m::IpoptOptimizer)
 
     jacobian_sparsity = Tuple{Int64,Int64}[]
     row = 1
-    for (aff, set) in m.linear_le_constraints
-        append_to_jacobian_sparsity!(jacobian_sparsity, aff, row)
-        row += 1
-    end
-    for (aff, set) in m.linear_ge_constraints
-        append_to_jacobian_sparsity!(jacobian_sparsity, aff, row)
-        row += 1
-    end
-    for (aff, set) in m.linear_eq_constraints
-        append_to_jacobian_sparsity!(jacobian_sparsity, aff, row)
-        row += 1
-    end
+    @append_to_jacobian_sparsity m.linear_le_constraints
+    @append_to_jacobian_sparsity m.linear_ge_constraints
+    @append_to_jacobian_sparsity m.linear_eq_constraints
+    @append_to_jacobian_sparsity m.quadratic_le_constraints
+    @append_to_jacobian_sparsity m.quadratic_ge_constraints
+    @append_to_jacobian_sparsity m.quadratic_eq_constraints
     for (nlp_row, column) in nlp_jacobian_sparsity
         push!(jacobian_sparsity, (nlp_row + row - 1, column))
     end
@@ -266,6 +312,15 @@ function hessian_lagrangian_structure(m::IpoptOptimizer)
     hessian_sparsity = Tuple{Int64,Int64}[]
     if m.objective !== nothing
         append_to_hessian_sparsity!(hessian_sparsity, m.objective)
+    end
+    for (quad, set) in m.quadratic_le_constraints
+        append_to_hessian_sparsity!(hessian_sparsity, quad)
+    end
+    for (quad, set) in m.quadratic_ge_constraints
+        append_to_hessian_sparsity!(hessian_sparsity, quad)
+    end
+    for (quad, set) in m.quadratic_eq_constraints
+        append_to_hessian_sparsity!(hessian_sparsity, quad)
     end
     nlp_hessian_sparsity = MOI.hessian_lagrangian_structure(m.nlp_data.evaluator)
     append!(hessian_sparsity, nlp_hessian_sparsity)
@@ -358,51 +413,83 @@ function eval_objective_gradient(m::IpoptOptimizer, grad, x)
     return
 end
 
+# Refers to local variables in eval_constraint() below.
+macro eval_function(array_name)
+    escrow = esc(:row)
+    quote
+        for (func, set) in $(esc(array_name))
+            $(esc(:g))[$escrow] = eval_function(func, $(esc(:x)))
+            $escrow += 1
+        end
+    end
+end
+
 function eval_constraint(m::IpoptOptimizer, g, x)
     row = 1
-    for (aff, set) in m.linear_le_constraints
-        g[row] = eval_function(aff, x)
-        row += 1
-    end
-    for (aff, set) in m.linear_ge_constraints
-        g[row] = eval_function(aff, x)
-        row += 1
-    end
-    for (aff, set) in m.linear_eq_constraints
-        g[row] = eval_function(aff, x)
-        row += 1
-    end
+    @eval_function m.linear_le_constraints
+    @eval_function m.linear_ge_constraints
+    @eval_function m.linear_eq_constraints
+    @eval_function m.quadratic_le_constraints
+    @eval_function m.quadratic_ge_constraints
+    @eval_function m.quadratic_eq_constraints
     nlp_g = view(g, row:length(g))
     MOI.eval_constraint(m.nlp_data.evaluator, nlp_g, x)
     return
 end
 
+function fill_constraint_jacobian!(values, start_offset, x, aff::MOI.ScalarAffineFunction)
+    num_coefficients = length(aff.coefficients)
+    values[start_offset+1:start_offset+num_coefficients] .= aff.coefficients
+    return num_coefficients
+end
+
+function fill_constraint_jacobian!(values, start_offset, x, quad::MOI.ScalarQuadraticFunction)
+    num_affine_coefficients = length(quad.affine_coefficients)
+    values[start_offset+1:start_offset+num_affine_coefficients] .= quad.affine_coefficients
+    num_quadratic_coefficients = 0
+    for i in 1:length(quad.quadratic_rowvariables)
+        row_idx = quad.quadratic_rowvariables[i]
+        col_idx = quad.quadratic_colvariables[i]
+        coefficient = quad.quadratic_coefficients[i]
+        if row_idx == col_idx
+            values[start_offset+num_affine_coefficients+num_quadratic_coefficients+1] = coefficient*x[col_idx.value]
+            num_quadratic_coefficients += 1
+        else
+            # Note that the order matches the Jacobian sparsity pattern.
+            values[start_offset+num_affine_coefficients+num_quadratic_coefficients+1] = coefficient*x[col_idx.value]
+            values[start_offset+num_affine_coefficients+num_quadratic_coefficients+2] = coefficient*x[row_idx.value]
+            num_quadratic_coefficients += 2
+        end
+    end
+    return num_affine_coefficients + num_quadratic_coefficients
+end
+
+# Refers to local variables in eval_constraint_jacobian() below.
+macro fill_constraint_jacobian(array_name)
+    esc_offset = esc(:offset)
+    quote
+        for (func, set) in $(esc(array_name))
+            $esc_offset += fill_constraint_jacobian!($(esc(:values)), $esc_offset, $(esc(:x)), func)
+        end
+    end
+end
+
 function eval_constraint_jacobian(m::IpoptOptimizer, values, x)
-    offset = 1
-    for (aff, set) in m.linear_le_constraints
-        num_coefficients = length(aff.coefficients)
-        values[offset:offset+num_coefficients-1] .= aff.coefficients
-        offset += num_coefficients
-    end
-    for (aff, set) in m.linear_ge_constraints
-        num_coefficients = length(aff.coefficients)
-        values[offset:offset+num_coefficients-1] .= aff.coefficients
-        offset += num_coefficients
-    end
-    for (aff, set) in m.linear_eq_constraints
-        num_coefficients = length(aff.coefficients)
-        values[offset:offset+num_coefficients-1] .= aff.coefficients
-        offset += num_coefficients
-    end
-    nlp_values = view(values, offset:length(values))
+    offset = 0
+    @fill_constraint_jacobian m.linear_le_constraints
+    @fill_constraint_jacobian m.linear_ge_constraints
+    @fill_constraint_jacobian m.linear_eq_constraints
+    @fill_constraint_jacobian m.quadratic_le_constraints
+    @fill_constraint_jacobian m.quadratic_ge_constraints
+    @fill_constraint_jacobian m.quadratic_eq_constraints
+
+    nlp_values = view(values, 1+offset:length(values))
     MOI.eval_constraint_jacobian(m.nlp_data.evaluator, nlp_values, x)
     return
 end
 
-
-
 function fill_hessian_lagrangian!(values, start_offset, scale_factor, ::Union{MOI.ScalarAffineFunction,Nothing})
-    return start_offset
+    return 0
 end
 
 function fill_hessian_lagrangian!(values, start_offset, scale_factor, quad::MOI.ScalarQuadraticFunction)
@@ -410,12 +497,21 @@ function fill_hessian_lagrangian!(values, start_offset, scale_factor, quad::MOI.
     for i in 1:length(coefficients)
         values[start_offset + i] = scale_factor*coefficients[i]
     end
-    return start_offset + length(coefficients)
+    return length(coefficients)
 end
 
 function eval_hessian_lagrangian(m::IpoptOptimizer, values, x, obj_factor, lambda)
-    nlp_offset = fill_hessian_lagrangian!(values, 0, obj_factor, m.objective)
-    nlp_values = view(values, 1 + nlp_offset : length(values))
+    offset = fill_hessian_lagrangian!(values, 0, obj_factor, m.objective)
+    for (i, (quad, set)) in enumerate(m.quadratic_le_constraints)
+        offset += fill_hessian_lagrangian!(values, offset, lambda[i+quadratic_le_offset(m)], quad)
+    end
+    for (i, (quad, set)) in enumerate(m.quadratic_ge_constraints)
+        offset += fill_hessian_lagrangian!(values, offset, lambda[i+quadratic_ge_offset(m)], quad)
+    end
+    for (i, (quad, set)) in enumerate(m.quadratic_eq_constraints)
+        offset += fill_hessian_lagrangian!(values, offset, lambda[i+quadratic_eq_offset(m)], quad)
+    end
+    nlp_values = view(values, 1 + offset : length(values))
     nlp_lambda = view(lambda, 1 + nlp_constraint_offset(m) : length(lambda))
     MOI.eval_hessian_lagrangian(m.nlp_data.evaluator, nlp_values, x, obj_factor, nlp_lambda)
 end
@@ -423,15 +519,27 @@ end
 function constraint_bounds(m::IpoptOptimizer)
     constraint_lb = Float64[]
     constraint_ub = Float64[]
-    for (aff, set) in m.linear_le_constraints
+    for (func, set) in m.linear_le_constraints
         push!(constraint_lb, -Inf)
         push!(constraint_ub, set.upper)
     end
-    for (aff, set) in m.linear_ge_constraints
+    for (func, set) in m.linear_ge_constraints
         push!(constraint_lb, set.lower)
         push!(constraint_ub, Inf)
     end
-    for (aff, set) in m.linear_eq_constraints
+    for (func, set) in m.linear_eq_constraints
+        push!(constraint_lb, set.value)
+        push!(constraint_ub, set.value)
+    end
+    for (func, set) in m.quadratic_le_constraints
+        push!(constraint_lb, -Inf)
+        push!(constraint_ub, set.upper)
+    end
+    for (func, set) in m.quadratic_ge_constraints
+        push!(constraint_lb, set.lower)
+        push!(constraint_ub, Inf)
+    end
+    for (func, set) in m.quadratic_eq_constraints
         push!(constraint_lb, set.value)
         push!(constraint_ub, set.value)
     end
@@ -449,6 +557,7 @@ function MOI.optimize!(m::IpoptOptimizer)
     num_linear_ge_constraints = length(m.linear_ge_constraints)
     num_linear_eq_constraints = length(m.linear_eq_constraints)
     nlp_row_offset = nlp_constraint_offset(m)
+    num_quadratic_constraints = nlp_constraint_offset(m) - quadratic_le_offset(m)
     num_nlp_constraints = length(m.nlp_data.constraint_bounds)
     num_constraints = num_nlp_constraints + nlp_row_offset
 
@@ -527,11 +636,14 @@ function MOI.optimize!(m::IpoptOptimizer)
     if !has_hessian
         addOption(m.inner, "hessian_approximation", "limited-memory")
     end
-    if num_nlp_constraints == 0
-        # TODO: this changes when we support quadratic
+    if num_nlp_constraints == 0 && num_quadratic_constraints == 0
         addOption(m.inner, "jac_c_constant", "yes")
         addOption(m.inner, "jac_d_constant", "yes")
-        if !isa(m.objective, MOI.ScalarQuadraticFunction)
+        if !m.nlp_data.has_objective
+            # We turn on this option if all constraints are linear and the
+            # objective is linear or quadratic. From the documentation, it's
+            # unclear if it may also apply if the constraints are at most
+            # quadratic.
             addOption(m.inner, "hessian_constant", "yes")
         end
     end

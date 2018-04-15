@@ -15,7 +15,7 @@ MOIB.@bridge SplitInterval MOIB.SplitIntervalBridge () (Interval,) () () () (Sca
 const optimizer = IpoptOptimizer(print_level=0)
 const config = MOIT.TestConfig(atol=1e-4, rtol=1e-4)
 
-@testset "Linear tests" begin
+@testset "MOI Linear tests" begin
     exclude = ["linear8a", # Behavior in infeasible case doesn't match test.
                "linear12", # Same as above.
                "linear8b", # Behavior in unbounded case doesn't match test.
@@ -30,9 +30,12 @@ end
 
 MOI.empty!(optimizer)
 
-@testset "QP tests" begin
+@testset "MOI QP/QCQP tests" begin
     qp_optimizer = MOIU.CachingOptimizer(IpoptModelData{Float64}(), optimizer)
     MOIT.qptest(qp_optimizer, config)
+    exclude = ["qcp1", # VectorAffineFunction not supported.
+              ]
+    MOIT.qcptest(qp_optimizer, config, exclude)
 end
 
 MOI.empty!(optimizer)
