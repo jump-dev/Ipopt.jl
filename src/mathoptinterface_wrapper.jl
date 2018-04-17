@@ -226,21 +226,22 @@ function MOI.addconstraint!(m::IpoptOptimizer, v::MOI.SingleVariable, eq::MOI.Eq
     return MOI.ConstraintIndex{MOI.SingleVariable, MOI.EqualTo{Float64}}(vi.value)
 end
 
-const constraint_map = [
-   (MOI.ScalarAffineFunction{Float64}, MOI.LessThan{Float64}) => :linear_le_constraints,
-   (MOI.ScalarAffineFunction{Float64}, MOI.GreaterThan{Float64}) => :linear_ge_constraints,
-   (MOI.ScalarAffineFunction{Float64}, MOI.EqualTo{Float64}) => :linear_eq_constraints,
-   (MOI.ScalarQuadraticFunction{Float64}, MOI.LessThan{Float64}) => :quadratic_le_constraints,
-   (MOI.ScalarQuadraticFunction{Float64}, MOI.GreaterThan{Float64}) => :quadratic_ge_constraints,
-   (MOI.ScalarQuadraticFunction{Float64}, MOI.EqualTo{Float64}) => :quadratic_eq_constraints]
-
-for ((func, set), array_name) in constraint_map
-    @eval function MOI.addconstraint!(m::IpoptOptimizer, func::$func, set::$set)
-        check_inbounds(m, func)
-        push!(m.$(array_name), (func, set))
-        return MOI.ConstraintIndex{$func, $set}(length(m.$(array_name)))
+macro define_addconstraint(function_type, set_type, array_name)
+    quote
+        function MOI.addconstraint!(m::IpoptOptimizer, func::$function_type, set::$set_type)
+            check_inbounds(m, func)
+            push!(m.$(array_name), (func, set))
+            return MOI.ConstraintIndex{$function_type, $set_type}(length(m.$(array_name)))
+        end
     end
 end
+
+@define_addconstraint MOI.ScalarAffineFunction{Float64} MOI.LessThan{Float64} linear_le_constraints
+@define_addconstraint MOI.ScalarAffineFunction{Float64} MOI.GreaterThan{Float64} linear_ge_constraints
+@define_addconstraint MOI.ScalarAffineFunction{Float64} MOI.EqualTo{Float64} linear_eq_constraints
+@define_addconstraint MOI.ScalarQuadraticFunction{Float64} MOI.LessThan{Float64} quadratic_le_constraints
+@define_addconstraint MOI.ScalarQuadraticFunction{Float64} MOI.GreaterThan{Float64} quadratic_ge_constraints
+@define_addconstraint MOI.ScalarQuadraticFunction{Float64} MOI.EqualTo{Float64} quadratic_eq_constraints
 
 function MOI.set!(m::IpoptOptimizer, ::MOI.VariablePrimalStart, vi::MOI.VariableIndex, value::Real)
     check_inbounds(m, vi)
@@ -794,27 +795,28 @@ function MOI.get(m::IpoptOptimizer, ::MOI.VariablePrimal, vi::MOI.VariableIndex)
     return m.inner.x[vi.value]
 end
 
-function MOI.canget(m::IpoptOptimizer, ::MOI.ConstraintPrimal,
-    ::Union{Type{MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64},MOI.LessThan{Float64}}},
-            Type{MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64},MOI.GreaterThan{Float64}}},
-            Type{MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64},MOI.EqualTo{Float64}}}})
-    return m.inner !== nothing
+macro define_constraint_primal(function_type, set_type, prefix)
+    constraint_array = Symbol(string(prefix) * "_constraints")
+    offset_function = Symbol(string(prefix) * "_offset")
+    quote
+        function MOI.canget(m::IpoptOptimizer, ::MOI.ConstraintPrimal, ::Type{MOI.ConstraintIndex{$function_type, $set_type}})
+            return m.inner != nothing
+        end
+        function MOI.get(m::IpoptOptimizer, ::MOI.ConstraintPrimal, ci::MOI.ConstraintIndex{$function_type, $set_type})
+            if !(1 <= ci.value <= length(m.$(constraint_array)))
+                error("Invalid constraint index ", ci.value)
+            end
+            return m.inner.g[ci.value + $offset_function(m)]
+        end
+    end
 end
 
-function MOI.get(m::IpoptOptimizer, ::MOI.ConstraintPrimal, ci::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64},MOI.LessThan{Float64}})
-    @assert 1 <= ci.value <= length(m.linear_le_constraints)
-    return m.inner.g[ci.value + linear_le_offset(m)]
-end
-
-function MOI.get(m::IpoptOptimizer, ::MOI.ConstraintPrimal, ci::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64},MOI.GreaterThan{Float64}})
-    @assert 1 <= ci.value <= length(m.linear_ge_constraints)
-    return m.inner.g[ci.value + linear_ge_offset(m)]
-end
-
-function MOI.get(m::IpoptOptimizer, ::MOI.ConstraintPrimal, ci::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64},MOI.EqualTo{Float64}})
-    @assert 1 <= ci.value <= length(m.linear_eq_constraints)
-    return m.inner.g[ci.value + linear_eq_offset(m)]
-end
+@define_constraint_primal MOI.ScalarAffineFunction{Float64} MOI.LessThan{Float64} linear_le
+@define_constraint_primal MOI.ScalarAffineFunction{Float64} MOI.GreaterThan{Float64} linear_ge
+@define_constraint_primal MOI.ScalarAffineFunction{Float64} MOI.EqualTo{Float64} linear_eq
+@define_constraint_primal MOI.ScalarQuadraticFunction{Float64} MOI.LessThan{Float64} quadratic_le
+@define_constraint_primal MOI.ScalarQuadraticFunction{Float64} MOI.GreaterThan{Float64} quadratic_ge
+@define_constraint_primal MOI.ScalarQuadraticFunction{Float64} MOI.EqualTo{Float64} quadratic_eq
 
 function MOI.canget(m::IpoptOptimizer, ::MOI.ConstraintPrimal,
     ::Union{Type{MOI.ConstraintIndex{MOI.SingleVariable,MOI.LessThan{Float64}}},
