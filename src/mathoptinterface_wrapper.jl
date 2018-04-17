@@ -18,7 +18,7 @@ mutable struct IpoptOptimizer <: MOI.AbstractOptimizer
     variable_info::Vector{VariableInfo}
     nlp_data::MOI.NLPBlockData
     sense::MOI.OptimizationSense
-    objective::Union{MOI.ScalarAffineFunction,MOI.ScalarQuadraticFunction,Nothing}
+    objective::Union{MOI.SingleVariable,MOI.ScalarAffineFunction{Float64},MOI.ScalarQuadraticFunction{Float64},Nothing}
     linear_le_constraints::Vector{Tuple{MOI.ScalarAffineFunction{Float64}, MOI.LessThan{Float64}}}
     linear_ge_constraints::Vector{Tuple{MOI.ScalarAffineFunction{Float64}, MOI.GreaterThan{Float64}}}
     linear_eq_constraints::Vector{Tuple{MOI.ScalarAffineFunction{Float64}, MOI.EqualTo{Float64}}}
@@ -55,6 +55,7 @@ empty_nlp_data() = MOI.NLPBlockData([], EmptyNLPEvaluator(), false)
 IpoptOptimizer(;options...) = IpoptOptimizer(nothing, [], empty_nlp_data(), MOI.FeasibilitySense, nothing, [], [], [], [], [], [], options)
 
 MOI.supports(::IpoptOptimizer, ::MOI.NLPBlock) = true
+MOI.supports(::IpoptOptimizer, ::MOI.ObjectiveFunction{MOI.SingleVariable}) = true
 MOI.supports(::IpoptOptimizer, ::MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}) = true
 MOI.supports(::IpoptOptimizer, ::MOI.ObjectiveFunction{MOI.ScalarQuadraticFunction{Float64}}) = true
 MOI.supports(::IpoptOptimizer, ::MOI.ObjectiveSense) = true
@@ -83,6 +84,7 @@ MOI.canaddconstraint(::IpoptOptimizer, ::Type{MOI.ScalarQuadraticFunction{Float6
 MOI.canset(::IpoptOptimizer, ::MOI.VariablePrimalStart, ::Type{MOI.VariableIndex}) = true
 MOI.canset(::IpoptOptimizer, ::MOI.ObjectiveSense) = true
 MOI.canset(::IpoptOptimizer, ::MOI.NLPBlock) = true
+MOI.canset(::IpoptOptimizer, ::MOI.ObjectiveFunction{MOI.SingleVariable}) = true
 MOI.canset(::IpoptOptimizer, ::MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}) = true
 MOI.canset(::IpoptOptimizer, ::MOI.ObjectiveFunction{MOI.ScalarQuadraticFunction{Float64}}) = true
 
@@ -140,6 +142,8 @@ function check_inbounds(m::IpoptOptimizer, vi::MOI.VariableIndex)
         error("Invalid variable index $vi. ($num_variables variables in the model.)")
     end
 end
+
+check_inbounds(m::IpoptOptimizer, var::MOI.SingleVariable) = check_inbounds(m, var.variable)
 
 function check_inbounds(m::IpoptOptimizer, aff::MOI.ScalarAffineFunction)
     for v in aff.variables
@@ -254,7 +258,7 @@ function MOI.set!(m::IpoptOptimizer, ::MOI.NLPBlock, nlp_data::MOI.NLPBlockData)
     return
 end
 
-function MOI.set!(m::IpoptOptimizer, ::MOI.ObjectiveFunction, func::Union{MOI.ScalarAffineFunction,MOI.ScalarQuadraticFunction})
+function MOI.set!(m::IpoptOptimizer, ::MOI.ObjectiveFunction, func::Union{MOI.SingleVariable,MOI.ScalarAffineFunction,MOI.ScalarQuadraticFunction})
     check_inbounds(m, func)
     m.objective = func
     return
@@ -334,7 +338,7 @@ function jacobian_structure(m::IpoptOptimizer)
     return jacobian_sparsity
 end
 
-append_to_hessian_sparsity!(hessian_sparsity, ::MOI.ScalarAffineFunction) = nothing
+append_to_hessian_sparsity!(hessian_sparsity, ::Union{MOI.SingleVariable,MOI.ScalarAffineFunction}) = nothing
 
 function append_to_hessian_sparsity!(hessian_sparsity, quad::MOI.ScalarQuadraticFunction)
     for i in 1:length(quad.quadratic_rowvariables)
@@ -360,6 +364,10 @@ function hessian_lagrangian_structure(m::IpoptOptimizer)
     nlp_hessian_sparsity = MOI.hessian_lagrangian_structure(m.nlp_data.evaluator)
     append!(hessian_sparsity, nlp_hessian_sparsity)
     return hessian_sparsity
+end
+
+function eval_function(var::MOI.SingleVariable, x)
+    return x[var.variable.value]
 end
 
 function eval_function(aff::MOI.ScalarAffineFunction, x)
@@ -405,6 +413,11 @@ function eval_objective(m::IpoptOptimizer, x)
     else
         error("No objective function set!")
     end
+end
+
+function fill_gradient!(grad, x, var::MOI.SingleVariable)
+    fill!(grad, 0.0)
+    grad[var.variable.value] = 1.0
 end
 
 function fill_gradient!(grad, x, aff::MOI.ScalarAffineFunction{Float64})
@@ -523,7 +536,7 @@ function eval_constraint_jacobian(m::IpoptOptimizer, values, x)
     return
 end
 
-function fill_hessian_lagrangian!(values, start_offset, scale_factor, ::Union{MOI.ScalarAffineFunction,Nothing})
+function fill_hessian_lagrangian!(values, start_offset, scale_factor, ::Union{MOI.SingleVariable,MOI.ScalarAffineFunction,Nothing})
     return 0
 end
 
