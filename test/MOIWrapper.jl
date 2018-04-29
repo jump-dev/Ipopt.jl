@@ -2,8 +2,7 @@ using MathOptInterface
 const MOI = MathOptInterface
 const MOIT = MOI.Test
 const MOIU = MOI.Utilities
-using MathOptInterfaceBridges
-const MOIB = MathOptInterfaceBridges
+const MOIB = MOI.Bridges
 
 MOIU.@model(IpoptModelData, (), (EqualTo, GreaterThan, LessThan),
            (Zeros, Nonnegatives, Nonpositives, PositiveSemidefiniteConeTriangle),
