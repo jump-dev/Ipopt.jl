@@ -21,7 +21,6 @@ using Ipopt, Base.Test
     # Test opening an output file
     openOutputFile(prob, "blah.txt", 5)
     # unlink the output file
-    Ipopt.freeProblem(prob)
     rm("blah.txt")
 
     # Test that the ipopt binary works
