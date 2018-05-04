@@ -216,7 +216,10 @@ end
 # TODO: Not even expose this? Seems dangerous, should just destruct
 # the IpoptProblem object via GC
 function freeProblem(prob::IpoptProblem)
-    ccall((:FreeIpoptProblem, libipopt), Void, (Ptr{Void},), prob.ref)
+    if prob.ref != C_NULL
+        ccall((:FreeIpoptProblem, libipopt), Void, (Ptr{Void},), prob.ref)
+        prob.ref = C_NULL
+    end
 end
 
 

@@ -20,6 +20,7 @@ using Ipopt, Base.Test
 
     # Test opening an output file
     openOutputFile(prob, "blah.txt", 5)
+    Ipopt.freeProblem(prob) # Needed before the `rm` on Windows.
     # unlink the output file
     rm("blah.txt")
 
