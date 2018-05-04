@@ -13,7 +13,6 @@ addons:
         - gfortran
 script:
     - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
-    - julia -e 'Pkg.clone("https://github.com/JuliaOpt/MathOptInterface.jl.git")'
     - julia -e 'Pkg.clone(pwd()); Pkg.build("Ipopt")'
     - julia -e 'Pkg.test("Ipopt", coverage=true)'
 after_success:
