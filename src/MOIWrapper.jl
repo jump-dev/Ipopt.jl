@@ -146,20 +146,18 @@ end
 check_inbounds(m::IpoptOptimizer, var::MOI.SingleVariable) = check_inbounds(m, var.variable)
 
 function check_inbounds(m::IpoptOptimizer, aff::MOI.ScalarAffineFunction)
-    for v in aff.variables
-        check_inbounds(m, v)
+    for term in aff.terms
+        check_inbounds(m, term.variable_index)
     end
 end
 
 function check_inbounds(m::IpoptOptimizer, quad::MOI.ScalarQuadraticFunction)
-    for v in quad.affine_variables
-        check_inbounds(m, v)
+    for term in quad.affine_terms
+        check_inbounds(m, term.variable_index)
     end
-    for v in quad.quadratic_rowvariables
-        check_inbounds(m, v)
-    end
-    for v in quad.quadratic_colvariables
-        check_inbounds(m, v)
+    for term in quad.quadratic_terms
+        check_inbounds(m, term.variable_index_1)
+        check_inbounds(m, term.variable_index_2)
     end
 end
 
@@ -284,18 +282,18 @@ nlp_constraint_offset(m::IpoptOptimizer) = quadratic_eq_offset(m) + length(m.qua
 # Convenience functions used only in optimize!
 
 function append_to_jacobian_sparsity!(jacobian_sparsity, aff::MOI.ScalarAffineFunction, row)
-    for variable_index in aff.variables
-        push!(jacobian_sparsity, (row, variable_index.value))
+    for term in aff.terms
+        push!(jacobian_sparsity, (row, term.variable_index.value))
     end
 end
 
 function append_to_jacobian_sparsity!(jacobian_sparsity, quad::MOI.ScalarQuadraticFunction, row)
-    for variable_index in quad.affine_variables
-        push!(jacobian_sparsity, (row, variable_index.value))
+    for term in quad.affine_terms
+        push!(jacobian_sparsity, (row, term.variable_index.value))
     end
-    for i in 1:length(quad.quadratic_rowvariables)
-        row_idx = quad.quadratic_rowvariables[i]
-        col_idx = quad.quadratic_colvariables[i]
+    for term in quad.quadratic_terms
+        row_idx = term.variable_index_1
+        col_idx = term.variable_index_2
         if row_idx == col_idx
             push!(jacobian_sparsity, (row, row_idx.value))
         else
@@ -341,9 +339,9 @@ end
 append_to_hessian_sparsity!(hessian_sparsity, ::Union{MOI.SingleVariable,MOI.ScalarAffineFunction}) = nothing
 
 function append_to_hessian_sparsity!(hessian_sparsity, quad::MOI.ScalarQuadraticFunction)
-    for i in 1:length(quad.quadratic_rowvariables)
-        push!(hessian_sparsity, (quad.quadratic_rowvariables[i].value,
-                                 quad.quadratic_colvariables[i].value))
+    for term in quad.quadratic_terms
+        push!(hessian_sparsity, (term.variable_index_1.value,
+                                 term.variable_index_2.value))
     end
 end
 
@@ -372,33 +370,28 @@ end
 
 function eval_function(aff::MOI.ScalarAffineFunction, x)
     function_value = aff.constant
-    for i in 1:length(aff.variables)
-        var_idx = aff.variables[i]
-        coefficient = aff.coefficients[i]
+    for term in aff.terms
         # Note the implicit assumtion that VariableIndex values match up with
         # x indices. This is valid because in this wrapper ListOfVariableIndices
         # is always [1, ..., NumberOfVariables].
-        function_value += coefficient*x[var_idx.value]
+        function_value += term.coefficient*x[term.variable_index.value]
     end
     return function_value
 end
 
 function eval_function(quad::MOI.ScalarQuadraticFunction, x)
     function_value = quad.constant
-    for i in 1:length(quad.affine_variables)
-        var_idx = quad.affine_variables[i]
-        coefficient = quad.affine_coefficients[i]
-        function_value += coefficient*x[var_idx.value]
+    for term in quad.affine_terms
+        function_value += term.coefficient*x[term.variable_index.value]
     end
-    for i in 1:length(quad.quadratic_rowvariables)
-        row_idx = quad.quadratic_rowvariables[i]
-        col_idx = quad.quadratic_colvariables[i]
-        coefficient = quad.quadratic_coefficients[i]
-        term = coefficient*x[row_idx.value]*x[col_idx.value]
+    for term in quad.quadratic_terms
+        row_idx = term.variable_index_1
+        col_idx = term.variable_index_2
+        coefficient = term.coefficient
         if row_idx == col_idx
-            function_value += 0.5*term
+            function_value += 0.5*coefficient*x[row_idx.value]*x[col_idx.value]
         else
-            function_value += term
+            function_value += coefficient*x[row_idx.value]*x[col_idx.value]
         end
     end
     return function_value
@@ -422,24 +415,20 @@ end
 
 function fill_gradient!(grad, x, aff::MOI.ScalarAffineFunction{Float64})
     fill!(grad, 0.0)
-    for i in 1:length(aff.variables)
-        var_idx = aff.variables[i]
-        coefficient = aff.coefficients[i]
-        grad[var_idx.value] += coefficient
+    for term in aff.terms
+        grad[term.variable_index.value] += term.coefficient
     end
 end
 
 function fill_gradient!(grad, x, quad::MOI.ScalarQuadraticFunction{Float64})
     fill!(grad, 0.0)
-    for i in 1:length(quad.affine_variables)
-        var_idx = quad.affine_variables[i]
-        coefficient = quad.affine_coefficients[i]
-        grad[var_idx.value] += coefficient
+    for term in quad.affine_terms
+        grad[term.variable_index.value] += term.coefficient
     end
-    for i in 1:length(quad.quadratic_rowvariables)
-        row_idx = quad.quadratic_rowvariables[i]
-        col_idx = quad.quadratic_colvariables[i]
-        coefficient = quad.quadratic_coefficients[i]
+    for term in quad.quadratic_terms
+        row_idx = term.variable_index_1
+        col_idx = term.variable_index_2
+        coefficient = term.coefficient
         if row_idx == col_idx
             grad[row_idx.value] += coefficient*x[row_idx.value]
         else
@@ -486,19 +475,23 @@ function eval_constraint(m::IpoptOptimizer, g, x)
 end
 
 function fill_constraint_jacobian!(values, start_offset, x, aff::MOI.ScalarAffineFunction)
-    num_coefficients = length(aff.coefficients)
-    values[start_offset+1:start_offset+num_coefficients] .= aff.coefficients
+    num_coefficients = length(aff.terms)
+    for i in 1:num_coefficients
+        values[start_offset+i] = aff.terms[i].coefficient
+    end
     return num_coefficients
 end
 
 function fill_constraint_jacobian!(values, start_offset, x, quad::MOI.ScalarQuadraticFunction)
-    num_affine_coefficients = length(quad.affine_coefficients)
-    values[start_offset+1:start_offset+num_affine_coefficients] .= quad.affine_coefficients
+    num_affine_coefficients = length(quad.affine_terms)
+    for i in 1:num_affine_coefficients
+        values[start_offset+i] = quad.affine_terms[i].coefficient
+    end
     num_quadratic_coefficients = 0
-    for i in 1:length(quad.quadratic_rowvariables)
-        row_idx = quad.quadratic_rowvariables[i]
-        col_idx = quad.quadratic_colvariables[i]
-        coefficient = quad.quadratic_coefficients[i]
+    for term in quad.quadratic_terms
+        row_idx = term.variable_index_1
+        col_idx = term.variable_index_2
+        coefficient = term.coefficient
         if row_idx == col_idx
             values[start_offset+num_affine_coefficients+num_quadratic_coefficients+1] = coefficient*x[col_idx.value]
             num_quadratic_coefficients += 1
@@ -541,11 +534,10 @@ function fill_hessian_lagrangian!(values, start_offset, scale_factor, ::Union{MO
 end
 
 function fill_hessian_lagrangian!(values, start_offset, scale_factor, quad::MOI.ScalarQuadraticFunction)
-    coefficients = quad.quadratic_coefficients
-    for i in 1:length(coefficients)
-        values[start_offset + i] = scale_factor*coefficients[i]
+    for i in 1:length(quad.quadratic_terms)
+        values[start_offset + i] = scale_factor*quad.quadratic_terms[i].coefficient
     end
-    return length(coefficients)
+    return length(quad.quadratic_terms)
 end
 
 function eval_hessian_lagrangian(m::IpoptOptimizer, values, x, obj_factor, lambda)

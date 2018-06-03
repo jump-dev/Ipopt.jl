@@ -9,8 +9,6 @@ MOIU.@model(IpoptModelData, (), (EqualTo, GreaterThan, LessThan),
            (), (SingleVariable,), (ScalarAffineFunction,ScalarQuadraticFunction), (VectorOfVariables,),
            (VectorAffineFunction,))
 
-MOIB.@bridge SplitInterval MOIB.SplitIntervalBridge () (Interval,) () () () (ScalarAffineFunction,) () ()
-
 # Without fixed_variable_treatment set, duals are not computed for variables
 # that have lower_bound == upper_bound.
 const optimizer = IpoptOptimizer(print_level=0, fixed_variable_treatment="make_constraint")
@@ -24,7 +22,7 @@ const config = MOIT.TestConfig(atol=1e-4, rtol=1e-4)
                "linear13", # FeasibilitySense not supported yet.
                "linear7", # VectorAffineFunction not supported.
                ]
-    linear_optimizer = SplitInterval{Float64}(MOIU.CachingOptimizer(IpoptModelData{Float64}(), optimizer))
+    linear_optimizer = MOI.Bridges.SplitInterval{Float64}(MOIU.CachingOptimizer(IpoptModelData{Float64}(), optimizer))
     MOIT.contlineartest(linear_optimizer, config, exclude)
 end
 
