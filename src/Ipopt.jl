@@ -2,6 +2,7 @@ __precompile__()
 
 module Ipopt
 using Compat
+using Compat.LinearAlgebra
 
 if isfile(joinpath(dirname(@__FILE__),"..","deps","deps.jl"))
     include("../deps/deps.jl")
@@ -32,7 +33,7 @@ end
 
 
 mutable struct IpoptProblem
-    ref::Ptr{Void}  # Reference to the internal data structure
+    ref::Ptr{Cvoid}  # Reference to the internal data structure
     n::Int  # Num vars
     m::Int  # Num cons
     x::Vector{Float64}  # Starting and final solution
@@ -55,7 +56,7 @@ mutable struct IpoptProblem
     sense::Symbol
 
     function IpoptProblem(
-        ref::Ptr{Void}, n, m,
+        ref::Ptr{Cvoid}, n, m,
         eval_f, eval_g, eval_grad_f, eval_jac_g, eval_h)
         prob = new(ref, n, m, zeros(Float64, n), zeros(Float64, m), zeros(Float64,m),
                    zeros(Float64,n), zeros(Float64,n), 0.0, 0,
@@ -96,7 +97,7 @@ ApplicationReturnStatus = Dict(
 # Callback wrappers
 ###########################################################################
 # Objective (eval_f)
-function eval_f_wrapper(n::Cint, x_ptr::Ptr{Float64}, new_x::Cint, obj_ptr::Ptr{Float64}, user_data::Ptr{Void})
+function eval_f_wrapper(n::Cint, x_ptr::Ptr{Float64}, new_x::Cint, obj_ptr::Ptr{Float64}, user_data::Ptr{Cvoid})
     # Extract Julia the problem from the pointer
     prob = unsafe_pointer_to_objref(user_data)::IpoptProblem
     # Calculate the new objective
@@ -108,7 +109,7 @@ function eval_f_wrapper(n::Cint, x_ptr::Ptr{Float64}, new_x::Cint, obj_ptr::Ptr{
 end
 
 # Constraints (eval_g)
-function eval_g_wrapper(n::Cint, x_ptr::Ptr{Float64}, new_x::Cint, m::Cint, g_ptr::Ptr{Float64}, user_data::Ptr{Void})
+function eval_g_wrapper(n::Cint, x_ptr::Ptr{Float64}, new_x::Cint, m::Cint, g_ptr::Ptr{Float64}, user_data::Ptr{Cvoid})
     # Extract Julia the problem from the pointer
     prob = unsafe_pointer_to_objref(user_data)::IpoptProblem
     # Calculate the new constraint values
@@ -119,7 +120,7 @@ function eval_g_wrapper(n::Cint, x_ptr::Ptr{Float64}, new_x::Cint, m::Cint, g_pt
 end
 
 # Objective gradient (eval_grad_f)
-function eval_grad_f_wrapper(n::Cint, x_ptr::Ptr{Float64}, new_x::Cint, grad_f_ptr::Ptr{Float64}, user_data::Ptr{Void})
+function eval_grad_f_wrapper(n::Cint, x_ptr::Ptr{Float64}, new_x::Cint, grad_f_ptr::Ptr{Float64}, user_data::Ptr{Cvoid})
     # Extract Julia the problem from the pointer
     prob = unsafe_pointer_to_objref(user_data)::IpoptProblem
     # Calculate the gradient
@@ -130,7 +131,7 @@ function eval_grad_f_wrapper(n::Cint, x_ptr::Ptr{Float64}, new_x::Cint, grad_f_p
 end
 
 # Jacobian (eval_jac_g)
-function eval_jac_g_wrapper(n::Cint, x_ptr::Ptr{Float64}, new_x::Cint, m::Cint, nele_jac::Cint, iRow::Ptr{Cint}, jCol::Ptr{Cint}, values_ptr::Ptr{Float64}, user_data::Ptr{Void})
+function eval_jac_g_wrapper(n::Cint, x_ptr::Ptr{Float64}, new_x::Cint, m::Cint, nele_jac::Cint, iRow::Ptr{Cint}, jCol::Ptr{Cint}, values_ptr::Ptr{Float64}, user_data::Ptr{Cvoid})
     # Extract Julia the problem from the pointer
     prob = unsafe_pointer_to_objref(user_data)::IpoptProblem
     # Determine mode
@@ -145,7 +146,7 @@ function eval_jac_g_wrapper(n::Cint, x_ptr::Ptr{Float64}, new_x::Cint, m::Cint, 
 end
 
 # Hessian
-function eval_h_wrapper(n::Cint, x_ptr::Ptr{Float64}, new_x::Cint, obj_factor::Float64, m::Cint, lambda_ptr::Ptr{Float64}, new_lambda::Cint, nele_hess::Cint, iRow::Ptr{Cint}, jCol::Ptr{Cint}, values_ptr::Ptr{Float64}, user_data::Ptr{Void})
+function eval_h_wrapper(n::Cint, x_ptr::Ptr{Float64}, new_x::Cint, obj_factor::Float64, m::Cint, lambda_ptr::Ptr{Float64}, new_lambda::Cint, nele_hess::Cint, iRow::Ptr{Cint}, jCol::Ptr{Cint}, values_ptr::Ptr{Float64}, user_data::Ptr{Cvoid})
     # Extract Julia the problem from the pointer
     prob = unsafe_pointer_to_objref(user_data)::IpoptProblem
     # Did the user specify a Hessian
@@ -167,7 +168,7 @@ function eval_h_wrapper(n::Cint, x_ptr::Ptr{Float64}, new_x::Cint, obj_factor::F
 end
 
 # Intermediate
-function intermediate_wrapper(alg_mod::Cint, iter_count::Cint, obj_value::Float64, inf_pr::Float64, inf_du::Float64, mu::Float64, d_norm::Float64, regularization_size::Float64, alpha_du::Float64, alpha_pr::Float64, ls_trials::Cint, user_data::Ptr{Void})
+function intermediate_wrapper(alg_mod::Cint, iter_count::Cint, obj_value::Float64, inf_pr::Float64, inf_du::Float64, mu::Float64, d_norm::Float64, regularization_size::Float64, alpha_du::Float64, alpha_pr::Float64, ls_trials::Cint, user_data::Ptr{Cvoid})
     # Extract Julia the problem from the pointer
     prob = unsafe_pointer_to_objref(user_data)::IpoptProblem
     keepgoing = prob.intermediate(Int(alg_mod), Int(iter_count), obj_value, inf_pr, inf_du, mu, d_norm, regularization_size, alpha_du, alpha_pr, Int(ls_trials))
@@ -185,24 +186,24 @@ function createProblem(n::Int, x_L::Vector{Float64}, x_U::Vector{Float64},
     @assert n == length(x_L) == length(x_U)
     @assert m == length(g_L) == length(g_U)
     # Wrap callbacks
-    eval_f_cb = cfunction(eval_f_wrapper, Cint,
-    Tuple{Cint, Ptr{Float64}, Cint, Ptr{Float64}, Ptr{Void}})
-    eval_g_cb = cfunction(eval_g_wrapper, Cint,
-    Tuple{Cint, Ptr{Float64}, Cint, Cint, Ptr{Float64}, Ptr{Void}})
-    eval_grad_f_cb = cfunction(eval_grad_f_wrapper, Cint,
-    Tuple{Cint, Ptr{Float64}, Cint, Ptr{Float64}, Ptr{Void}})
-    eval_jac_g_cb = cfunction(eval_jac_g_wrapper, Cint,
-    Tuple{Cint, Ptr{Float64}, Cint, Cint, Cint, Ptr{Cint}, Ptr{Cint}, Ptr{Float64}, Ptr{Void}})
-    eval_h_cb = cfunction(eval_h_wrapper, Cint,
-    Tuple{Cint, Ptr{Float64}, Cint, Float64, Cint, Ptr{Float64}, Cint, Cint, Ptr{Cint}, Ptr{Cint}, Ptr{Float64}, Ptr{Void}})
+    eval_f_cb = @cfunction(eval_f_wrapper, Cint,
+    (Cint, Ptr{Float64}, Cint, Ptr{Float64}, Ptr{Cvoid}))
+    eval_g_cb = @cfunction(eval_g_wrapper, Cint,
+    (Cint, Ptr{Float64}, Cint, Cint, Ptr{Float64}, Ptr{Cvoid}))
+    eval_grad_f_cb = @cfunction(eval_grad_f_wrapper, Cint,
+    (Cint, Ptr{Float64}, Cint, Ptr{Float64}, Ptr{Cvoid}))
+    eval_jac_g_cb = @cfunction(eval_jac_g_wrapper, Cint,
+    (Cint, Ptr{Float64}, Cint, Cint, Cint, Ptr{Cint}, Ptr{Cint}, Ptr{Float64}, Ptr{Cvoid}))
+    eval_h_cb = @cfunction(eval_h_wrapper, Cint,
+    (Cint, Ptr{Float64}, Cint, Float64, Cint, Ptr{Float64}, Cint, Cint, Ptr{Cint}, Ptr{Cint}, Ptr{Float64}, Ptr{Cvoid}))
 
-    ret = ccall((:CreateIpoptProblem, libipopt), Ptr{Void},
+    ret = ccall((:CreateIpoptProblem, libipopt), Ptr{Cvoid},
     (Cint, Ptr{Float64}, Ptr{Float64},  # Num vars, var lower and upper bounds
     Cint, Ptr{Float64}, Ptr{Float64},  # Num constraints, con lower and upper bounds
     Cint, Cint,                        # Num nnz in constraint Jacobian and in Hessian
     Cint,                              # 0 for C, 1 for Fortran
-    Ptr{Void}, Ptr{Void},              # Callbacks for eval_f, eval_g
-    Ptr{Void}, Ptr{Void}, Ptr{Void}),  # Callbacks for eval_grad_f, eval_jac_g, eval_h
+    Ptr{Cvoid}, Ptr{Cvoid},              # Callbacks for eval_f, eval_g
+    Ptr{Cvoid}, Ptr{Cvoid}, Ptr{Cvoid}),  # Callbacks for eval_grad_f, eval_jac_g, eval_h
     n, x_L, x_U, m, g_L, g_U, nele_jac, nele_hess, 1,
     eval_f_cb, eval_g_cb, eval_grad_f_cb, eval_jac_g_cb, eval_h_cb)
 
@@ -217,7 +218,7 @@ end
 # the IpoptProblem object via GC
 function freeProblem(prob::IpoptProblem)
     if prob.ref != C_NULL
-        ccall((:FreeIpoptProblem, libipopt), Void, (Ptr{Void},), prob.ref)
+        ccall((:FreeIpoptProblem, libipopt), Cvoid, (Ptr{Cvoid},), prob.ref)
         prob.ref = C_NULL
     end
 end
@@ -230,7 +231,7 @@ function addOption(prob::IpoptProblem, keyword::String, value::String)
         error("IPOPT: Non ASCII parameters not supported")
     end
     ret = ccall((:AddIpoptStrOption, libipopt),
-    Cint, (Ptr{Void}, Ptr{UInt8}, Ptr{UInt8}),
+    Cint, (Ptr{Cvoid}, Ptr{UInt8}, Ptr{UInt8}),
     prob.ref, keyword, value)
     if ret == 0
         error("IPOPT: Couldn't set option '$keyword' to value '$value'.")
@@ -245,7 +246,7 @@ function addOption(prob::IpoptProblem, keyword::String, value::Float64)
         error("IPOPT: Non ASCII parameters not supported")
     end
     ret = ccall((:AddIpoptNumOption, libipopt),
-    Cint, (Ptr{Void}, Ptr{UInt8}, Float64),
+    Cint, (Ptr{Cvoid}, Ptr{UInt8}, Float64),
     prob.ref, keyword, value)
     if ret == 0
         error("IPOPT: Couldn't set option '$keyword' to value '$value'.")
@@ -260,7 +261,7 @@ function addOption(prob::IpoptProblem, keyword::String, value::Integer)
         error("IPOPT: Non ASCII parameters not supported")
     end
     ret = ccall((:AddIpoptIntOption, libipopt),
-    Cint, (Ptr{Void}, Ptr{UInt8}, Cint),
+    Cint, (Ptr{Cvoid}, Ptr{UInt8}, Cint),
     prob.ref, keyword, value)
     if ret == 0
         error("IPOPT: Couldn't set option '$keyword' to value '$value'.")
@@ -276,7 +277,7 @@ function openOutputFile(prob::IpoptProblem, file_name::String, print_level::Int)
         error("IPOPT: Non ASCII parameters not supported")
     end
     ret = ccall((:OpenIpoptOutputFile, libipopt),
-    Cint, (Ptr{Void}, Ptr{UInt8}, Cint),
+    Cint, (Ptr{Cvoid}, Ptr{UInt8}, Cint),
     prob.ref, file_name, print_level)
     if ret == 0
         error("IPOPT: Couldn't open output file.")
@@ -295,7 +296,7 @@ function setProblemScaling(prob::IpoptProblem, obj_scaling::Float64,
     x_scale_arg = (x_scaling == nothing) ? C_NULL : x_scaling
     g_scale_arg = (g_scaling == nothing) ? C_NULL : g_scaling
     ret = ccall((:SetIpoptProblemScaling, libipopt),
-    Cint, (Ptr{Void}, Float64, Ptr{Float64}, Ptr{Float64}),
+    Cint, (Ptr{Cvoid}, Float64, Ptr{Float64}, Ptr{Float64}),
     prob.ref, obj_scaling, x_scale_arg, g_scale_arg)
     if ret == 0
         error("IPOPT: Error setting problem scaling.")
@@ -304,11 +305,11 @@ end
 
 
 function setIntermediateCallback(prob::IpoptProblem, intermediate::Function)
-    intermediate_cb = cfunction(intermediate_wrapper, Cint,
-    Tuple{Cint, Cint, Float64, Float64, Float64, Float64,
-    Float64, Float64, Float64, Float64, Cint, Ptr{Void}})
+    intermediate_cb = @cfunction(intermediate_wrapper, Cint,
+    (Cint, Cint, Float64, Float64, Float64, Float64,
+    Float64, Float64, Float64, Float64, Cint, Ptr{Cvoid}))
     ret = ccall((:SetIntermediateCallback, libipopt), Cint,
-    (Ptr{Void}, Ptr{Void}), prob.ref, intermediate_cb)
+    (Ptr{Cvoid}, Ptr{Cvoid}), prob.ref, intermediate_cb)
     prob.intermediate = intermediate
     if ret == 0
         error("IPOPT: Something went wrong setting the intermediate callback.")
@@ -319,7 +320,7 @@ end
 function solveProblem(prob::IpoptProblem)
     final_objval = [0.0]
     ret = ccall((:IpoptSolve, libipopt),
-    Cint, (Ptr{Void}, Ptr{Float64}, Ptr{Float64}, Ptr{Float64}, Ptr{Float64}, Ptr{Float64}, Ptr{Float64}, Any),
+    Cint, (Ptr{Cvoid}, Ptr{Float64}, Ptr{Float64}, Ptr{Float64}, Ptr{Float64}, Ptr{Float64}, Ptr{Float64}, Any),
     prob.ref, prob.x, prob.g, final_objval, prob.mult_g, prob.mult_x_L, prob.mult_x_U, prob)
     prob.obj_val = final_objval[1]
     prob.status = Int(ret)
