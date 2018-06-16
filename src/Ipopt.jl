@@ -26,15 +26,14 @@ function __init__()
     # doesn't leave environment variables changed.
     julia_libdir = joinpath(dirname(first(filter(x -> contains(x, "libjulia"), Libdl.dllist()))), "julia")
     julia_bindir = Compat.Sys.BINDIR
-    pathsep = Compat.Sys.iswindows() ? ';' : ':'
     @static if Compat.Sys.isapple()
         ENV["DYLD_LIBRARY_PATH"] = string(get(ENV, "DYLD_LIBRARY_PATH", ""),
-                                          pathsep, julia_libdir)
+                                          ":", julia_libdir)
     elseif Compat.Sys.islinux()
-        ENV["LD_LIBRARY_PATH"] = string(get(ENV, "LD_LIBRARY_PATH", ""),
-                                        pathsep, julia_libdir)
+        ENV["LD_LIBRARY_PATH"] = string(get(ENV, "LD_LIBRARY_PATH", ""), ":",
+                                        julia_libdir)
     elseif Compat.Sys.iswindows()
-        ENV["PATH"] = string(ENV["PATH"], pathsep, julia_bindir)
+        ENV["PATH"] = string(ENV["PATH"], ";", julia_bindir)
     end
 end
 
