@@ -404,7 +404,8 @@ function eval_objective(m::IpoptOptimizer, x)
     elseif m.objective !== nothing
         return eval_function(m.objective, x)
     else
-        error("No objective function set!")
+        # No objective function set. This could happen with FeasibilitySense.
+        return 0.0
     end
 end
 
@@ -444,8 +445,6 @@ function eval_objective_gradient(m::IpoptOptimizer, grad, x)
         MOI.eval_objective_gradient(m.nlp_data.evaluator, grad, x)
     elseif m.objective !== nothing
         fill_gradient!(grad, x, m.objective)
-    else
-        error("No objective function set!")
     end
     return
 end
@@ -617,8 +616,10 @@ function MOI.optimize!(m::IpoptOptimizer)
         objective_scale = 1.0
     elseif m.sense == MOI.MaxSense
         objective_scale = -1.0
-    else
-        error("FeasibilitySense not yet supported")
+    else # FeasibilitySense
+        # TODO: This could produce confusing solver output if a nonzero
+        # objective is set.
+        objective_scale = 0.0
     end
 
     eval_f_cb(x) = objective_scale*eval_objective(m, x)
