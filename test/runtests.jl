@@ -1,4 +1,5 @@
 using Ipopt, Base.Test
+using Compat
 
 @testset "C API" begin
     # First of all, test that hs071 example works
@@ -25,7 +26,11 @@ using Ipopt, Base.Test
     rm("blah.txt")
 
     # Test that the ipopt binary works
-    @test success(`$(Ipopt.amplexe) -v`)
+    # See https://github.com/JuliaOpt/Ipopt.jl/issues/119 for discussion of the
+    # known failure on Windows and Julia 0.7.
+    if !(Compat.Sys.iswindows() && VERSION >= v"0.7-")
+        @test success(`$(Ipopt.amplexe) -v`)
+    end
 end
 
 @testset "MathProgBase" begin
