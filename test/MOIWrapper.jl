@@ -19,7 +19,6 @@ const config = MOIT.TestConfig(atol=1e-4, rtol=1e-4)
                "linear12", # Same as above.
                "linear8b", # Behavior in unbounded case doesn't match test.
                "linear8c", # Same as above.
-               "linear13", # FeasibilitySense not supported yet.
                "linear7", # VectorAffineFunction not supported.
                ]
     linear_optimizer = MOI.Bridges.SplitInterval{Float64}(MOIU.CachingOptimizer(IpoptModelData{Float64}(), optimizer))
