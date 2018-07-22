@@ -23,7 +23,7 @@ function __init__()
     # Sets up the library paths so that we can run the ipopt binary from Julia.
     # TODO: Restructure into a function that wraps the call to the binary and
     # doesn't leave environment variables changed.
-    julia_libdir = joinpath(dirname(first(filter(x -> contains(x, "libjulia"), Sys.Libdl.dllist()))), "julia")
+    julia_libdir = joinpath(dirname(first(filter(x -> occursin("libjulia", x), Compat.Libdl.dllist()))), "julia")
     @static if Compat.Sys.isapple()
         ENV["DYLD_LIBRARY_PATH"] = string(get(ENV, "DYLD_LIBRARY_PATH", ""), ":", julia_libdir)
     elseif Compat.Sys.islinux()
@@ -64,7 +64,7 @@ mutable struct IpoptProblem
                    :Min)
         # Free the internal IpoptProblem structure when
         # the Julia IpoptProblem instance goes out of scope
-        finalizer(prob, freeProblem)
+        @compat finalizer(freeProblem, prob)
         # Return the object we just made
         prob
     end

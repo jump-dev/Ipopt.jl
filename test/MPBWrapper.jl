@@ -1,7 +1,9 @@
 # Test MathProgBase stuff
-#include(joinpath(Pkg.dir("MathProgBase"),"test","linprog.jl"))
-#linprogtest(IpoptSolver())
+
 using MathProgBase
+using Compat.LinearAlgebra
+using Compat.SparseArrays
+
 solver = IpoptSolver()
 sol = linprog([-1,0],[2 1],'<',1.5,solver)
 @test sol.status == :Optimal
