@@ -1,4 +1,4 @@
-using MathOptInterface
+import MathOptInterface
 const MOI = MathOptInterface
 
 mutable struct VariableInfo

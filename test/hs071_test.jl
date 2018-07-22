@@ -1,4 +1,5 @@
-using Ipopt, Base.Test
+using Ipopt
+using Compat.Test
 
 # hs071
 # min x1 * x4 * (x1 + x2 + x3) + x3

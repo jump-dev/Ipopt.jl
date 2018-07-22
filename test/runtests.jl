@@ -1,5 +1,6 @@
-using Ipopt, Base.Test
+using Ipopt
 using Compat
+using Compat.Test
 
 @testset "C API" begin
     # First of all, test that hs071 example works
