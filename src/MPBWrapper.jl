@@ -54,7 +54,10 @@ function MPB.loadproblem!(m::IpoptMathProgModel, numVar::Integer, numConstr::Int
     eval_f_cb(x) = scl * MPB.eval_f(d,x)
 
     # Objective gradient callback
-    eval_grad_f_cb(x, grad_f) = (MPB.eval_grad_f(d, grad_f, x); rmul!(grad_f, scl))
+    function eval_grad_f_cb(x, grad_f)
+        MPB.eval_grad_f(d, grad_f, x)
+        Compat.rmul!(grad_f, scl)
+    end
 
     # Constraint value callback
     eval_g_cb(x, g) = MPB.eval_g(d, g, x)
