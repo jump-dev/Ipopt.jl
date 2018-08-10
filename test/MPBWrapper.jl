@@ -1,8 +1,10 @@
 # Test MathProgBase stuff
 
 using MathProgBase
-using Compat.LinearAlgebra
-using Compat.SparseArrays
+using LinearAlgebra
+using SparseArrays
+
+const MathProgBase_test_dir = joinpath(dirname(pathof(MathProgBase)), "..", "test")
 
 solver = IpoptSolver()
 sol = linprog([-1,0],[2 1],'<',1.5,solver)
@@ -30,13 +32,13 @@ sol = linprog([-1,-1],[-1 2],'<',[0],solver)
 #    @test sol.status == :Unbounded
 
 
-include(joinpath(Pkg.dir("MathProgBase"),"test","nlp.jl"))
+include(joinpath(MathProgBase_test_dir, "nlp.jl"))
 nlptest(IpoptSolver())
 nlptest_nohessian(IpoptSolver())
 convexnlptest(IpoptSolver())
 rosenbrocktest(IpoptSolver())
 
-include(joinpath(Pkg.dir("MathProgBase"),"test","quadprog.jl"))
+include(joinpath(MathProgBase_test_dir, "quadprog.jl"))
 quadprogtest(IpoptSolver())
 qpdualtest(IpoptSolver())
 
