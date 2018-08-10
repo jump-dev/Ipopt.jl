@@ -3,18 +3,19 @@ os:
     - linux
     - osx
 julia:
-    - 0.6
     - 0.7
+    - 1.0
+    - nightly
 notifications:
     email: false
 sudo: false
 addons:
     apt_packages:
         - gfortran
-script:
-    - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
-    - julia -e 'Pkg.clone(pwd()); Pkg.build("Ipopt")'
-    - julia -e 'Pkg.test("Ipopt", coverage=true)'
+# uncomment the following lines to override the default test script
+#script:
+#  - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
+#  - julia --check-bounds=yes -e 'using Pkg; Pkg.clone(pwd()); Pkg.build("Ipopt"); Pkg.test("Ipopt"; coverage=true)'
 after_success:
     - echo $TRAVIS_JULIA_VERSION
-    - julia -e 'Pkg.add("Coverage"); cd(Pkg.dir("Ipopt")); using Coverage; Coveralls.submit(process_folder())'
+    - julia -e 'using Pkg, Ipopt; Pkg.add("Coverage"); cd(joinpath(dirname(pathof(Ipopt)), "..")); using Coverage; Coveralls.submit(process_folder())'
