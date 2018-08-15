@@ -674,6 +674,12 @@ function MOI.optimize!(m::IpoptOptimizer)
                             length(hessian_sparsity),
                             eval_f_cb, eval_g_cb, eval_grad_f_cb, eval_jac_g_cb,
                             eval_h_cb)
+
+    # Ipopt crashes by default if NaN/Inf values are returned from the
+    # evaluation callbacks. This option tells Ipopt to explicitly check for them
+    # and return Invalid_Number_Detected instead.
+    addOption(m.inner, "check_derivatives_for_naninf", "yes")
+
     if !has_hessian
         addOption(m.inner, "hessian_approximation", "limited-memory")
     end
@@ -730,6 +736,8 @@ function MOI.get(m::IpoptOptimizer, ::MOI.TerminationStatus)
     elseif status == :Not_Enough_Degrees_Of_Freedom
         return MOI.InvalidModel
     elseif status == :Invalid_Problem_Definition
+        return MOI.InvalidModel
+    elseif status == :Invalid_Number_Detected
         return MOI.InvalidModel
     elseif status == :Unrecoverable_Exception
         return MOI.OtherError

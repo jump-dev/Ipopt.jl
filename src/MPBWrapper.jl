@@ -94,10 +94,15 @@ function MPB.loadproblem!(m::IpoptMathProgModel, numVar::Integer, numConstr::Int
 
 
     m.inner = createProblem(numVar, float(x_l), float(x_u), numConstr,
-    float(g_lb), float(g_ub), length(Ijac), length(Ihess),
-    eval_f_cb, eval_g_cb, eval_grad_f_cb, eval_jac_g_cb,
-    eval_h_cb)
+                            float(g_lb), float(g_ub), length(Ijac), length(Ihess),
+                            eval_f_cb, eval_g_cb, eval_grad_f_cb, eval_jac_g_cb,
+                            eval_h_cb)
     m.inner.sense = sense
+
+    # Ipopt crashes by default if NaN/Inf values are returned from the
+    # evaluation callbacks. This option tells Ipopt to explicitly check for them
+    # and return Invalid_Number_Detected instead.
+    addOption(m.inner, "check_derivatives_for_naninf", "yes")
     if !has_hessian
         addOption(m.inner, "hessian_approximation", "limited-memory")
     end
