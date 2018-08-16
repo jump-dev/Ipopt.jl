@@ -101,7 +101,9 @@ function MPB.loadproblem!(m::IpoptMathProgModel, numVar::Integer, numConstr::Int
 
     # Ipopt crashes by default if NaN/Inf values are returned from the
     # evaluation callbacks. This option tells Ipopt to explicitly check for them
-    # and return Invalid_Number_Detected instead.
+    # and return Invalid_Number_Detected instead. This setting may result in a
+    # minor performance loss and can be overwritten by specifying
+    # check_derivatives_for_naninf="no".
     addOption(m.inner, "check_derivatives_for_naninf", "yes")
     if !has_hessian
         addOption(m.inner, "hessian_approximation", "limited-memory")
