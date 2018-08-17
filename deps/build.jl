@@ -1,13 +1,12 @@
 using BinaryProvider
 using BinDeps
-using Compat
 
 # BinaryBuilder artifacts for linux currently assume libgfortran.so.4
 # is present, so they will not work for any source builds of Julia itself
 # when a GCC version older than 7 was used. BinaryBuilder also does not
 # support FreeBSD or non-glibc Linux distributions. Continue building from
 # source on non-apple unices while these limitations apply.
-use_BinaryProvider = Compat.Sys.isapple() || Compat.Sys.iswindows()
+use_BinaryProvider = Sys.isapple() || Sys.iswindows()
 
 @BinDeps.setup
 if use_BinaryProvider

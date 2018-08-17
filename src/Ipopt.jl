@@ -1,8 +1,5 @@
-__precompile__()
-
 module Ipopt
-using Compat
-using Compat.LinearAlgebra
+using LinearAlgebra, Libdl
 
 if isfile(joinpath(dirname(@__FILE__),"..","deps","deps.jl"))
     include("../deps/deps.jl")
@@ -23,10 +20,10 @@ function __init__()
     # Sets up the library paths so that we can run the ipopt binary from Julia.
     # TODO: Restructure into a function that wraps the call to the binary and
     # doesn't leave environment variables changed.
-    julia_libdir = joinpath(dirname(first(filter(x -> occursin("libjulia", x), Compat.Libdl.dllist()))), "julia")
-    @static if Compat.Sys.isapple()
+    julia_libdir = joinpath(dirname(first(filter(x -> occursin("libjulia", x), Libdl.dllist()))), "julia")
+    @static if Sys.isapple()
         ENV["DYLD_LIBRARY_PATH"] = string(get(ENV, "DYLD_LIBRARY_PATH", ""), ":", julia_libdir)
-    elseif Compat.Sys.islinux()
+    elseif Sys.islinux()
         ENV["LD_LIBRARY_PATH"] = string(get(ENV, "LD_LIBRARY_PATH", ""), ":", julia_libdir)
     end
 end
@@ -64,7 +61,7 @@ mutable struct IpoptProblem
                    :Min)
         # Free the internal IpoptProblem structure when
         # the Julia IpoptProblem instance goes out of scope
-        @compat finalizer(freeProblem, prob)
+        finalizer(freeProblem, prob)
         # Return the object we just made
         prob
     end
@@ -187,30 +184,30 @@ function createProblem(n::Int, x_L::Vector{Float64}, x_U::Vector{Float64},
     @assert m == length(g_L) == length(g_U)
     # Wrap callbacks
     eval_f_cb = @cfunction(eval_f_wrapper, Cint,
-    (Cint, Ptr{Float64}, Cint, Ptr{Float64}, Ptr{Cvoid}))
+        (Cint, Ptr{Float64}, Cint, Ptr{Float64}, Ptr{Cvoid}))
     eval_g_cb = @cfunction(eval_g_wrapper, Cint,
-    (Cint, Ptr{Float64}, Cint, Cint, Ptr{Float64}, Ptr{Cvoid}))
+        (Cint, Ptr{Float64}, Cint, Cint, Ptr{Float64}, Ptr{Cvoid}))
     eval_grad_f_cb = @cfunction(eval_grad_f_wrapper, Cint,
-    (Cint, Ptr{Float64}, Cint, Ptr{Float64}, Ptr{Cvoid}))
+        (Cint, Ptr{Float64}, Cint, Ptr{Float64}, Ptr{Cvoid}))
     eval_jac_g_cb = @cfunction(eval_jac_g_wrapper, Cint,
-    (Cint, Ptr{Float64}, Cint, Cint, Cint, Ptr{Cint}, Ptr{Cint}, Ptr{Float64}, Ptr{Cvoid}))
+        (Cint, Ptr{Float64}, Cint, Cint, Cint, Ptr{Cint}, Ptr{Cint}, Ptr{Float64}, Ptr{Cvoid}))
     eval_h_cb = @cfunction(eval_h_wrapper, Cint,
-    (Cint, Ptr{Float64}, Cint, Float64, Cint, Ptr{Float64}, Cint, Cint, Ptr{Cint}, Ptr{Cint}, Ptr{Float64}, Ptr{Cvoid}))
+        (Cint, Ptr{Float64}, Cint, Float64, Cint, Ptr{Float64}, Cint, Cint, Ptr{Cint}, Ptr{Cint}, Ptr{Float64}, Ptr{Cvoid}))
 
     ret = ccall((:CreateIpoptProblem, libipopt), Ptr{Cvoid},
-    (Cint, Ptr{Float64}, Ptr{Float64},  # Num vars, var lower and upper bounds
-    Cint, Ptr{Float64}, Ptr{Float64},  # Num constraints, con lower and upper bounds
-    Cint, Cint,                        # Num nnz in constraint Jacobian and in Hessian
-    Cint,                              # 0 for C, 1 for Fortran
-    Ptr{Cvoid}, Ptr{Cvoid},              # Callbacks for eval_f, eval_g
-    Ptr{Cvoid}, Ptr{Cvoid}, Ptr{Cvoid}),  # Callbacks for eval_grad_f, eval_jac_g, eval_h
-    n, x_L, x_U, m, g_L, g_U, nele_jac, nele_hess, 1,
-    eval_f_cb, eval_g_cb, eval_grad_f_cb, eval_jac_g_cb, eval_h_cb)
+        (Cint, Ptr{Float64}, Ptr{Float64},  # Num vars, var lower and upper bounds
+        Cint, Ptr{Float64}, Ptr{Float64},  # Num constraints, con lower and upper bounds
+        Cint, Cint,                        # Num nnz in constraint Jacobian and in Hessian
+        Cint,                              # 0 for C, 1 for Fortran
+        Ptr{Cvoid}, Ptr{Cvoid},              # Callbacks for eval_f, eval_g
+        Ptr{Cvoid}, Ptr{Cvoid}, Ptr{Cvoid}),  # Callbacks for eval_grad_f, eval_jac_g, eval_h
+        n, x_L, x_U, m, g_L, g_U, nele_jac, nele_hess, 1,
+        eval_f_cb, eval_g_cb, eval_grad_f_cb, eval_jac_g_cb, eval_h_cb)
 
     if ret == C_NULL
         error("IPOPT: Failed to construct problem.")
     else
-        return(IpoptProblem(ret, n, m, eval_f, eval_g, eval_grad_f, eval_jac_g, eval_h))
+        return IpoptProblem(ret, n, m, eval_f, eval_g, eval_grad_f, eval_jac_g, eval_h)
     end
 end
 

@@ -56,7 +56,7 @@ function MPB.loadproblem!(m::IpoptMathProgModel, numVar::Integer, numConstr::Int
     # Objective gradient callback
     function eval_grad_f_cb(x, grad_f)
         MPB.eval_grad_f(d, grad_f, x)
-        Compat.rmul!(grad_f, scl)
+        rmul!(grad_f, scl)
     end
 
     # Constraint value callback
@@ -123,8 +123,8 @@ function MPB.optimize!(m::IpoptMathProgModel)
     copyto!(m.inner.x, m.warmstart) # set warmstart
     for (name,value) in m.options
         sname = string(name)
-        if match(r"(^resto_)", sname) != nothing
-            sname = replace(sname, r"(^resto_)", "resto.")
+        if occursin(r"(^resto_)", sname)
+            sname = replace(sname, r"(^resto_)" => "resto.")
         end
         addOption(m.inner, sname, value)
     end
@@ -165,7 +165,7 @@ function MPB.status(m::IpoptMathProgModel)
         #   :NonIpopt_Exception_Thrown
         #   :Insufficient_Memory
         #   :Internal_Error
-        warn("Ipopt finished with status $stat_sym")
+        @warn "Ipopt finished with status $stat_sym"
         return :Error
     end
 
