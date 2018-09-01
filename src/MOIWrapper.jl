@@ -30,7 +30,7 @@ end
 
 struct EmptyNLPEvaluator <: MOI.AbstractNLPEvaluator end
 MOI.features_available(::EmptyNLPEvaluator) = [:Grad, :Jac, :Hess]
-MOI.initialize!(::EmptyNLPEvaluator, features) = nothing
+MOI.initialize(::EmptyNLPEvaluator, features) = nothing
 MOI.eval_objective(::EmptyNLPEvaluator, x) = NaN
 function MOI.eval_constraint(::EmptyNLPEvaluator, g, x)
     @assert length(g) == 0
@@ -59,47 +59,28 @@ MOI.supports(::IpoptOptimizer, ::MOI.ObjectiveFunction{MOI.SingleVariable}) = tr
 MOI.supports(::IpoptOptimizer, ::MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}) = true
 MOI.supports(::IpoptOptimizer, ::MOI.ObjectiveFunction{MOI.ScalarQuadraticFunction{Float64}}) = true
 MOI.supports(::IpoptOptimizer, ::MOI.ObjectiveSense) = true
-MOI.supportsconstraint(::IpoptOptimizer, ::Type{MOI.SingleVariable}, ::Type{MOI.LessThan{Float64}}) = true
-MOI.supportsconstraint(::IpoptOptimizer, ::Type{MOI.SingleVariable}, ::Type{MOI.GreaterThan{Float64}}) = true
-MOI.supportsconstraint(::IpoptOptimizer, ::Type{MOI.SingleVariable}, ::Type{MOI.EqualTo{Float64}}) = true
-MOI.supportsconstraint(::IpoptOptimizer, ::Type{MOI.ScalarAffineFunction{Float64}}, ::Type{MOI.LessThan{Float64}}) = true
-MOI.supportsconstraint(::IpoptOptimizer, ::Type{MOI.ScalarAffineFunction{Float64}}, ::Type{MOI.GreaterThan{Float64}}) = true
-MOI.supportsconstraint(::IpoptOptimizer, ::Type{MOI.ScalarAffineFunction{Float64}}, ::Type{MOI.EqualTo{Float64}}) = true
-MOI.supportsconstraint(::IpoptOptimizer, ::Type{MOI.ScalarQuadraticFunction{Float64}}, ::Type{MOI.LessThan{Float64}}) = true
-MOI.supportsconstraint(::IpoptOptimizer, ::Type{MOI.ScalarQuadraticFunction{Float64}}, ::Type{MOI.GreaterThan{Float64}}) = true
-MOI.supportsconstraint(::IpoptOptimizer, ::Type{MOI.ScalarQuadraticFunction{Float64}}, ::Type{MOI.EqualTo{Float64}}) = true
+MOI.supports_constraint(::IpoptOptimizer, ::Type{MOI.SingleVariable}, ::Type{MOI.LessThan{Float64}}) = true
+MOI.supports_constraint(::IpoptOptimizer, ::Type{MOI.SingleVariable}, ::Type{MOI.GreaterThan{Float64}}) = true
+MOI.supports_constraint(::IpoptOptimizer, ::Type{MOI.SingleVariable}, ::Type{MOI.EqualTo{Float64}}) = true
+MOI.supports_constraint(::IpoptOptimizer, ::Type{MOI.ScalarAffineFunction{Float64}}, ::Type{MOI.LessThan{Float64}}) = true
+MOI.supports_constraint(::IpoptOptimizer, ::Type{MOI.ScalarAffineFunction{Float64}}, ::Type{MOI.GreaterThan{Float64}}) = true
+MOI.supports_constraint(::IpoptOptimizer, ::Type{MOI.ScalarAffineFunction{Float64}}, ::Type{MOI.EqualTo{Float64}}) = true
+MOI.supports_constraint(::IpoptOptimizer, ::Type{MOI.ScalarQuadraticFunction{Float64}}, ::Type{MOI.LessThan{Float64}}) = true
+MOI.supports_constraint(::IpoptOptimizer, ::Type{MOI.ScalarQuadraticFunction{Float64}}, ::Type{MOI.GreaterThan{Float64}}) = true
+MOI.supports_constraint(::IpoptOptimizer, ::Type{MOI.ScalarQuadraticFunction{Float64}}, ::Type{MOI.EqualTo{Float64}}) = true
 
-MOI.canaddvariable(::IpoptOptimizer) = true
-# TODO: The distinction between supportsconstraint and canaddconstraint is maybe too subtle.
-MOI.canaddconstraint(::IpoptOptimizer, ::Type{MOI.SingleVariable}, ::Type{MOI.LessThan{Float64}}) = true
-MOI.canaddconstraint(::IpoptOptimizer, ::Type{MOI.SingleVariable}, ::Type{MOI.GreaterThan{Float64}}) = true
-MOI.canaddconstraint(::IpoptOptimizer, ::Type{MOI.SingleVariable}, ::Type{MOI.EqualTo{Float64}}) = true
-MOI.canaddconstraint(::IpoptOptimizer, ::Type{MOI.ScalarAffineFunction{Float64}}, ::Type{MOI.LessThan{Float64}}) = true
-MOI.canaddconstraint(::IpoptOptimizer, ::Type{MOI.ScalarAffineFunction{Float64}}, ::Type{MOI.GreaterThan{Float64}}) = true
-MOI.canaddconstraint(::IpoptOptimizer, ::Type{MOI.ScalarAffineFunction{Float64}}, ::Type{MOI.EqualTo{Float64}}) = true
-MOI.canaddconstraint(::IpoptOptimizer, ::Type{MOI.ScalarQuadraticFunction{Float64}}, ::Type{MOI.LessThan{Float64}}) = true
-MOI.canaddconstraint(::IpoptOptimizer, ::Type{MOI.ScalarQuadraticFunction{Float64}}, ::Type{MOI.GreaterThan{Float64}}) = true
-MOI.canaddconstraint(::IpoptOptimizer, ::Type{MOI.ScalarQuadraticFunction{Float64}}, ::Type{MOI.EqualTo{Float64}}) = true
+function MOI.copy_to(m::IpoptOptimizer, src::MOI.ModelLike; copy_names = false)
+    return MOI.Utilities.default_copy_to(m, src, copy_names)
+end
 
-MOI.canset(::IpoptOptimizer, ::MOI.VariablePrimalStart, ::Type{MOI.VariableIndex}) = true
-MOI.canset(::IpoptOptimizer, ::MOI.ObjectiveSense) = true
-MOI.canset(::IpoptOptimizer, ::MOI.NLPBlock) = true
-MOI.canset(::IpoptOptimizer, ::MOI.ObjectiveFunction{MOI.SingleVariable}) = true
-MOI.canset(::IpoptOptimizer, ::MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}) = true
-MOI.canset(::IpoptOptimizer, ::MOI.ObjectiveFunction{MOI.ScalarQuadraticFunction{Float64}}) = true
-
-MOI.copy!(m::IpoptOptimizer, src::MOI.ModelLike; copynames = false) = MOI.Utilities.defaultcopy!(m, src, copynames)
-
-MOI.canget(::IpoptOptimizer, ::MOI.NumberOfVariables) = true
 MOI.get(m::IpoptOptimizer, ::MOI.NumberOfVariables) = length(m.variable_info)
 
-MOI.canget(::IpoptOptimizer, ::MOI.ListOfVariableIndices) = true
 function MOI.get(m::IpoptOptimizer, ::MOI.ListOfVariableIndices)
     return [MOI.VariableIndex(i) for i in 1:length(m.variable_info)]
 end
 
 
-function MOI.set!(m::IpoptOptimizer, ::MOI.ObjectiveSense, sense::MOI.OptimizationSense)
+function MOI.set(m::IpoptOptimizer, ::MOI.ObjectiveSense, sense::MOI.OptimizationSense)
     m.sense = sense
     return
 end
@@ -118,7 +99,7 @@ function MOI.empty!(m::IpoptOptimizer)
     empty!(m.quadratic_eq_constraints)
 end
 
-function MOI.isempty(m::IpoptOptimizer)
+function MOI.is_empty(m::IpoptOptimizer)
     return isempty(m.variable_info) &&
            m.nlp_data.evaluator isa EmptyNLPEvaluator &&
            m.sense == MOI.FeasibilitySense &&
@@ -130,11 +111,11 @@ function MOI.isempty(m::IpoptOptimizer)
            isempty(m.quadratic_eq_constraints)
 end
 
-function MOI.addvariable!(m::IpoptOptimizer)
+function MOI.add_variable(m::IpoptOptimizer)
     push!(m.variable_info, VariableInfo())
     return MOI.VariableIndex(length(m.variable_info))
 end
-MOI.addvariables!(m::IpoptOptimizer, n::Int) = [MOI.addvariable!(m) for i in 1:n]
+MOI.add_variables(m::IpoptOptimizer, n::Int) = [MOI.add_variable(m) for i in 1:n]
 
 function check_inbounds(m::IpoptOptimizer, vi::MOI.VariableIndex)
     num_variables = length(m.variable_info)
@@ -173,7 +154,7 @@ function is_fixed(m::IpoptOptimizer, vi::MOI.VariableIndex)
     return m.variable_info[vi.value].is_fixed
 end
 
-function MOI.addconstraint!(m::IpoptOptimizer, v::MOI.SingleVariable, lt::MOI.LessThan{Float64})
+function MOI.add_constraint(m::IpoptOptimizer, v::MOI.SingleVariable, lt::MOI.LessThan{Float64})
     vi = v.variable
     check_inbounds(m, vi)
     if isnan(lt.upper)
@@ -190,7 +171,7 @@ function MOI.addconstraint!(m::IpoptOptimizer, v::MOI.SingleVariable, lt::MOI.Le
     return MOI.ConstraintIndex{MOI.SingleVariable, MOI.LessThan{Float64}}(vi.value)
 end
 
-function MOI.addconstraint!(m::IpoptOptimizer, v::MOI.SingleVariable, gt::MOI.GreaterThan{Float64})
+function MOI.add_constraint(m::IpoptOptimizer, v::MOI.SingleVariable, gt::MOI.GreaterThan{Float64})
     vi = v.variable
     check_inbounds(m, vi)
     if isnan(gt.lower)
@@ -207,7 +188,7 @@ function MOI.addconstraint!(m::IpoptOptimizer, v::MOI.SingleVariable, gt::MOI.Gr
     return MOI.ConstraintIndex{MOI.SingleVariable, MOI.GreaterThan{Float64}}(vi.value)
 end
 
-function MOI.addconstraint!(m::IpoptOptimizer, v::MOI.SingleVariable, eq::MOI.EqualTo{Float64})
+function MOI.add_constraint(m::IpoptOptimizer, v::MOI.SingleVariable, eq::MOI.EqualTo{Float64})
     vi = v.variable
     check_inbounds(m, vi)
     if isnan(eq.value)
@@ -228,9 +209,9 @@ function MOI.addconstraint!(m::IpoptOptimizer, v::MOI.SingleVariable, eq::MOI.Eq
     return MOI.ConstraintIndex{MOI.SingleVariable, MOI.EqualTo{Float64}}(vi.value)
 end
 
-macro define_addconstraint(function_type, set_type, array_name)
+macro define_add_constraint(function_type, set_type, array_name)
     quote
-        function MOI.addconstraint!(m::IpoptOptimizer, func::$function_type, set::$set_type)
+        function MOI.add_constraint(m::IpoptOptimizer, func::$function_type, set::$set_type)
             check_inbounds(m, func)
             push!(m.$(array_name), (func, set))
             return MOI.ConstraintIndex{$function_type, $set_type}(length(m.$(array_name)))
@@ -238,25 +219,29 @@ macro define_addconstraint(function_type, set_type, array_name)
     end
 end
 
-@define_addconstraint MOI.ScalarAffineFunction{Float64} MOI.LessThan{Float64} linear_le_constraints
-@define_addconstraint MOI.ScalarAffineFunction{Float64} MOI.GreaterThan{Float64} linear_ge_constraints
-@define_addconstraint MOI.ScalarAffineFunction{Float64} MOI.EqualTo{Float64} linear_eq_constraints
-@define_addconstraint MOI.ScalarQuadraticFunction{Float64} MOI.LessThan{Float64} quadratic_le_constraints
-@define_addconstraint MOI.ScalarQuadraticFunction{Float64} MOI.GreaterThan{Float64} quadratic_ge_constraints
-@define_addconstraint MOI.ScalarQuadraticFunction{Float64} MOI.EqualTo{Float64} quadratic_eq_constraints
+@define_add_constraint MOI.ScalarAffineFunction{Float64} MOI.LessThan{Float64} linear_le_constraints
+@define_add_constraint MOI.ScalarAffineFunction{Float64} MOI.GreaterThan{Float64} linear_ge_constraints
+@define_add_constraint MOI.ScalarAffineFunction{Float64} MOI.EqualTo{Float64} linear_eq_constraints
+@define_add_constraint MOI.ScalarQuadraticFunction{Float64} MOI.LessThan{Float64} quadratic_le_constraints
+@define_add_constraint MOI.ScalarQuadraticFunction{Float64} MOI.GreaterThan{Float64} quadratic_ge_constraints
+@define_add_constraint MOI.ScalarQuadraticFunction{Float64} MOI.EqualTo{Float64} quadratic_eq_constraints
 
-function MOI.set!(m::IpoptOptimizer, ::MOI.VariablePrimalStart, vi::MOI.VariableIndex, value::Real)
+function MOI.supports(::IpoptOptimizer, ::MOI.VariablePrimalStart,
+                      ::Type{MOI.VariableIndex})
+    return true
+end
+function MOI.set(m::IpoptOptimizer, ::MOI.VariablePrimalStart, vi::MOI.VariableIndex, value::Real)
     check_inbounds(m, vi)
     m.variable_info[vi.value].start = value
     return
 end
 
-function MOI.set!(m::IpoptOptimizer, ::MOI.NLPBlock, nlp_data::MOI.NLPBlockData)
+function MOI.set(m::IpoptOptimizer, ::MOI.NLPBlock, nlp_data::MOI.NLPBlockData)
     m.nlp_data = nlp_data
     return
 end
 
-function MOI.set!(m::IpoptOptimizer, ::MOI.ObjectiveFunction, func::Union{MOI.SingleVariable,MOI.ScalarAffineFunction,MOI.ScalarQuadraticFunction})
+function MOI.set(m::IpoptOptimizer, ::MOI.ObjectiveFunction, func::Union{MOI.SingleVariable,MOI.ScalarAffineFunction,MOI.ScalarQuadraticFunction})
     check_inbounds(m, func)
     m.objective = func
     return
@@ -607,7 +592,7 @@ function MOI.optimize!(m::IpoptOptimizer)
     has_hessian && push!(init_feat, :Hess)
     num_nlp_constraints > 0 && push!(init_feat, :Jac)
 
-    MOI.initialize!(evaluator, init_feat)
+    MOI.initialize(evaluator, init_feat)
     jacobian_sparsity = jacobian_structure(m)
     hessian_sparsity = has_hessian ? hessian_lagrangian_structure(m) : []
 
@@ -622,7 +607,7 @@ function MOI.optimize!(m::IpoptOptimizer)
         objective_scale = 0.0
     end
 
-    eval_f_cb(x) = objective_scale*eval_objective(m, x)
+    eval_f_cb(x) = objective_scale * eval_objective(m, x)
 
     # Objective gradient callback
     function eval_grad_f_cb(x, grad_f)
@@ -709,8 +694,6 @@ function MOI.optimize!(m::IpoptOptimizer)
     solveProblem(m.inner)
 end
 
-MOI.canget(m::IpoptOptimizer, ::MOI.TerminationStatus) = m.inner !== nothing
-
 function MOI.get(m::IpoptOptimizer, ::MOI.TerminationStatus)
     status = ApplicationReturnStatus[m.inner.status]
     if status in (:Solve_Succeeded,
@@ -752,12 +735,15 @@ function MOI.get(m::IpoptOptimizer, ::MOI.TerminationStatus)
     end
 end
 
-MOI.canget(m::IpoptOptimizer, ::MOI.ResultCount) = m.inner !== nothing
 # Ipopt always has an iterate available.
-MOI.get(m::IpoptOptimizer, ::MOI.ResultCount) = 1
+function MOI.get(m::IpoptOptimizer, ::MOI.ResultCount)
+    return (m.inner !== nothing) ? 1 : 0
+end
 
-MOI.canget(m::IpoptOptimizer, ::MOI.PrimalStatus) = m.inner !== nothing
 function MOI.get(m::IpoptOptimizer, ::MOI.PrimalStatus)
+    if m.inner === nothing
+        return MOI.NoSolution
+    end
     status = ApplicationReturnStatus[m.inner.status]
     if status == :Solve_Succeeded
         return MOI.FeasiblePoint
@@ -774,8 +760,10 @@ function MOI.get(m::IpoptOptimizer, ::MOI.PrimalStatus)
     end
 end
 
-MOI.canget(m::IpoptOptimizer, ::MOI.DualStatus) = m.inner !== nothing
 function MOI.get(m::IpoptOptimizer, ::MOI.DualStatus)
+    if m.inner === nothing
+        return MOI.NoSolution
+    end
     status = ApplicationReturnStatus[m.inner.status]
     if status == :Solve_Succeeded
         return MOI.FeasiblePoint
@@ -793,8 +781,10 @@ function MOI.get(m::IpoptOptimizer, ::MOI.DualStatus)
     end
 end
 
-MOI.canget(m::IpoptOptimizer, ::MOI.ObjectiveValue) = m.inner !== nothing
 function MOI.get(m::IpoptOptimizer, ::MOI.ObjectiveValue)
+    if m.inner === nothing
+        error("ObjectiveValue not available.")
+    end
     scale = (m.sense == MOI.MaxSense) ? -1 : 1
     return scale*m.inner.obj_val
 end
@@ -802,11 +792,10 @@ end
 # TODO: This is a bit off, because the variable primal should be available
 # only after a solve. If m.inner is initialized but we haven't solved, then
 # the primal values we return do not have the intended meaning.
-function MOI.canget(m::IpoptOptimizer, ::MOI.VariablePrimal, ::Type{MOI.VariableIndex})
-    return m.inner !== nothing
-end
-
 function MOI.get(m::IpoptOptimizer, ::MOI.VariablePrimal, vi::MOI.VariableIndex)
+    if m.inner === nothing
+        error("VariablePrimal not available.")
+    end
     check_inbounds(m, vi)
     return m.inner.x[vi.value]
 end
@@ -815,10 +804,10 @@ macro define_constraint_primal(function_type, set_type, prefix)
     constraint_array = Symbol(string(prefix) * "_constraints")
     offset_function = Symbol(string(prefix) * "_offset")
     quote
-        function MOI.canget(m::IpoptOptimizer, ::MOI.ConstraintPrimal, ::Type{MOI.ConstraintIndex{$function_type, $set_type}})
-            return m.inner != nothing
-        end
         function MOI.get(m::IpoptOptimizer, ::MOI.ConstraintPrimal, ci::MOI.ConstraintIndex{$function_type, $set_type})
+            if m.inner === nothing
+                error("ConstraintPrimal not available.")
+            end
             if !(1 <= ci.value <= length(m.$(constraint_array)))
                 error("Invalid constraint index ", ci.value)
             end
@@ -834,14 +823,10 @@ end
 @define_constraint_primal MOI.ScalarQuadraticFunction{Float64} MOI.GreaterThan{Float64} quadratic_ge
 @define_constraint_primal MOI.ScalarQuadraticFunction{Float64} MOI.EqualTo{Float64} quadratic_eq
 
-function MOI.canget(m::IpoptOptimizer, ::MOI.ConstraintPrimal,
-    ::Union{Type{MOI.ConstraintIndex{MOI.SingleVariable,MOI.LessThan{Float64}}},
-            Type{MOI.ConstraintIndex{MOI.SingleVariable,MOI.GreaterThan{Float64}}},
-            Type{MOI.ConstraintIndex{MOI.SingleVariable,MOI.EqualTo{Float64}}}})
-    return m.inner !== nothing
-end
-
 function MOI.get(m::IpoptOptimizer, ::MOI.ConstraintPrimal, ci::MOI.ConstraintIndex{MOI.SingleVariable, MOI.LessThan{Float64}})
+    if m.inner === nothing
+        error("ConstraintPrimal not available.")
+    end
     vi = MOI.VariableIndex(ci.value)
     check_inbounds(m, vi)
     if !has_upper_bound(m, vi)
@@ -851,6 +836,9 @@ function MOI.get(m::IpoptOptimizer, ::MOI.ConstraintPrimal, ci::MOI.ConstraintIn
 end
 
 function MOI.get(m::IpoptOptimizer, ::MOI.ConstraintPrimal, ci::MOI.ConstraintIndex{MOI.SingleVariable, MOI.GreaterThan{Float64}})
+    if m.inner === nothing
+        error("ConstraintPrimal not available.")
+    end
     vi = MOI.VariableIndex(ci.value)
     check_inbounds(m, vi)
     if !has_lower_bound(m, vi)
@@ -860,6 +848,9 @@ function MOI.get(m::IpoptOptimizer, ::MOI.ConstraintPrimal, ci::MOI.ConstraintIn
 end
 
 function MOI.get(m::IpoptOptimizer, ::MOI.ConstraintPrimal, ci::MOI.ConstraintIndex{MOI.SingleVariable, MOI.EqualTo{Float64}})
+    if m.inner === nothing
+        error("ConstraintPrimal not available.")
+    end
     vi = MOI.VariableIndex(ci.value)
     check_inbounds(m, vi)
     if !is_fixed(m, vi)
@@ -868,51 +859,52 @@ function MOI.get(m::IpoptOptimizer, ::MOI.ConstraintPrimal, ci::MOI.ConstraintIn
     return m.inner.x[vi.value]
 end
 
-function MOI.canget(m::IpoptOptimizer, ::MOI.ConstraintDual,
-    ::Union{Type{MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64},MOI.LessThan{Float64}}},
-            Type{MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64},MOI.GreaterThan{Float64}}},
-            Type{MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64},MOI.EqualTo{Float64}}}})
-    return m.inner !== nothing
-end
-
 function MOI.get(m::IpoptOptimizer, ::MOI.ConstraintDual, ci::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64},MOI.LessThan{Float64}})
+    if m.inner === nothing
+        error("ConstraintDual not available.")
+    end
     @assert 1 <= ci.value <= length(m.linear_le_constraints)
     # TODO: Unable to find documentation in Ipopt about the signs of duals.
     # Rescaling by -1 here seems to pass the MOI tests.
-    return -1*m.inner.mult_g[ci.value + linear_le_offset(m)]
+    return -1 * m.inner.mult_g[ci.value + linear_le_offset(m)]
 end
 
 function MOI.get(m::IpoptOptimizer, ::MOI.ConstraintDual, ci::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64},MOI.GreaterThan{Float64}})
+    if m.inner === nothing
+        error("ConstraintDual not available.")
+    end
     @assert 1 <= ci.value <= length(m.linear_ge_constraints)
     # TODO: Unable to find documentation in Ipopt about the signs of duals.
     # Rescaling by -1 here seems to pass the MOI tests.
-    return -1*m.inner.mult_g[ci.value + linear_ge_offset(m)]
+    return -1 * m.inner.mult_g[ci.value + linear_ge_offset(m)]
 end
 
 function MOI.get(m::IpoptOptimizer, ::MOI.ConstraintDual, ci::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64},MOI.EqualTo{Float64}})
+    if m.inner === nothing
+        error("ConstraintDual not available.")
+    end
     @assert 1 <= ci.value <= length(m.linear_eq_constraints)
     # TODO: Rescaling by -1 for consistency, but I don't know if this is covered by tests.
-    return -1*m.inner.mult_g[ci.value + linear_eq_offset(m)]
-end
-
-function MOI.canget(m::IpoptOptimizer, ::MOI.ConstraintDual,
-    ::Union{Type{MOI.ConstraintIndex{MOI.SingleVariable,MOI.LessThan{Float64}}},
-            Type{MOI.ConstraintIndex{MOI.SingleVariable,MOI.GreaterThan{Float64}}},
-            Type{MOI.ConstraintIndex{MOI.SingleVariable,MOI.EqualTo{Float64}}}})
-    return m.inner !== nothing
+    return -1 * m.inner.mult_g[ci.value + linear_eq_offset(m)]
 end
 
 function MOI.get(m::IpoptOptimizer, ::MOI.ConstraintDual, ci::MOI.ConstraintIndex{MOI.SingleVariable, MOI.LessThan{Float64}})
+    if m.inner === nothing
+        error("ConstraintDual not available.")
+    end
     vi = MOI.VariableIndex(ci.value)
     check_inbounds(m, vi)
     if !has_upper_bound(m, vi)
         error("Variable $vi has no upper bound -- ConstraintDual not defined.")
     end
     # MOI convention is for feasible LessThan duals to be nonpositive.
-    return -1*m.inner.mult_x_U[vi.value]
+    return -1 * m.inner.mult_x_U[vi.value]
 end
 
 function MOI.get(m::IpoptOptimizer, ::MOI.ConstraintDual, ci::MOI.ConstraintIndex{MOI.SingleVariable, MOI.GreaterThan{Float64}})
+    if m.inner === nothing
+        error("ConstraintDual not available.")
+    end
     vi = MOI.VariableIndex(ci.value)
     check_inbounds(m, vi)
     if !has_lower_bound(m, vi)
@@ -922,6 +914,9 @@ function MOI.get(m::IpoptOptimizer, ::MOI.ConstraintDual, ci::MOI.ConstraintInde
 end
 
 function MOI.get(m::IpoptOptimizer, ::MOI.ConstraintDual, ci::MOI.ConstraintIndex{MOI.SingleVariable, MOI.EqualTo{Float64}})
+    if m.inner === nothing
+        error("ConstraintDual not available.")
+    end
     vi = MOI.VariableIndex(ci.value)
     check_inbounds(m, vi)
     if !is_fixed(m, vi)
@@ -930,8 +925,9 @@ function MOI.get(m::IpoptOptimizer, ::MOI.ConstraintDual, ci::MOI.ConstraintInde
     return m.inner.mult_x_L[vi.value] - m.inner.mult_x_U[vi.value]
 end
 
-MOI.canget(m::IpoptOptimizer, ::MOI.NLPBlockDual) = m.inner !== nothing
-
 function MOI.get(m::IpoptOptimizer, ::MOI.NLPBlockDual)
+    if m.inner === nothing
+        error("NLPBlockDual not available.")
+    end
     return -1*m.inner.mult_g[1+nlp_constraint_offset(m):end]
 end
