@@ -16,7 +16,7 @@ MOIU.@model(IpoptModelData,
 
 # Without fixed_variable_treatment set, duals are not computed for variables
 # that have lower_bound == upper_bound.
-const optimizer = IpoptOptimizer(print_level=0, fixed_variable_treatment="make_constraint")
+const optimizer = Ipopt.Optimizer(print_level=0, fixed_variable_treatment="make_constraint")
 const config = MOIT.TestConfig(atol=1e-4, rtol=1e-4)
 
 @testset "MOI Linear tests" begin
