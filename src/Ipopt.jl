@@ -210,7 +210,7 @@ function createProblem(n::Int, x_L::Vector{Float64}, x_U::Vector{Float64},
     if ret == C_NULL
         error("IPOPT: Failed to construct problem.")
     else
-        return(IpoptProblem(ret, n, m, eval_f, eval_g, eval_grad_f, eval_jac_g, eval_h))
+        return IpoptProblem(ret, n, m, eval_f, eval_g, eval_grad_f, eval_jac_g, eval_h)
     end
 end
 
