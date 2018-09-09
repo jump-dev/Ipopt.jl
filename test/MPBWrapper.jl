@@ -29,14 +29,22 @@ sol = linprog([1,0],[2 1],'<',-1,solver)
 sol = linprog([-1,-1],[-1 2],'<',[0],solver)
 #    @test sol.status == :Unbounded
 
+function mathprogbase_file(file::String)
+    if VERSION >= v"0.7-"
+        return joinpath(dirname(dirname(pathof(MathProgBase))), "test", file)
+    else
+        return joinpath(Pkg.dir("MathProgBase"), "test", file)
+    end
+end
 
-include(joinpath(Pkg.dir("MathProgBase"),"test","nlp.jl"))
+
+include(mathprogbase_file("nlp.jl"))
 nlptest(IpoptSolver())
 nlptest_nohessian(IpoptSolver())
 convexnlptest(IpoptSolver())
 rosenbrocktest(IpoptSolver())
 
-include(joinpath(Pkg.dir("MathProgBase"),"test","quadprog.jl"))
+include(mathprogbase_file("quadprog.jl"))
 quadprogtest(IpoptSolver())
 qpdualtest(IpoptSolver())
 

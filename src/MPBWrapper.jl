@@ -123,8 +123,8 @@ function MPB.optimize!(m::IpoptMathProgModel)
     copyto!(m.inner.x, m.warmstart) # set warmstart
     for (name,value) in m.options
         sname = string(name)
-        if match(r"(^resto_)", sname) != nothing
-            sname = replace(sname, r"(^resto_)", "resto.")
+        if occursin(r"(^resto_)", sname)
+            sname = replace(sname, r"(^resto_)" => "resto.")
         end
         addOption(m.inner, sname, value)
     end
