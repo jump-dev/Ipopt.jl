@@ -165,7 +165,7 @@ function MPB.status(m::IpoptMathProgModel)
         #   :NonIpopt_Exception_Thrown
         #   :Insufficient_Memory
         #   :Internal_Error
-        warn("Ipopt finished with status $stat_sym")
+        Compat.@warn "Ipopt finished with status $stat_sym"
         return :Error
     end
 
