@@ -775,7 +775,7 @@ function MOI.get(model::Optimizer, ::MOI.PrimalStatus)
     elseif status == :Infeasible_Problem_Detected
         return MOI.InfeasiblePoint
     else
-        return MOI.Unknown
+        return MOI.UnknownResultStatus
     end
 end
 
@@ -794,9 +794,9 @@ function MOI.get(model::Optimizer, ::MOI.DualStatus)
         return MOI.NearlyFeasiblePoint
     elseif status == :Infeasible_Problem_Detected
         # TODO: What is the interpretation of the dual in this case?
-        return MOI.Unknown
+        return MOI.UnknownResultStatus
     else
-        return MOI.Unknown
+        return MOI.UnknownResultStatus
     end
 end
 
