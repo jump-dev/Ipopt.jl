@@ -7,7 +7,13 @@ export IpoptSolver
 struct IpoptSolver <: MPB.AbstractMathProgSolver
     options
 end
-IpoptSolver(;kwargs...) = IpoptSolver(kwargs)
+function IpoptSolver(;kwargs...)
+    args = Vector{Tuple}()
+    for arg in kwargs
+        push!(args, (arg.first, arg.second))
+    end
+    IpoptSolver(args)
+end
 
 mutable struct IpoptMathProgModel <: MPB.AbstractNonlinearModel
     inner::IpoptProblem
