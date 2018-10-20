@@ -10,7 +10,11 @@ end
 function IpoptSolver(;kwargs...)
     args = Vector{Tuple}()
     for arg in kwargs
-        push!(args, (arg.first, arg.second))
+        if isa(arg, Pair)
+            push!(args, (arg.first, arg.second))
+        else # is a tuple in v0.6
+            push!(args, arg)
+        end
     end
     IpoptSolver(args)
 end
