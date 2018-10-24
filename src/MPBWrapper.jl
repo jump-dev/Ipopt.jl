@@ -5,7 +5,7 @@ const MPB = MathProgBase
 # Solver objects
 export IpoptSolver
 struct IpoptSolver <: MPB.AbstractMathProgSolver
-    options
+    options::Vector{Tuple}
 end
 function IpoptSolver(;kwargs...)
     args = Vector{Tuple}()
