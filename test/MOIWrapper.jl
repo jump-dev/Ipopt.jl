@@ -17,7 +17,8 @@ MOIU.@model(IpoptModelData,
 # Without fixed_variable_treatment set, duals are not computed for variables
 # that have lower_bound == upper_bound.
 const optimizer = Ipopt.Optimizer(print_level=0, fixed_variable_treatment="make_constraint")
-const config = MOIT.TestConfig(atol=1e-4, rtol=1e-4)
+const config = MOIT.TestConfig(atol=1e-4, rtol=1e-4,
+                               optimal_status=MOI.LocallySolved)
 
 @testset "MOI Linear tests" begin
     exclude = ["linear8a", # Behavior in infeasible case doesn't match test.
