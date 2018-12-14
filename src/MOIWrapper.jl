@@ -714,13 +714,16 @@ function MOI.optimize!(model::Optimizer)
 end
 
 function MOI.get(model::Optimizer, ::MOI.TerminationStatus)
+    if model.inner === nothing
+        return MOI.OptimizeNotCalled
+    end
     status = ApplicationReturnStatus[model.inner.status]
-    if status in (:Solve_Succeeded,
-                  :Feasible_Point_Found,
-                  :Infeasible_Problem_Detected) # A result is available.
-        return MOI.Success
+    if status == :Solve_Succeeded || status == :Feasible_Point_Found
+        return MOI.LocallySolved
+    elseif status == :Infeasible_Problem_Detected
+        return MOI.LocallyInfeasible
     elseif status == :Solved_To_Acceptable_Level
-        return MOI.AlmostSuccess
+        return MOI.AlmostLocallySolved
     elseif status == :Search_Direction_Becomes_Too_Small
         return MOI.NumericalError
     elseif status == :Diverging_Iterates
