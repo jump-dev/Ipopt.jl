@@ -35,9 +35,9 @@ using Compat.Test
 end
 
 @testset "MathProgBase" begin
-    include("MPBWrapper.jl")
+    include("MPB_wrapper.jl")
 end
 
 @testset "MathOptInterface" begin
-    include("MOIWrapper.jl")
+    include("MOI_wrapper.jl")
 end

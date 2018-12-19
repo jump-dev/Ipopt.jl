@@ -18,7 +18,7 @@ MOIU.@model(IpoptModelData,
 # that have lower_bound == upper_bound.
 const optimizer = Ipopt.Optimizer(print_level=0, fixed_variable_treatment="make_constraint")
 const config = MOIT.TestConfig(atol=1e-4, rtol=1e-4,
-                               optimal_status=MOI.LocallySolved)
+                               optimal_status=MOI.LOCALLY_SOLVED)
 
 @testset "MOI Linear tests" begin
     exclude = ["linear8a", # Behavior in infeasible case doesn't match test.
