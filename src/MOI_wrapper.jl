@@ -51,7 +51,7 @@ end
 empty_nlp_data() = MOI.NLPBlockData([], EmptyNLPEvaluator(), false)
 
 
-Optimizer(;options...) = Optimizer(nothing, [], empty_nlp_data(), MOI.FeasibilitySense, nothing, [], [], [], [], [], [], options)
+Optimizer(;options...) = Optimizer(nothing, [], empty_nlp_data(), MOI.FEASIBILITY_SENSE, nothing, [], [], [], [], [], [], options)
 
 MOI.supports(::Optimizer, ::MOI.NLPBlock) = true
 MOI.supports(::Optimizer, ::MOI.ObjectiveFunction{MOI.SingleVariable}) = true
@@ -89,7 +89,7 @@ function MOI.empty!(model::Optimizer)
     model.inner = nothing
     empty!(model.variable_info)
     model.nlp_data = empty_nlp_data()
-    model.sense = MOI.FeasibilitySense
+    model.sense = MOI.FEASIBILITY_SENSE
     model.objective = nothing
     empty!(model.linear_le_constraints)
     empty!(model.linear_ge_constraints)
@@ -102,7 +102,7 @@ end
 function MOI.is_empty(model::Optimizer)
     return isempty(model.variable_info) &&
            model.nlp_data.evaluator isa EmptyNLPEvaluator &&
-           model.sense == MOI.FeasibilitySense &&
+           model.sense == MOI.FEASIBILITY_SENSE &&
            isempty(model.linear_le_constraints) &&
            isempty(model.linear_ge_constraints) &&
            isempty(model.linear_eq_constraints) &&
@@ -402,7 +402,7 @@ function eval_objective(model::Optimizer, x)
     elseif model.objective !== nothing
         return eval_function(model.objective, x)
     else
-        # No objective function set. This could happen with FeasibilitySense.
+        # No objective function set. This could happen with FEASIBILITY_SENSE.
         return 0.0
     end
 end
@@ -616,11 +616,11 @@ function MOI.optimize!(model::Optimizer)
     hessian_sparsity = has_hessian ? hessian_lagrangian_structure(model) : []
 
     # Objective callback
-    if model.sense == MOI.MinSense
+    if model.sense == MOI.MIN_SENSE
         objective_scale = 1.0
-    elseif model.sense == MOI.MaxSense
+    elseif model.sense == MOI.MAX_SENSE
         objective_scale = -1.0
-    else # FeasibilitySense
+    else # FEASIBILITY_SENSE
         # TODO: This could produce confusing solver output if a nonzero
         # objective is set.
         objective_scale = 0.0
@@ -715,43 +715,43 @@ end
 
 function MOI.get(model::Optimizer, ::MOI.TerminationStatus)
     if model.inner === nothing
-        return MOI.OptimizeNotCalled
+        return MOI.OPTIMIZE_NOT_CALLED
     end
     status = ApplicationReturnStatus[model.inner.status]
     if status == :Solve_Succeeded || status == :Feasible_Point_Found
-        return MOI.LocallySolved
+        return MOI.LOCALLY_SOLVED
     elseif status == :Infeasible_Problem_Detected
-        return MOI.LocallyInfeasible
+        return MOI.LOCALLY_INFEASIBLE
     elseif status == :Solved_To_Acceptable_Level
-        return MOI.AlmostLocallySolved
+        return MOI.ALMOST_LOCALLY_SOLVED
     elseif status == :Search_Direction_Becomes_Too_Small
-        return MOI.NumericalError
+        return MOI.NUMERICAL_ERROR
     elseif status == :Diverging_Iterates
-        return MOI.NormLimit
+        return MOI.NORM_LIMIT
     elseif status == :User_Requested_Stop
-        return MOI.Interrupted
+        return MOI.INTERRUPTED
     elseif status == :Maximum_Iterations_Exceeded
-        return MOI.IterationLimit
+        return MOI.ITERATION_LIMIT
     elseif status == :Maximum_CpuTime_Exceeded
-        return MOI.TimeLimit
+        return MOI.TIME_LIMIT
     elseif status == :Restoration_Failed
-        return MOI.NumericalError
+        return MOI.NUMERICAL_ERROR
     elseif status == :Error_In_Step_Computation
-        return MOI.NumericalError
+        return MOI.NUMERICAL_ERROR
     elseif status == :Invalid_Option
-        return MOI.InvaidOption
+        return MOI.INVALID_OPTION
     elseif status == :Not_Enough_Degrees_Of_Freedom
-        return MOI.InvalidModel
+        return MOI.INVALID_MODEL
     elseif status == :Invalid_Problem_Definition
-        return MOI.InvalidModel
+        return MOI.INVALID_MODEL
     elseif status == :Invalid_Number_Detected
-        return MOI.InvalidModel
+        return MOI.INVALID_MODEL
     elseif status == :Unrecoverable_Exception
-        return MOI.OtherError
+        return MOI.OTHER_ERROR
     elseif status == :NonIpopt_Exception_Thrown
-        return MOI.OtherError
+        return MOI.OHTER_ERROR
     elseif status == :Insufficient_Memory
-        return MOI.MemoryLimit
+        return MOI.MEMORY_LIMIT
     else
         error("Unrecognized Ipopt status $status")
     end
@@ -764,42 +764,42 @@ end
 
 function MOI.get(model::Optimizer, ::MOI.PrimalStatus)
     if model.inner === nothing
-        return MOI.NoSolution
+        return MOI.NO_SOLUTION
     end
     status = ApplicationReturnStatus[model.inner.status]
     if status == :Solve_Succeeded
-        return MOI.FeasiblePoint
+        return MOI.FEASIBLE_POINT
     elseif status == :Feasible_Point_Found
-        return MOI.FeasiblePoint
+        return MOI.FEASIBLE_POINT
     elseif status == :Solved_To_Acceptable_Level
         # Solutions are only guaranteed to satisfy the "acceptable" convergence
         # tolerances.
-        return MOI.NearlyFeasiblePoint
+        return MOI.NEARLY_FEASIBLE_POINT
     elseif status == :Infeasible_Problem_Detected
-        return MOI.InfeasiblePoint
+        return MOI.INFEASIBLE_POINT
     else
-        return MOI.UnknownResultStatus
+        return MOI.UNKNOWN_RESULT_STATUS
     end
 end
 
 function MOI.get(model::Optimizer, ::MOI.DualStatus)
     if model.inner === nothing
-        return MOI.NoSolution
+        return MOI.NO_SOLUTION
     end
     status = ApplicationReturnStatus[model.inner.status]
     if status == :Solve_Succeeded
-        return MOI.FeasiblePoint
+        return MOI.FEASIBLE_POINT
     elseif status == :Feasible_Point_Found
-        return MOI.FeasiblePoint
+        return MOI.FEASIBLE_POINT
     elseif status == :Solved_To_Acceptable_Level
         # Solutions are only guaranteed to satisfy the "acceptable" convergence
         # tolerances.
-        return MOI.NearlyFeasiblePoint
+        return MOI.NEARLY_FEASIBLE_POINT
     elseif status == :Infeasible_Problem_Detected
         # TODO: What is the interpretation of the dual in this case?
-        return MOI.UnknownResultStatus
+        return MOI.UNKNOWN_RESULT_STATUS
     else
-        return MOI.UnknownResultStatus
+        return MOI.UNKNOWN_RESULT_STATUS
     end
 end
 
@@ -807,7 +807,7 @@ function MOI.get(model::Optimizer, ::MOI.ObjectiveValue)
     if model.inner === nothing
         error("ObjectiveValue not available.")
     end
-    scale = (model.sense == MOI.MaxSense) ? -1 : 1
+    scale = (model.sense == MOI.MAX_SENSE) ? -1 : 1
     return scale * model.inner.obj_val
 end
 
