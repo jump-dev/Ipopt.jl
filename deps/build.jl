@@ -42,16 +42,24 @@ if typeof(this_platform)==Windows && this_platform.compiler_abi.gcc_version == :
    this_platform = Windows(arch(this_platform), libc=libc(this_platform), compiler_abi=CompilerABI(:gcc6))
 end                    
                     
+function update_product(product::LibraryProduct, library_path, binary_path)
+    LibraryProduct(library_path, product.libnames, product.variable_name)
+end
+
+function update_product(product::ExecutableProduct, library_path, binary_path)
+    ExecutableProduct(joinpath(binary_path, basename(product.path)), product.variable_name)
+end
+
 custom_library = false
-if haskey(ENV,"JULIA_IPOPT_LIBRARY_PATH")
-    custom_products = [LibraryProduct(ENV["JULIA_IPOPT_LIBRARY_PATH"],product.libnames,product.variable_name) for product in products]
+if haskey(ENV,"JULIA_IPOPT_LIBRARY_PATH") && haskey(ENV,"JULIA_IPOPT_EXECUTABLE_PATH")
+    custom_products = [update_product(product, ENV["JULIA_IPOPT_LIBRARY_PATH"], ENV["JULIA_IPOPT_EXECUTABLE_PATH"]) for product in products]
     if all(satisfied(p; verbose=verbose) for p in custom_products)
         products = custom_products
         custom_library = true
     else
-        error("Could not install custom libraries from $(ENV["JULIA_IPOPT_LIBRARY_PATH"]).\nTo fall back to BinaryProvider call delete!(ENV,\"JULIA_IPOPT_LIBRARY_PATH\") and run build again.")
+        error("Could not install custom libraries from $(ENV["JULIA_IPOPT_LIBRARY_PATH"]) and $(ENV["JULIA_IPOPT_EXECUTABLE_PATH"]).\nTo fall back to BinaryProvider call delete!(ENV,\"JULIA_IPOPT_LIBRARY_PATH\");delete!(ENV,\"JULIA_IPOPT_EXECUTABLE_PATH\") and run build again.")
     end
-end     
+end
                   
 if !custom_library
                         
