@@ -5,7 +5,7 @@ const verbose = "--verbose" in ARGS
 const prefix = Prefix(get([a for a in ARGS if a != "--verbose"], 1, joinpath(@__DIR__, "usr")))
 products = [
     LibraryProduct(prefix, ["libipopt"], :libipopt),
-    ExecutableProduct(prefix, ["ipopt"], :amplexe),
+    ExecutableProduct(prefix, "ipopt", :amplexe),
 ]
 
 # Download binaries from hosted location
