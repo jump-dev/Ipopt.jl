@@ -12,9 +12,9 @@ end
 
 function amplexefun(arguments::String)
     temp_env = copy(ENV)
-    temp_env[amplexe_env_var] = amplexe_env_val
-    temp_dir = abspath(dirname(amplexe))
-    proc = spawn(pipeline(Cmd(`$amplexe $arguments`,env=temp_env,dir=temp_dir), stdout=STDOUT))
+    temp_env[Ipopt.amplexe_env_var] = Ipopt.amplexe_env_val
+    temp_dir = abspath(dirname(Ipopt.amplexe))
+    proc = run(pipeline(Cmd(`$(Ipopt.amplexe) $arguments`,env=temp_env,dir=temp_dir), stdout=stdout))
     wait(proc)
     kill(proc)
     proc.exitcode
