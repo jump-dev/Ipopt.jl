@@ -35,9 +35,6 @@ download_info = Dict(
     Windows(:x86_64, compiler_abi=CompilerABI(:gcc7)) => ("$bin_prefix/IpoptBuilder.v3.12.10.x86_64-w64-mingw32-gcc7.tar.gz", "f7bdbd43f0f356a65038e2c2cfea5151590080dbf125eb09802d3df5c274a114"),
     Windows(:x86_64, compiler_abi=CompilerABI(:gcc8)) => ("$bin_prefix/IpoptBuilder.v3.12.10.x86_64-w64-mingw32-gcc8.tar.gz", "3d19545a532ce102a94901dd7cca37043ec11593c4052d0ede6b25fe9ecc25ea"),
 )
-
-# Install unsatisfied or updated dependencies:
-unsatisfied = any(!satisfied(p; verbose=verbose) for p in products)
                     
 # To fix gcc4 bug in Windows
 this_platform = platform_key_abi()
@@ -45,19 +42,36 @@ if typeof(this_platform)==Windows && this_platform.compiler_abi.gcc_version == :
    this_platform = Windows(arch(this_platform), libc=libc(this_platform), compiler_abi=CompilerABI(:gcc6))
 end                    
                     
-dl_info = choose_download(download_info, platform_key_abi())
-if dl_info === nothing && unsatisfied
-    # If we don't have a compatible .tar.gz to download, complain.
-    # Alternatively, you could attempt to install from a separate provider,
-    # build from source or something even more ambitious here.
-    error("Your platform (\"$(Sys.MACHINE)\", parsed as \"$(triplet(platform_key_abi()))\") is not supported by this package!")
-end
+custom_library = false
+if haskey(ENV,"JULIA_IPOPT_LIBRARY_PATH")
+    custom_products = [LibraryProduct(ENV["JULIA_IPOPT_LIBRARY_PATH"],product.libnames,product.variable_name) for product in products]
+    if all(satisfied(p; verbose=verbose) for p in custom_products)
+        products = custom_products
+        custom_library = true
+    else
+        error("Could not install custom libraries from $(ENV["JULIA_IPOPT_LIBRARY_PATH"]).\nTo fall back to BinaryProvider call delete!(ENV,\"JULIA_IPOPT_LIBRARY_PATH\") and run build again.")
+    end
+end     
+                  
+if !custom_library
+                        
+    # Install unsatisfied or updated dependencies:
+    unsatisfied = any(!satisfied(p; verbose=verbose) for p in products)
 
-# If we have a download, and we are unsatisfied (or the version we're
-# trying to install is not itself installed) then load it up!
-if unsatisfied || !isinstalled(dl_info...; prefix=prefix)
-    # Download and install binaries
-    install(dl_info...; prefix=prefix, force=true, verbose=verbose)
+    dl_info = choose_download(download_info, platform_key_abi())
+    if dl_info === nothing && unsatisfied
+        # If we don't have a compatible .tar.gz to download, complain.
+        # Alternatively, you could attempt to install from a separate provider,
+        # build from source or something even more ambitious here.
+        error("Your platform (\"$(Sys.MACHINE)\", parsed as \"$(triplet(platform_key_abi()))\") is not supported by this package!")
+    end
+
+    # If we have a download, and we are unsatisfied (or the version we're
+    # trying to install is not itself installed) then load it up!
+    if unsatisfied || !isinstalled(dl_info...; prefix=prefix)
+        # Download and install binaries
+        install(dl_info...; prefix=prefix, force=true, verbose=verbose)
+    end
 end
 
 # Write out a deps.jl file that will contain mappings for our products
