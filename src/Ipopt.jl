@@ -3,6 +3,7 @@ VERSION < v"0.7.0-beta2.199" && __precompile__()
 module Ipopt
 using Compat
 using Compat.LinearAlgebra
+using Libdl
 
 if isfile(joinpath(dirname(@__FILE__),"..","deps","deps.jl"))
     include("../deps/deps.jl")
