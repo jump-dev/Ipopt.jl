@@ -1,6 +1,5 @@
 julia 0.6
 MathProgBase 0.5 0.8
 MathOptInterface 0.8 0.9
-BinaryProvider 0.2
-BinDeps
+BinaryProvider 0.5.3
 Compat 0.67.1
