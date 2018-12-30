@@ -5,9 +5,19 @@ const MPB = MathProgBase
 # Solver objects
 export IpoptSolver
 struct IpoptSolver <: MPB.AbstractMathProgSolver
-    options
+    options::Vector{Tuple} # list of options set in Ipopt on each MPB.optimize! call
 end
-IpoptSolver(;kwargs...) = IpoptSolver(kwargs)
+function IpoptSolver(;kwargs...)
+    args = Vector{Tuple}()
+    for arg in kwargs
+        if isa(arg, Pair)
+            push!(args, (arg.first, arg.second))
+        else # is a tuple in v0.6
+            push!(args, arg)
+        end
+    end
+    IpoptSolver(args)
+end
 
 mutable struct IpoptMathProgModel <: MPB.AbstractNonlinearModel
     inner::IpoptProblem
@@ -123,8 +133,8 @@ function MPB.optimize!(m::IpoptMathProgModel)
     copyto!(m.inner.x, m.warmstart) # set warmstart
     for (name,value) in m.options
         sname = string(name)
-        if match(r"(^resto_)", sname) != nothing
-            sname = replace(sname, r"(^resto_)", "resto.")
+        if occursin(r"(^resto_)", sname)
+            sname = replace(sname, r"(^resto_)" => "resto.")
         end
         addOption(m.inner, sname, value)
     end
@@ -165,7 +175,7 @@ function MPB.status(m::IpoptMathProgModel)
         #   :NonIpopt_Exception_Thrown
         #   :Insufficient_Memory
         #   :Internal_Error
-        warn("Ipopt finished with status $stat_sym")
+        Compat.@warn "Ipopt finished with status $stat_sym"
         return :Error
     end
 

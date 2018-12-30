@@ -5,16 +5,13 @@ os:
 julia:
     - 0.6
     - 0.7
+    - 1.0
 notifications:
     email: false
 sudo: false
 addons:
     apt_packages:
         - gfortran
-script:
-    - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
-    - julia -e 'Pkg.clone(pwd()); Pkg.build("Ipopt")'
-    - julia -e 'Pkg.test("Ipopt", coverage=true)'
 after_success:
     - echo $TRAVIS_JULIA_VERSION
     - julia -e 'Pkg.add("Coverage"); cd(Pkg.dir("Ipopt")); using Coverage; Coveralls.submit(process_folder())'
