@@ -9,8 +9,15 @@ if isfile(joinpath(dirname(@__FILE__),"..","deps","deps.jl"))
 else
     error("Ipopt not properly installed. Please run Pkg.build(\"Ipopt\")")
 end
-if !use_BinaryProvider # defined in deps.jl
-    amplexe = joinpath(dirname(libipopt), "..", "bin", "ipopt")
+
+function amplexefun(arguments::String)
+    temp_env = copy(ENV)
+    temp_env[amplexe_env_var] = amplexe_env_val
+    temp_dir = abspath(dirname(amplexe))
+    proc = spawn(pipeline(Cmd(`$amplexe $arguments`,env=temp_env,dir=temp_dir), stdout=STDOUT))
+    wait(proc)
+    kill(proc)
+    proc.exitcode
 end
 
 export createProblem, addOption
@@ -19,15 +26,20 @@ export solveProblem
 export IpoptProblem
 
 function __init__()
-    use_BinaryProvider && check_deps()
-    # Sets up the library paths so that we can run the ipopt binary from Julia.
-    # TODO: Restructure into a function that wraps the call to the binary and
-    # doesn't leave environment variables changed.
     julia_libdir = joinpath(dirname(first(filter(x -> occursin("libjulia", x), Compat.Libdl.dllist()))), "julia")
+    julia_bindir = Base.JULIA_HOME
+    ipopt_libdir = dirname(libipopt)
+    ipopt_bindir = joinpath(dirname(libipopt), "..", "bin")
+    pathsep = Compat.Sys.iswindows() ? ';' : ':'
     @static if Compat.Sys.isapple()
-        ENV["DYLD_LIBRARY_PATH"] = string(get(ENV, "DYLD_LIBRARY_PATH", ""), ":", julia_libdir)
+        global amplexe_env_var = "DYLD_LIBRARY_PATH"
+        global amplexe_env_val = "$(julia_libdir)$(pathsep)$(get(ENV,"DYLD_LIBRARY_PATH",""))"
     elseif Compat.Sys.islinux()
-        ENV["LD_LIBRARY_PATH"] = string(get(ENV, "LD_LIBRARY_PATH", ""), ":", julia_libdir)
+        global amplexe_env_var = "LD_LIBRARY_PATH"
+        global amplexe_env_val = "$(julia_libdir)$(pathsep)$(get(ENV,"LD_LIBRARY_PATH",""))"
+    elseif Compat.Sys.iswindows()
+        global amplexe_env_var = "PATH"
+        global amplexe_env_val = "$(julia_bindir)$(pathsep)$(get(ENV,"PATH",""))"
     end
 end
 
