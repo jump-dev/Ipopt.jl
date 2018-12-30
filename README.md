@@ -19,14 +19,15 @@ Ipopt.jl will use [BinaryProvider.jl](https://github.com/JuliaPackaging/BinaryPr
 
 ## Custom Installation
 
-To install custom built Ipopt binaries set the environmental variable `JULIA_IPOPT_LIBRARY_PATH` and call `import Pkg; Pkg.build("Ipopt")`. For instance, if the libraries are installed in `/opt/lib` just call
+To install custom built Ipopt binaries set the environmental variables `JULIA_IPOPT_LIBRARY_PATH` and `JULIA_IPOPT_EXECUTABLE_PATH`, and call `import Pkg; Pkg.build("Ipopt")`. For instance, if the libraries are installed in `/opt/lib` and the executable is in `/opt/bin` just call
 ```julia
 ENV["JULIA_IPOPT_LIBRARY_PATH"]="/opt/lib"
+ENV["JULIA_IPOPT_EXECUTABLE_PATH"]="/opt/bin"
 import Pkg; Pkg.build("Ipopt")
 ```
-If you do not want BinaryProvider to download the default binaries on install set  `JULIA_IPOPT_LIBRARY_PATH`  before calling `import Pkg; Pkg.add("Ipopt")`.
+If you do not want BinaryProvider to download the default binaries on install set  `JULIA_IPOPT_LIBRARY_PATH` and `JULIA_IPOPT_EXECUTABLE_PATH`  before calling `import Pkg; Pkg.add("Ipopt")`.
 
-To switch back to the default binaries clear `JULIA_IPOPT_LIBRARY_PATH` and call `import Pkg; Pkg.add("Ipopt")`.
+To switch back to the default binaries clear `JULIA_IPOPT_LIBRARY_PATH` and `JULIA_IPOPT_EXECUTABLE_PATH`, and call `import Pkg; Pkg.add("Ipopt")`.
 
 MathProgBase Interface
 ----------------------
