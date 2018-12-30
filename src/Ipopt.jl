@@ -27,7 +27,7 @@ export IpoptProblem
 
 function __init__()
     julia_libdir = joinpath(dirname(first(filter(x -> occursin("libjulia", x), Compat.Libdl.dllist()))), "julia")
-    julia_bindir = Base.JULIA_HOME
+    julia_bindir = Sys.BINDIR
     ipopt_libdir = dirname(libipopt)
     ipopt_bindir = joinpath(dirname(libipopt), "..", "bin")
     pathsep = Compat.Sys.iswindows() ? ';' : ':'
