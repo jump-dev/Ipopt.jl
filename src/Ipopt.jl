@@ -51,7 +51,10 @@ function __init__()
     @static if Compat.Sys.isapple()
          ENV["DYLD_LIBRARY_PATH"] = string(get(ENV, "DYLD_LIBRARY_PATH", ""), ":", julia_libdir)
     elseif Compat.Sys.islinux()
-         ENV["LD_LIBRARY_PATH"] = string(get(ENV, "LD_LIBRARY_PATH", ""), ":", julia_libdir)
+         ENV["LD_LIBRARY_PATH"] = string(get(ENV, "LD_LIBRARY_PATH", ""), ":", julia_libdir, ":", ipopt_libdir)
+    elseif Compat.Sys.iswindows()
+         ENV["PATH"] = string(get(ENV, "PATH", ""), ";", julia_bindir, ";", ipopt_bindir)
+         ENV["Path"] = string(get(ENV, "Path", ""), ";", julia_bindir, ";", ipopt_bindir)
     end
 end
 
