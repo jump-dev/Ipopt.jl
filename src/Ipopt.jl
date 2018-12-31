@@ -45,6 +45,14 @@ function __init__()
         global amplexe_env_var = ["PATH","Path","path"]
         global amplexe_env_val = "$(julia_bindir)$(pathsep)$(get(ENV,"PATH",""))"
     end
+
+    # Still need this for AmplNLWriter to work until it uses amplexefun defined above
+    # (amplexefun wraps the call to the binary and doesn't leave environment variables changed.)
+    @static if Compat.Sys.isapple()
+         ENV["DYLD_LIBRARY_PATH"] = string(get(ENV, "DYLD_LIBRARY_PATH", ""), ":", julia_libdir)
+    elseif Compat.Sys.islinux()
+         ENV["LD_LIBRARY_PATH"] = string(get(ENV, "LD_LIBRARY_PATH", ""), ":", julia_libdir)
+    end
 end
 
 

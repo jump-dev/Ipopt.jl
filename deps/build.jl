@@ -35,13 +35,14 @@ download_info = Dict(
     Windows(:x86_64, compiler_abi=CompilerABI(:gcc7)) => ("$bin_prefix/IpoptBuilder.v3.12.10.x86_64-w64-mingw32-gcc7.tar.gz", "f7bdbd43f0f356a65038e2c2cfea5151590080dbf125eb09802d3df5c274a114"),
     Windows(:x86_64, compiler_abi=CompilerABI(:gcc8)) => ("$bin_prefix/IpoptBuilder.v3.12.10.x86_64-w64-mingw32-gcc8.tar.gz", "3d19545a532ce102a94901dd7cca37043ec11593c4052d0ede6b25fe9ecc25ea"),
 )
-                    
+
 # To fix gcc4 bug in Windows
+# https://sourceforge.net/p/mingw-w64/bugs/727/
 this_platform = platform_key_abi()
 if typeof(this_platform)==Windows && this_platform.compiler_abi.gcc_version == :gcc4
    this_platform = Windows(arch(this_platform), libc=libc(this_platform), compiler_abi=CompilerABI(:gcc6))
-end                    
-                    
+end
+
 function update_product(product::LibraryProduct, library_path, binary_path)
     LibraryProduct(library_path, product.libnames, product.variable_name)
 end
@@ -60,9 +61,9 @@ if haskey(ENV,"JULIA_IPOPT_LIBRARY_PATH") && haskey(ENV,"JULIA_IPOPT_EXECUTABLE_
         error("Could not install custom libraries from $(ENV["JULIA_IPOPT_LIBRARY_PATH"]) and $(ENV["JULIA_IPOPT_EXECUTABLE_PATH"]).\nTo fall back to BinaryProvider call delete!(ENV,\"JULIA_IPOPT_LIBRARY_PATH\");delete!(ENV,\"JULIA_IPOPT_EXECUTABLE_PATH\") and run build again.")
     end
 end
-                  
+
 if !custom_library
-                        
+
     # Install unsatisfied or updated dependencies:
     unsatisfied = any(!satisfied(p; verbose=verbose) for p in products)
 
