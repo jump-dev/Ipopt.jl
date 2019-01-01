@@ -27,11 +27,7 @@ using Compat.Test
     rm("blah.txt")
 
     # Test that the ipopt binary works
-    # See https://github.com/JuliaOpt/Ipopt.jl/issues/119 for discussion of the
-    # known failure on Windows and Julia 0.7.
-    if !(Compat.Sys.iswindows() && VERSION >= v"0.7-")
-        @test success(`$(Ipopt.amplexe) -v`)
-    end
+    @test Ipopt.amplexefun("-v") == 0
 end
 
 @testset "MathProgBase" begin
