@@ -345,7 +345,7 @@ end
 
 function hessian_lagrangian_structure(model::Optimizer)
     hessian_sparsity = Tuple{Int64,Int64}[]
-    if model.objective !== nothing
+    if !model.nlp_data.has_objective && model.objective !== nothing
         append_to_hessian_sparsity!(hessian_sparsity, model.objective)
     end
     for (quad, set) in model.quadratic_le_constraints
@@ -396,7 +396,8 @@ function eval_function(quad::MOI.ScalarQuadraticFunction, x)
 end
 
 function eval_objective(model::Optimizer, x)
-    @assert !(model.nlp_data.has_objective && model.objective !== nothing)
+    # The order of the conditions is important. NLP objectives override regular
+    # objectives.
     if model.nlp_data.has_objective
         return MOI.eval_objective(model.nlp_data.evaluator, x)
     elseif model.objective !== nothing
@@ -438,7 +439,6 @@ function fill_gradient!(grad, x, quad::MOI.ScalarQuadraticFunction{Float64})
 end
 
 function eval_objective_gradient(model::Optimizer, grad, x)
-    @assert !(model.nlp_data.has_objective && model.objective !== nothing)
     if model.nlp_data.has_objective
         MOI.eval_objective_gradient(model.nlp_data.evaluator, grad, x)
     elseif model.objective !== nothing
@@ -543,7 +543,11 @@ function fill_hessian_lagrangian!(values, start_offset, scale_factor,
 end
 
 function eval_hessian_lagrangian(model::Optimizer, values, x, obj_factor, lambda)
-    offset = fill_hessian_lagrangian!(values, 0, obj_factor, model.objective)
+    offset = 0
+    if !model.nlp_data.has_objective
+        offset += fill_hessian_lagrangian!(values, 0, obj_factor,
+                                          model.objective)
+    end
     for (i, (quad, set)) in enumerate(model.quadratic_le_constraints)
         offset += fill_hessian_lagrangian!(values, offset, lambda[i+quadratic_le_offset(model)], quad)
     end
