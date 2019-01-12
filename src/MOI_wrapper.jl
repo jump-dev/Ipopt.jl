@@ -7,10 +7,10 @@ mutable struct VariableInfo
     upper_bound::Float64  # May be Inf even if has_upper_bound == true
     has_upper_bound::Bool # Implies upper_bound == Inf
     is_fixed::Bool        # Implies lower_bound == upper_bound and !has_lower_bound and !has_upper_bound.
-    start::Float64
+    start::Union{Nothing, Float64}
 end
-# The default start value is zero.
-VariableInfo() = VariableInfo(-Inf, false, Inf, false, false, 0.0)
+
+VariableInfo() = VariableInfo(-Inf, false, Inf, false, false, nothing)
 
 mutable struct Optimizer <: MOI.AbstractOptimizer
     inner::Union{IpoptProblem,Nothing}
@@ -241,7 +241,7 @@ function MOI.supports(::Optimizer, ::MOI.VariablePrimalStart,
     return true
 end
 function MOI.set(model::Optimizer, ::MOI.VariablePrimalStart,
-                 vi::MOI.VariableIndex, value::Real)
+                 vi::MOI.VariableIndex, value::Union{Real, Nothing})
     check_inbounds(model, vi)
     model.variable_info[vi.value].start = value
     return
@@ -705,7 +705,9 @@ function MOI.optimize!(model::Optimizer)
         end
     end
 
-    model.inner.x = [v.start for v in model.variable_info]
+    # If nothing is provided, the default starting value is 0.0.
+    model.inner.x = [v.start === nothing ? 0.0 : v.start
+                     for v in model.variable_info]
 
     for (name,value) in model.options
         sname = string(name)
