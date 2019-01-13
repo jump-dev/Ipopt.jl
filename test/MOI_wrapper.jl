@@ -28,7 +28,9 @@ const config = MOIT.TestConfig(atol=1e-4, rtol=1e-4,
                "linear7",  # VectorAffineFunction not supported.
                "linear15", # VectorAffineFunction not supported.
                ]
-    linear_optimizer = MOI.Bridges.SplitInterval{Float64}(MOIU.CachingOptimizer(IpoptModelData{Float64}(), optimizer))
+    model_for_ipopt = MOIU.UniversalFallback(IpoptModelData{Float64}())
+    linear_optimizer = MOI.Bridges.SplitInterval{Float64}(
+                         MOIU.CachingOptimizer(model_for_ipopt, optimizer))
     MOIT.contlineartest(linear_optimizer, config, exclude)
 end
 
