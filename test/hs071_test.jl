@@ -96,14 +96,6 @@ function eval_h(x::Vector{Float64}, mode, rows::Vector{Int32}, cols::Vector{Int3
   end
 end
 
-function intermediate(alg_mod::Int, iter_count::Int,
-  obj_value::Float64, inf_pr::Float64, inf_du::Float64, mu::Float64,
-  d_norm::Float64, regularization_size::Float64, alpha_du::Float64, alpha_pr::Float64,
-  ls_trials::Int)
-  println("Iteration $iter_count, objective value is $obj_value.")
-  return true
-end
-
 n = 4
 x_L = [1.0, 1.0, 1.0, 1.0]
 x_U = [5.0, 5.0, 5.0, 5.0]
@@ -124,3 +116,17 @@ solvestat = solveProblem(prob)
 @test prob.x[3] ≈ 3.8211499817883077 atol=1e-5
 @test prob.x[4] ≈ 1.3794082897556983 atol=1e-5
 @test prob.obj_val ≈ 17.014017145179164 atol=1e-5
+
+# test callbacks 
+function intermediate(alg_mod::Int, iter_count::Int,
+  obj_value::Float64, inf_pr::Float64, inf_du::Float64, mu::Float64,
+  d_norm::Float64, regularization_size::Float64, alpha_du::Float64, alpha_pr::Float64,
+  ls_trials::Int)
+  return iter_count < 1  # interrupt after one iteration
+end
+
+setIntermediateCallback(prob, intermediate)
+
+solvestat = solveProblem(prob)
+
+@test Ipopt.ApplicationReturnStatus[solvestat] == :User_Requested_Stop
