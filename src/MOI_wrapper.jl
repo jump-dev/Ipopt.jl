@@ -35,7 +35,10 @@ function MOI.eval_constraint(::EmptyNLPEvaluator, g, x)
     @assert length(g) == 0
     return
 end
-MOI.eval_objective_gradient(::EmptyNLPEvaluator, g, x) = nothing
+function MOI.eval_objective_gradient(::EmptyNLPEvaluator, g, x)
+    fill!(g, 0.0)
+    return
+end
 MOI.jacobian_structure(::EmptyNLPEvaluator) = Tuple{Int64,Int64}[]
 MOI.hessian_lagrangian_structure(::EmptyNLPEvaluator) = Tuple{Int64,Int64}[]
 function MOI.eval_constraint_jacobian(::EmptyNLPEvaluator, J, x)
@@ -443,6 +446,8 @@ function eval_objective_gradient(model::Optimizer, grad, x)
         MOI.eval_objective_gradient(model.nlp_data.evaluator, grad, x)
     elseif model.objective !== nothing
         fill_gradient!(grad, x, model.objective)
+    else
+        fill!(grad, 0.0)
     end
     return
 end
