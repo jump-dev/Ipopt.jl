@@ -117,12 +117,12 @@ solvestat = solveProblem(prob)
 @test prob.x[4] ≈ 1.3794082897556983 atol=1e-5
 @test prob.obj_val ≈ 17.014017145179164 atol=1e-5
 
-# test callbacks 
+# This tests callbacks.
 function intermediate(alg_mod::Int, iter_count::Int,
   obj_value::Float64, inf_pr::Float64, inf_du::Float64, mu::Float64,
   d_norm::Float64, regularization_size::Float64, alpha_du::Float64, alpha_pr::Float64,
   ls_trials::Int)
-  return iter_count < 1  # interrupt after one iteration
+  return iter_count < 1  # Interrupts after one iteration.
 end
 
 setIntermediateCallback(prob, intermediate)
