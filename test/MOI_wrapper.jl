@@ -20,6 +20,10 @@ const optimizer = Ipopt.Optimizer(print_level=0, fixed_variable_treatment="make_
 const config = MOIT.TestConfig(atol=1e-4, rtol=1e-4,
                                optimal_status=MOI.LOCALLY_SOLVED)
 
+@testset "SolverName" begin
+    @test MOI.get(optimizer, MOI.SolverName()) == "Ipopt"
+end
+
 @testset "MOI Linear tests" begin
     exclude = ["linear8a", # Behavior in infeasible case doesn't match test.
                "linear12", # Same as above.

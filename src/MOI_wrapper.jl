@@ -75,6 +75,8 @@ function MOI.copy_to(model::Optimizer, src::MOI.ModelLike; copy_names = false)
     return MOI.Utilities.default_copy_to(model, src, copy_names)
 end
 
+MOI.get(::Optimizer, ::MOI.SolverName) = "Ipopt"
+
 MOI.get(model::Optimizer, ::MOI.NumberOfVariables) = length(model.variable_info)
 
 function MOI.get(model::Optimizer, ::MOI.ListOfVariableIndices)
