@@ -671,7 +671,7 @@ function MOI.optimize!(model::Optimizer)
                 end
             else
                 obj_factor *= objective_scale
-                eval_hessian_lagrangian(model, values, x, objective_scale*obj_factor, lambda)
+                eval_hessian_lagrangian(model, values, x, obj_factor, lambda)
             end
         end
     else
