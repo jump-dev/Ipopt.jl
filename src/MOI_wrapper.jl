@@ -642,7 +642,7 @@ function MOI.optimize!(model::Optimizer)
     # Objective gradient callback
     function eval_grad_f_cb(x, grad_f)
         eval_objective_gradient(model, grad_f, x)
-        Compat.rmul!(grad_f,objective_scale)
+        rmul!(grad_f,objective_scale)
     end
 
     # Constraint value callback

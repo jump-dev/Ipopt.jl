@@ -1,9 +1,6 @@
-VERSION < v"0.7.0-beta2.199" && __precompile__()
-
 module Ipopt
-using Compat
-using Compat.LinearAlgebra
 using Libdl
+using LinearAlgebra
 
 if isfile(joinpath(dirname(@__FILE__),"..","deps","deps.jl"))
     include("../deps/deps.jl")
@@ -29,18 +26,18 @@ export solveProblem
 export IpoptProblem
 
 function __init__()
-    julia_libdir = joinpath(dirname(first(filter(x -> occursin("libjulia", x), Compat.Libdl.dllist()))), "julia")
+    julia_libdir = joinpath(dirname(first(filter(x -> occursin("libjulia", x), Libdl.dllist()))), "julia")
     julia_bindir = Sys.BINDIR
     ipopt_libdir = dirname(libipopt)
     ipopt_bindir = joinpath(dirname(libipopt), "..", "bin")
-    pathsep = Compat.Sys.iswindows() ? ';' : ':'
-    @static if Compat.Sys.isapple()
+    pathsep = Sys.iswindows() ? ';' : ':'
+    @static if Sys.isapple()
         global amplexe_env_var = ["DYLD_LIBRARY_PATH"]
         global amplexe_env_val = "$(julia_libdir)$(pathsep)$(get(ENV,"DYLD_LIBRARY_PATH",""))"
-    elseif Compat.Sys.islinux()
+    elseif Sys.islinux()
         global amplexe_env_var = ["LD_LIBRARY_PATH"]
         global amplexe_env_val = "$(julia_libdir)$(pathsep)$(get(ENV,"LD_LIBRARY_PATH",""))"
-    elseif Compat.Sys.iswindows()
+    elseif Sys.iswindows()
         # for some reason windows sometimes needs Path instead of PATH
         global amplexe_env_var = ["PATH","Path","path"]
         global amplexe_env_val = "$(julia_bindir)$(pathsep)$(get(ENV,"PATH",""))"
@@ -48,9 +45,9 @@ function __init__()
 
     # Still need this for AmplNLWriter to work until it uses amplexefun defined above
     # (amplexefun wraps the call to the binary and doesn't leave environment variables changed.)
-    @static if Compat.Sys.isapple()
+    @static if Sys.isapple()
          ENV["DYLD_LIBRARY_PATH"] = string(get(ENV, "DYLD_LIBRARY_PATH", ""), ":", julia_libdir)
-    elseif Compat.Sys.islinux()
+    elseif Sys.islinux()
          ENV["LD_LIBRARY_PATH"] = string(get(ENV, "LD_LIBRARY_PATH", ""), ":", julia_libdir, ":", ipopt_libdir)
     end
 end
@@ -88,9 +85,8 @@ mutable struct IpoptProblem
                    :Min)
         # Free the internal IpoptProblem structure when
         # the Julia IpoptProblem instance goes out of scope
-        @compat finalizer(freeProblem, prob)
-        # Return the object we just made
-        prob
+        finalizer(freeProblem, prob)
+        return prob
     end
 end
 
