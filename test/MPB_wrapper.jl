@@ -1,8 +1,8 @@
 # Test MathProgBase stuff
 
 using MathProgBase
-using Compat.LinearAlgebra
-using Compat.SparseArrays
+using LinearAlgebra
+using SparseArrays
 
 solver = IpoptSolver()
 sol = linprog([-1,0],[2 1],'<',1.5,solver)
@@ -30,11 +30,7 @@ sol = linprog([-1,-1],[-1 2],'<',[0],solver)
 #    @test sol.status == :Unbounded
 
 function mathprogbase_file(file::String)
-    if VERSION >= v"0.7-"
-        return joinpath(dirname(dirname(pathof(MathProgBase))), "test", file)
-    else
-        return joinpath(Pkg.dir("MathProgBase"), "test", file)
-    end
+    return joinpath(dirname(dirname(pathof(MathProgBase))), "test", file)
 end
 
 
