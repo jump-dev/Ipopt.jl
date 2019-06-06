@@ -12,7 +12,7 @@ MathProgBase = "fdba3010-5040-5b88-9595-932c9decdf73"
 
 [compat]
 BinaryProvider = "≥ 0.5.3"
-MathOptInterface = "~0.8.1"
+MathOptInterface = "0.9"
 MathProgBase = "~0.5.0, ~0.6, ~0.7"
 julia = "1"
 
