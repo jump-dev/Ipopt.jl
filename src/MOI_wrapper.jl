@@ -901,10 +901,6 @@ function MOI.optimize!(model::Optimizer)
                             for v in model.variable_info]
 
     for (name,value) in model.options
-        sname = string(name)
-        if match(r"(^resto_)", sname) != nothing
-            sname = replace(sname, r"(^resto_)", "resto.")
-        end
         addOption(model.inner, sname, value)
     end
     solveProblem(model.inner)
