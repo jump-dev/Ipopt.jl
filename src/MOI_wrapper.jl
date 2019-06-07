@@ -75,11 +75,6 @@ empty_nlp_data() = MOI.NLPBlockData([], EmptyNLPEvaluator(), false)
 
 
 function Optimizer(;options...)
-<<<<<<< HEAD
-    return Optimizer(nothing, [], empty_nlp_data(), MOI.FEASIBILITY_SENSE,
-                     nothing, [], [], [], [], [], [],
-                     nothing, options)
-=======
     options_dict = Dict{String, Any}()
     # TODO: Setting options through the constructor could be deprecated in the
     # future.
@@ -87,8 +82,8 @@ function Optimizer(;options...)
         options_dict[string(name)] = value
     end
     return Optimizer(nothing, [], empty_nlp_data(), MOI.FEASIBILITY_SENSE,
-                     nothing, [], [], [], [], [], [], false, options_dict, NaN)
->>>>>>> Updates for MOI 0.9
+                     nothing, [], [], [], [], [], [], nothing,
+                     false, options_dict, NaN)
 end
 
 MOI.supports(::Optimizer, ::MOI.NLPBlock) = true
@@ -900,8 +895,8 @@ function MOI.optimize!(model::Optimizer)
     model.inner.mult_x_U = [v.upper_bound_dual_start === nothing ? 0.0 : v.lower_bound_dual_start
                             for v in model.variable_info]
 
-    for (name,value) in model.options
-        addOption(model.inner, sname, value)
+    for (name, value) in model.options
+        addOption(model.inner, name, value)
     end
     solveProblem(model.inner)
 
