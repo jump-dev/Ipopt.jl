@@ -29,12 +29,18 @@ If you do not want BinaryProvider to download the default binaries on install se
 
 To switch back to the default binaries clear `JULIA_IPOPT_LIBRARY_PATH` and `JULIA_IPOPT_EXECUTABLE_PATH`, and call `import Pkg; Pkg.build("Ipopt")`.
 
-MathProgBase Interface
+JuMP and MathOptInterface
 ----------------------
 
-Ipopt implements the solver-independent [MathProgBase](https://github.com/JuliaOpt/MathProgBase.jl) interface,
+Ipopt implements the solver-independent [MathOptInterface](https://github.com/JuliaOpt/MathOptInterface.jl) interface,
 and so can be used within modeling software like [JuMP](https://github.com/JuliaOpt/JuMP.jl).
-The solver object is called ``IpoptSolver``. All options listed in the [Ipopt documentation](http://www.coin-or.org/Ipopt/documentation/node40.html) may be passed directly. For example, you can suppress output by saying ``IpoptSolver(print_level=0)``. If you wish to pass an option specifically for the restoration phase, instead of using the prefix ``resto.``, use the prefix ``resto_``. For example ``IpoptSolver(resto_max_iter=0)``.
+The solver object is called `Ipopt.Optimizer`. All options listed in the [Ipopt documentation](http://www.coin-or.org/Ipopt/documentation/node40.html) may be passed directly. For example, you can suppress output by saying `Ipopt.Optimizer(print_level=0)`. If you wish to pass an option specifically for the restoration phase, instead of using the prefix ``resto.``, use the prefix ``resto_``. For example `Ipopt.Optimizer(resto_max_iter=0)`.
+
+You can use Ipopt with JuMP as follows:
+```julia
+using JuMP, Ipopt
+model = Model(with_optimizer(Ipopt.Optimizer, max_cpu_time=60.0))
+```
 
 C Interface Wrapper
 -------------------
