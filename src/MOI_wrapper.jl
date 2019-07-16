@@ -907,41 +907,40 @@ function MOI.get(model::Optimizer, ::MOI.ConstraintPrimal,
     return model.inner.x[vi.value]
 end
 
-function MOI.get(model::Optimizer, ::MOI.ConstraintDual,
-                 ci::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64},
-                                         MOI.LessThan{Float64}})
-    if model.inner === nothing
-        error("ConstraintDual not available.")
+macro define_constraint_dual(function_type, set_type, prefix)
+    constraint_array = Symbol(string(prefix) * "_constraints")
+    offset_function = Symbol(string(prefix) * "_offset")
+    quote
+        function MOI.get(model::Optimizer, ::MOI.ConstraintDual,
+                         ci::MOI.ConstraintIndex{$function_type, $set_type})
+            if model.inner === nothing
+                error("ConstraintDual not available.")
+            end
+            if !(1 <= ci.value <= length(model.$(constraint_array)))
+                error("Invalid constraint index ", ci.value)
+            end
+            # TODO: Unable to find documentation in Ipopt about the signs of duals.
+            # Rescaling by -1 here seems to pass the MOI tests.
+            return -1 * model.inner.mult_g[ci.value + $offset_function(model)]
+        end
     end
-    @assert 1 <= ci.value <= length(model.linear_le_constraints)
-    # TODO: Unable to find documentation in Ipopt about the signs of duals.
-    # Rescaling by -1 here seems to pass the MOI tests.
-    return -1 * model.inner.mult_g[ci.value + linear_le_offset(model)]
 end
 
-function MOI.get(model::Optimizer, ::MOI.ConstraintDual,
-                 ci::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64},
-                                         MOI.GreaterThan{Float64}})
-    if model.inner === nothing
-        error("ConstraintDual not available.")
-    end
-    @assert 1 <= ci.value <= length(model.linear_ge_constraints)
-    # TODO: Unable to find documentation in Ipopt about the signs of duals.
-    # Rescaling by -1 here seems to pass the MOI tests.
-    return -1 * model.inner.mult_g[ci.value + linear_ge_offset(model)]
-end
-
-function MOI.get(model::Optimizer, ::MOI.ConstraintDual,
-                 ci::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64},
-                                         MOI.EqualTo{Float64}})
-    if model.inner === nothing
-        error("ConstraintDual not available.")
-    end
-    @assert 1 <= ci.value <= length(model.linear_eq_constraints)
-    # TODO: Rescaling by -1 for consistency, but I don't know if this is covered
-    # by tests.
-    return -1 * model.inner.mult_g[ci.value + linear_eq_offset(model)]
-end
+@define_constraint_dual(MOI.ScalarAffineFunction{Float64},
+                          MOI.LessThan{Float64}, linear_le)
+@define_constraint_dual(MOI.ScalarAffineFunction{Float64},
+                          MOI.GreaterThan{Float64}, linear_ge)
+@define_constraint_dual(MOI.ScalarAffineFunction{Float64},
+                          MOI.EqualTo{Float64}, linear_eq)
+# TODO: MOI has no sign convention or tests for duals of quadratic problems.
+# See https://github.com/JuliaOpt/MathOptInterface.jl/pull/43. Until this is
+# resolved we use an arbitrary choice that can change in the future.
+@define_constraint_dual(MOI.ScalarQuadraticFunction{Float64},
+                          MOI.LessThan{Float64}, quadratic_le)
+@define_constraint_dual(MOI.ScalarQuadraticFunction{Float64},
+                          MOI.GreaterThan{Float64}, quadratic_ge)
+@define_constraint_dual(MOI.ScalarQuadraticFunction{Float64},
+                          MOI.EqualTo{Float64}, quadratic_eq)
 
 function MOI.get(model::Optimizer, ::MOI.ConstraintDual,
                  ci::MOI.ConstraintIndex{MOI.SingleVariable,
