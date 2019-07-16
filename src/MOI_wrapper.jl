@@ -281,20 +281,7 @@ function MOI.supports(model::Optimizer, ::MOI.ConstraintDualStart,
     return true
 end
 function MOI.set(model::Optimizer, ::MOI.ConstraintDualStart,
-                 ci::MOI.ConstraintIndex{MOI.SingleVariable, MOI.LessThan{Float64}},
-                 value::Union{Real, Nothing})
-    vi = MOI.VariableIndex(ci.value)
-    check_inbounds(model, vi)
-    model.variable_info[vi.value].upper_bound_dual_start = value
-    return
-end
-function MOI.supports(model::Optimizer, ::MOI.ConstraintDualStart,
-                      ci::MOI.ConstraintIndex{MOI.SingleVariable, MOI.LessThan{Float64}},
-                      value::Union{Real, Nothing})
-    return true
-end
-function MOI.set(model::Optimizer, ::MOI.ConstraintDualStart,
-                 ci::MOI.ConstraintIndex{MOI.SingleVariable, MOI.LessThan{Float64}},
+                 ci::MOI.ConstraintIndex{MOI.SingleVariable, MOI.GreaterThan{Float64}},
                  value::Union{Real, Nothing})
     vi = MOI.VariableIndex(ci.value)
     check_inbounds(model, vi)
@@ -308,6 +295,19 @@ function MOI.supports(model::Optimizer, ::MOI.ConstraintDualStart,
 end
 function MOI.set(model::Optimizer, ::MOI.ConstraintDualStart,
                  ci::MOI.ConstraintIndex{MOI.SingleVariable, MOI.LessThan{Float64}},
+                 value::Union{Real, Nothing})
+    vi = MOI.VariableIndex(ci.value)
+    check_inbounds(model, vi)
+    model.variable_info[vi.value].upper_bound_dual_start = value
+    return
+end
+function MOI.supports(model::Optimizer, ::MOI.ConstraintDualStart,
+                      ci::MOI.ConstraintIndex{MOI.SingleVariable, MOI.EqualTo{Float64}},
+                      value::Union{Real, Nothing})
+    return true
+end
+function MOI.set(model::Optimizer, ::MOI.ConstraintDualStart,
+                 ci::MOI.ConstraintIndex{MOI.SingleVariable, MOI.EqualTo{Float64}},
                  value::Union{Real, Nothing})
     vi = MOI.VariableIndex(ci.value)
     check_inbounds(model, vi)
@@ -819,6 +819,11 @@ function MOI.optimize!(model::Optimizer)
     # If nothing is provided, the default starting value is 0.0.
     model.inner.x = [v.start === nothing ? 0.0 : v.start
                      for v in model.variable_info]
+
+    if model.nlp_dual_start === nothing
+        model.nlp_dual_start = zeros(Float64, num_nlp_constraints)
+    end
+
     mult_g_start = [
         model.linear_le_dual_start;
         model.linear_ge_dual_start;
