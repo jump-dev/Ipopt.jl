@@ -4,15 +4,15 @@ const MOI = MathOptInterface
 mutable struct VariableInfo
     lower_bound::Float64  # May be -Inf even if has_lower_bound == true
     has_lower_bound::Bool # Implies lower_bound == Inf
-    lower_bound_start::Union{Nothing, Float64}
+    lower_bound_dual_start::Union{Nothing, Float64}
     upper_bound::Float64  # May be Inf even if has_upper_bound == true
     has_upper_bound::Bool # Implies upper_bound == Inf
-    upper_bound_start::Union{Nothing, Float64}
+    upper_bound_dual_start::Union{Nothing, Float64}
     is_fixed::Bool        # Implies lower_bound == upper_bound and !has_lower_bound and !has_upper_bound.
     start::Union{Nothing, Float64}
 end
 
-VariableInfo() = VariableInfo(-Inf, false, nothing, Inf, false, nothng, false, nothing)
+VariableInfo() = VariableInfo(-Inf, false, nothing, Inf, false, nothing, false, nothing)
 
 mutable struct Optimizer <: MOI.AbstractOptimizer
     inner::Union{IpoptProblem,Nothing}
@@ -238,8 +238,9 @@ function MOI.add_constraint(model::Optimizer, v::MOI.SingleVariable, eq::MOI.Equ
     return MOI.ConstraintIndex{MOI.SingleVariable, MOI.EqualTo{Float64}}(vi.value)
 end
 
-macro define_add_constraint(function_type, set_type, array_name)
-    start_name = Symbol(string(prefix) * "_start")
+macro define_add_constraint(function_type, set_type, prefix)
+    array_name = Symbol(string(prefix) * "_constraints")
+    start_name = Symbol(string(prefix) * "_dual_start")
     quote
         function MOI.add_constraint(model::Optimizer, func::$function_type, set::$set_type)
             check_inbounds(model, func)
@@ -275,43 +276,43 @@ function MOI.set(model::Optimizer, ::MOI.VariablePrimalStart,
 end
 
 function MOI.supports(model::Optimizer, ::MOI.ConstraintDualStart,
-                      ci::MOi.ConstraintIndex{MOI.SingleVariable, MOI.GreaterThan{Float64}},
+                      ci::MOI.ConstraintIndex{MOI.SingleVariable, MOI.GreaterThan{Float64}},
                       value::Union{Real, Nothing})
     return true
 end
 function MOI.set(model::Optimizer, ::MOI.ConstraintDualStart,
-                 ci::MOi.ConstraintIndex{MOI.SingleVariable, MOI.LessThan{Float64}},
+                 ci::MOI.ConstraintIndex{MOI.SingleVariable, MOI.LessThan{Float64}},
                  value::Union{Real, Nothing})
     vi = MOI.VariableIndex(ci.value)
     check_inbounds(model, vi)
-    model.variable_info[vi.value].upper_bound_start = value
+    model.variable_info[vi.value].upper_bound_dual_start = value
     return
 end
 function MOI.supports(model::Optimizer, ::MOI.ConstraintDualStart,
-                      ci::MOi.ConstraintIndex{MOI.SingleVariable, MOI.LessThan{Float64}},
+                      ci::MOI.ConstraintIndex{MOI.SingleVariable, MOI.LessThan{Float64}},
                       value::Union{Real, Nothing})
     return true
 end
 function MOI.set(model::Optimizer, ::MOI.ConstraintDualStart,
-                 ci::MOi.ConstraintIndex{MOI.SingleVariable, MOI.LessThan{Float64}},
+                 ci::MOI.ConstraintIndex{MOI.SingleVariable, MOI.LessThan{Float64}},
                  value::Union{Real, Nothing})
     vi = MOI.VariableIndex(ci.value)
     check_inbounds(model, vi)
-    model.variable_info[vi.value].lower_bound_start = value
+    model.variable_info[vi.value].lower_bound_dual_start = value
     return
 end
 function MOI.supports(model::Optimizer, ::MOI.ConstraintDualStart,
-                      ci::MOi.ConstraintIndex{MOI.SingleVariable, MOI.LessThan{Float64}},
+                      ci::MOI.ConstraintIndex{MOI.SingleVariable, MOI.LessThan{Float64}},
                       value::Union{Real, Nothing})
     return true
 end
 function MOI.set(model::Optimizer, ::MOI.ConstraintDualStart,
-                 ci::MOi.ConstraintIndex{MOI.SingleVariable, MOI.LessThan{Float64}},
+                 ci::MOI.ConstraintIndex{MOI.SingleVariable, MOI.LessThan{Float64}},
                  value::Union{Real, Nothing})
     vi = MOI.VariableIndex(ci.value)
     check_inbounds(model, vi)
-    model.variable_info[vi.value].upper_bound_start = value
-    model.variable_info[vi.value].lower_bound_start = value
+    model.variable_info[vi.value].upper_bound_dual_start = value
+    model.variable_info[vi.value].lower_bound_dual_start = value
     return
 end
 
@@ -829,9 +830,9 @@ function MOI.optimize!(model::Optimizer)
     ]
     model.inner.mult_g = [start === nothing ? 0.0 : start
                           for start in mult_g_start]
-    model.inner.mult_x_L = [v.lower_bound_start === nothing ? 0.0 : v.lower_bound_start
+    model.inner.mult_x_L = [v.lower_bound_dual_start === nothing ? 0.0 : v.lower_bound_dual_start
                             for v in model.variable_info]
-    model.inner.mult_x_U = [v.upper_bound_start === nothing ? 0.0 : v.lower_bound_start
+    model.inner.mult_x_U = [v.upper_bound_dual_start === nothing ? 0.0 : v.lower_bound_dual_start
                             for v in model.variable_info]
 
     for (name,value) in model.options
