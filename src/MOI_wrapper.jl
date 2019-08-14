@@ -154,6 +154,19 @@ end
 
 MOI.get(model::Optimizer, ::MOI.Silent) = model.silent
 
+const TIME_LIMIT = "max_cpu_time"
+MOI.supports(::Optimizer, ::MOI.TimeLimitSec) = true
+function MOI.set(model::Optimizer, ::MOI.TimeLimitSec, value::Real)
+    MOI.set(model, MOI.RawParameter(TIME_LIMIT), Float64(value))
+end
+function MOI.set(model::Optimizer, attr::MOI.TimeLimitSec, ::Nothing)
+    delete!(model.options, TIME_LIMIT)
+end
+function MOI.get(model::Optimizer, ::MOI.TimeLimitSec)
+    return get(model.options, TIME_LIMIT, nothing)
+end
+
+
 function MOI.set(model::Optimizer, p::MOI.RawParameter, value)
     model.options[p.name] = value
     return

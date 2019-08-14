@@ -55,7 +55,6 @@ end
                "solve_singlevariable_obj", # loadfromstring!
                "solve_objbound_edge_cases", # ObjectiveBound not supported.
                "solve_affine_deletion_edge_cases", # Deleting not supported.
-               "time_limit_sec", # FIXME Implement `MOI.TimeLimitSec`
                "solve_unbounded_model" # `NORM_LIMIT`
                ]
     MOIT.unittest(bridged, config, exclude)
