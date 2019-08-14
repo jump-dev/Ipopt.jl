@@ -4,15 +4,6 @@ const MOIT = MOI.Test
 const MOIU = MOI.Utilities
 const MOIB = MOI.Bridges
 
-MOIU.@model(IpoptModelData,
-            (),
-            (MOI.EqualTo, MOI.GreaterThan, MOI.LessThan),
-            (MOI.Zeros, MOI.Nonnegatives, MOI.Nonpositives),
-            (), (),
-            (MOI.ScalarAffineFunction, MOI.ScalarQuadraticFunction),
-            (MOI.VectorOfVariables,),
-            (MOI.VectorAffineFunction,))
-
 # Without fixed_variable_treatment set, duals are not computed for variables
 # that have lower_bound == upper_bound.
 const optimizer = Ipopt.Optimizer()
@@ -46,6 +37,9 @@ end
     exclude = ["delete_variable", # Deleting not supported.
                "delete_variables", # Deleting not supported.
                "getvariable", # Variable names not supported.
+               "solve_zero_one_with_bounds_1", # Variable names not supported.
+               "solve_zero_one_with_bounds_2", # Variable names not supported.
+               "solve_zero_one_with_bounds_3", # Variable names not supported.
                "getconstraint", # Constraint names not suported.
                "variablenames", # Variable names not supported.
                "solve_with_upperbound", # loadfromstring!
@@ -61,6 +55,8 @@ end
                "solve_singlevariable_obj", # loadfromstring!
                "solve_objbound_edge_cases", # ObjectiveBound not supported.
                "solve_affine_deletion_edge_cases", # Deleting not supported.
+               "time_limit_sec", # FIXME Implement `MOI.TimeLimitSec`
+               "solve_unbounded_model" # `NORM_LIMIT`
                ]
     MOIT.unittest(bridged, config, exclude)
 end
@@ -73,8 +69,8 @@ end
                "linear7",  # VectorAffineFunction not supported.
                "linear15", # VectorAffineFunction not supported.
                ]
-    model_for_ipopt = MOIU.UniversalFallback(IpoptModelData{Float64}())
-    linear_optimizer = MOI.Bridges.SplitInterval{Float64}(
+    model_for_ipopt = MOIU.UniversalFallback(MOIU.Model{Float64}())
+    linear_optimizer = MOI.Bridges.Constraint.SplitInterval{Float64}(
                          MOIU.CachingOptimizer(model_for_ipopt, optimizer))
     MOIT.contlineartest(linear_optimizer, config_no_duals, exclude)
 end
@@ -82,7 +78,7 @@ end
 MOI.empty!(optimizer)
 
 @testset "MOI QP/QCQP tests" begin
-    qp_optimizer = MOIU.CachingOptimizer(IpoptModelData{Float64}(), optimizer)
+    qp_optimizer = MOIU.CachingOptimizer(MOIU.Model{Float64}(), optimizer)
     MOIT.qptest(qp_optimizer, config)
     exclude = ["qcp1", # VectorAffineFunction not supported.
               ]
