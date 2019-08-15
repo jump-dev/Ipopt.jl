@@ -1,5 +1,6 @@
 import MathOptInterface
 const MOI = MathOptInterface
+const MOIU = MathOptInterface.Utilities
 
 mutable struct VariableInfo
     lower_bound::Float64  # May be -Inf even if has_lower_bound == true
@@ -24,6 +25,8 @@ ConstraintInfo(func, set) = ConstraintInfo(func, set, nothing)
 
 mutable struct Optimizer <: MOI.AbstractOptimizer
     inner::Union{IpoptProblem,Nothing}
+
+    # Problem data.
     variable_info::Vector{VariableInfo}
     nlp_data::MOI.NLPBlockData
     sense::MOI.OptimizationSense
@@ -35,7 +38,13 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
     quadratic_ge_constraints::Vector{ConstraintInfo{MOI.ScalarQuadraticFunction{Float64}, MOI.GreaterThan{Float64}}}
     quadratic_eq_constraints::Vector{ConstraintInfo{MOI.ScalarQuadraticFunction{Float64}, MOI.EqualTo{Float64}}}
     nlp_dual_start::Union{Nothing, Vector{Float64}}
-    options
+
+    # Parameters.
+    silent::Bool
+    options::Dict{String, Any}
+
+    # Solution attributes.
+    solve_time::Float64
 end
 
 struct EmptyNLPEvaluator <: MOI.AbstractNLPEvaluator end
@@ -66,16 +75,45 @@ empty_nlp_data() = MOI.NLPBlockData([], EmptyNLPEvaluator(), false)
 
 
 function Optimizer(;options...)
+    options_dict = Dict{String, Any}()
+    # TODO: Setting options through the constructor could be deprecated in the
+    # future.
+    for (name, value) in options
+        options_dict[string(name)] = value
+    end
     return Optimizer(nothing, [], empty_nlp_data(), MOI.FEASIBILITY_SENSE,
-                     nothing, [], [], [], [], [], [],
-                     nothing, options)
+                     nothing, [], [], [], [], [], [], nothing,
+                     false, options_dict, NaN)
 end
 
 MOI.supports(::Optimizer, ::MOI.NLPBlock) = true
-MOI.supports(::Optimizer, ::MOI.ObjectiveFunction{MOI.SingleVariable}) = true
-MOI.supports(::Optimizer, ::MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}) = true
-MOI.supports(::Optimizer, ::MOI.ObjectiveFunction{MOI.ScalarQuadraticFunction{Float64}}) = true
+
+function MOI.supports(::Optimizer,
+                      ::MOI.ObjectiveFunction{MOI.SingleVariable})
+    return true
+end
+
+function MOI.supports(::Optimizer,
+    ::MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}})
+    return true
+end
+
+function MOI.supports(::Optimizer,
+    ::MOI.ObjectiveFunction{MOI.ScalarQuadraticFunction{Float64}})
+    return true
+end
+
 MOI.supports(::Optimizer, ::MOI.ObjectiveSense) = true
+
+MOI.supports(::Optimizer, ::MOI.Silent) = true
+
+MOI.supports(::Optimizer, ::MOI.RawParameter) = true
+
+function MOI.supports(::Optimizer, ::MOI.VariablePrimalStart,
+                      ::Type{MOI.VariableIndex})
+    return true
+end
+
 MOI.supports_constraint(::Optimizer, ::Type{MOI.SingleVariable}, ::Type{MOI.LessThan{Float64}}) = true
 MOI.supports_constraint(::Optimizer, ::Type{MOI.SingleVariable}, ::Type{MOI.GreaterThan{Float64}}) = true
 MOI.supports_constraint(::Optimizer, ::Type{MOI.SingleVariable}, ::Type{MOI.EqualTo{Float64}}) = true
@@ -86,8 +124,10 @@ MOI.supports_constraint(::Optimizer, ::Type{MOI.ScalarQuadraticFunction{Float64}
 MOI.supports_constraint(::Optimizer, ::Type{MOI.ScalarQuadraticFunction{Float64}}, ::Type{MOI.GreaterThan{Float64}}) = true
 MOI.supports_constraint(::Optimizer, ::Type{MOI.ScalarQuadraticFunction{Float64}}, ::Type{MOI.EqualTo{Float64}}) = true
 
+MOIU.supports_default_copy_to(model::Optimizer, copy_names::Bool) = !copy_names
+
 function MOI.copy_to(model::Optimizer, src::MOI.ModelLike; copy_names = false)
-    return MOI.Utilities.default_copy_to(model, src, copy_names)
+    return MOIU.default_copy_to(model, src, copy_names)
 end
 
 MOI.get(::Optimizer, ::MOI.SolverName) = "Ipopt"
@@ -104,6 +144,42 @@ function MOI.set(model::Optimizer, ::MOI.ObjectiveSense,
     model.sense = sense
     return
 end
+
+MOI.get(model::Optimizer, ::MOI.ObjectiveSense) = model.sense
+
+function MOI.set(model::Optimizer, ::MOI.Silent, value)
+    model.silent = value
+    return
+end
+
+MOI.get(model::Optimizer, ::MOI.Silent) = model.silent
+
+const TIME_LIMIT = "max_cpu_time"
+MOI.supports(::Optimizer, ::MOI.TimeLimitSec) = true
+function MOI.set(model::Optimizer, ::MOI.TimeLimitSec, value::Real)
+    MOI.set(model, MOI.RawParameter(TIME_LIMIT), Float64(value))
+end
+function MOI.set(model::Optimizer, attr::MOI.TimeLimitSec, ::Nothing)
+    delete!(model.options, TIME_LIMIT)
+end
+function MOI.get(model::Optimizer, ::MOI.TimeLimitSec)
+    return get(model.options, TIME_LIMIT, nothing)
+end
+
+
+function MOI.set(model::Optimizer, p::MOI.RawParameter, value)
+    model.options[p.name] = value
+    return
+end
+
+function MOI.get(model::Optimizer, p::MOI.RawParameter)
+    if haskey(model.options, p.name)
+        return model.options[p.name]
+    end
+    error("RawParameter with name $(p.name) is not set.")
+end
+
+MOI.get(model::Optimizer, ::MOI.SolveTime) = model.solve_time
 
 function MOI.empty!(model::Optimizer)
     model.inner = nothing
@@ -258,10 +334,6 @@ end
 @define_add_constraint(MOI.ScalarQuadraticFunction{Float64},
                        MOI.EqualTo{Float64}, quadratic_eq)
 
-function MOI.supports(::Optimizer, ::MOI.VariablePrimalStart,
-                      ::Type{MOI.VariableIndex})
-    return true
-end
 function MOI.set(model::Optimizer, ::MOI.VariablePrimalStart,
                  vi::MOI.VariableIndex, value::Union{Real, Nothing})
     check_inbounds(model, vi)
@@ -781,6 +853,8 @@ function MOI.optimize!(model::Optimizer)
 
     constraint_lb, constraint_ub = constraint_bounds(model)
 
+    start_time = time()
+
     model.inner = createProblem(num_variables, x_l, x_u, num_constraints,
                             constraint_lb, constraint_ub,
                             length(jacobian_sparsity),
@@ -834,14 +908,13 @@ function MOI.optimize!(model::Optimizer)
     model.inner.mult_x_U = [v.upper_bound_dual_start === nothing ? 0.0 : v.lower_bound_dual_start
                             for v in model.variable_info]
 
-    for (name,value) in model.options
-        sname = string(name)
-        if match(r"(^resto_)", sname) != nothing
-            sname = replace(sname, r"(^resto_)", "resto.")
-        end
-        addOption(model.inner, sname, value)
+    for (name, value) in model.options
+        addOption(model.inner, name, value)
     end
     solveProblem(model.inner)
+
+    model.solve_time = time() - start_time
+    return
 end
 
 function MOI.get(model::Optimizer, ::MOI.TerminationStatus)
@@ -886,6 +959,10 @@ function MOI.get(model::Optimizer, ::MOI.TerminationStatus)
     else
         error("Unrecognized Ipopt status $status")
     end
+end
+
+function MOI.get(model::Optimizer, ::MOI.RawStatusString)
+    return string(ApplicationReturnStatus[model.inner.status])
 end
 
 # Ipopt always has an iterate available.
