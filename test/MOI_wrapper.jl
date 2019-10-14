@@ -59,6 +59,7 @@ end
                "number_threads", # NumberOfThreads not supported
                "delete_nonnegative_variables", # get ConstraintFunction n/a.
                "update_dimension_nonnegative_variables", # get ConstraintFunction n/a.
+               "delete_soc_variables", # VectorOfVar. in SOC not supported
                ]
     MOIT.unittest(bridged, config, exclude)
 end
