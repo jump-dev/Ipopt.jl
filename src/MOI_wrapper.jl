@@ -970,8 +970,8 @@ function MOI.get(model::Optimizer, ::MOI.ResultCount)
     return (model.inner !== nothing) ? 1 : 0
 end
 
-function MOI.get(model::Optimizer, ::MOI.PrimalStatus)
-    if model.inner === nothing
+function MOI.get(model::Optimizer, attr::MOI.PrimalStatus)
+    if !(1 <= attr.N <= MOI.get(model, MOI.ResultCount()))
         return MOI.NO_SOLUTION
     end
     status = ApplicationReturnStatus[model.inner.status]
@@ -990,8 +990,8 @@ function MOI.get(model::Optimizer, ::MOI.PrimalStatus)
     end
 end
 
-function MOI.get(model::Optimizer, ::MOI.DualStatus)
-    if model.inner === nothing
+function MOI.get(model::Optimizer, attr::MOI.DualStatus)
+    if !(1 <= attr.N <= MOI.get(model, MOI.ResultCount()))
         return MOI.NO_SOLUTION
     end
     status = ApplicationReturnStatus[model.inner.status]
