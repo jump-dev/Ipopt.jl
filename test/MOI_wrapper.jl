@@ -58,6 +58,7 @@ end
                "solve_unbounded_model", # `NORM_LIMIT`
                "number_threads", # NumberOfThreads not supported
                "delete_nonnegative_variables", # get ConstraintFunction n/a.
+               "update_dimension_nonnegative_variables", # get ConstraintFunction n/a.
                ]
     MOIT.unittest(bridged, config, exclude)
 end
