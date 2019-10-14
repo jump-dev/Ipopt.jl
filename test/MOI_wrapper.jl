@@ -60,6 +60,7 @@ end
                "delete_nonnegative_variables", # get ConstraintFunction n/a.
                "update_dimension_nonnegative_variables", # get ConstraintFunction n/a.
                "delete_soc_variables", # VectorOfVar. in SOC not supported
+               "solve_result_index", # DualObjectiveValue not supported
                ]
     MOIT.unittest(bridged, config, exclude)
 end
