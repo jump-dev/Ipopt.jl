@@ -61,6 +61,8 @@ end
                "update_dimension_nonnegative_variables", # get ConstraintFunction n/a.
                "delete_soc_variables", # VectorOfVar. in SOC not supported
                "solve_result_index", # DualObjectiveValue not supported
+               "solve_single_variable_dual_min", # Var is fixed, Ipopt returns 0 dual?
+               "solve_single_variable_dual_max", # Var is fixed, Ipopt returns 0 dual?
                ]
     MOIT.unittest(bridged, config, exclude)
 end
