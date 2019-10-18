@@ -30,8 +30,9 @@ end
 end
 
 @testset "Unit" begin
-    bridged = MOIB.full_bridge_optimizer(Ipopt.Optimizer(print_level=0),
-                                         Float64)
+    bridged = MOIB.full_bridge_optimizer(
+        Ipopt.Optimizer(print_level=0, fixed_variable_treatment="make_constraint"),
+        Float64)
     # A number of test cases are excluded because loadfromstring! works only
     # if the solver supports variable and constraint names.
     exclude = ["delete_variable", # Deleting not supported.
@@ -61,8 +62,6 @@ end
                "update_dimension_nonnegative_variables", # get ConstraintFunction n/a.
                "delete_soc_variables", # VectorOfVar. in SOC not supported
                "solve_result_index", # DualObjectiveValue not supported
-               "solve_single_variable_dual_min", # Var is fixed, Ipopt returns 0 dual?
-               "solve_single_variable_dual_max", # Var is fixed, Ipopt returns 0 dual?
                ]
     MOIT.unittest(bridged, config, exclude)
 end
