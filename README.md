@@ -45,4 +45,4 @@ model = Model(with_optimizer(Ipopt.Optimizer, max_cpu_time=60.0))
 C Interface Wrapper
 -------------------
 
-Full documentation for the Ipopt C wrapper is available [here](http://ipoptjl.readthedocs.org/en/latest/ipopt.html). Use of the [nonlinear MathProgBase interface](http://mathprogbasejl.readthedocs.org/en/latest/nlp.html) is recommended over the low-level C interface because it permits one to easily switch between solvers.
+Full documentation for the Ipopt C wrapper is available [here](http://ipoptjl.readthedocs.org/en/latest/ipopt.html). Use of the [nonlinear MathOptInterface interface](https://github.com/JuliaOpt/MathOptInterface.jl) is recommended over the low-level C interface because it permits one to easily switch between solvers.
