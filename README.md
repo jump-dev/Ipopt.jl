@@ -34,7 +34,7 @@ JuMP and MathOptInterface
 
 Ipopt implements the solver-independent [MathOptInterface](https://github.com/JuliaOpt/MathOptInterface.jl) interface,
 and so can be used within modeling software like [JuMP](https://github.com/JuliaOpt/JuMP.jl).
-The solver object is called `Ipopt.Optimizer`. All options listed in the [Ipopt documentation](http://www.coin-or.org/Ipopt/documentation/node40.html) may be passed directly. For example, you can suppress output by saying `Ipopt.Optimizer(print_level=0)`. If you wish to pass an option specifically for the restoration phase, instead of using the prefix ``resto.``, use the prefix ``resto_``. For example `Ipopt.Optimizer(resto_max_iter=0)`.
+The solver object is called `Ipopt.Optimizer`. All options listed in the [Ipopt documentation](https://coin-or.github.io/Ipopt/OPTIONS.html#OPTIONS_REF) may be passed directly. For example, you can suppress output by saying `Ipopt.Optimizer(print_level=0)`. If you wish to pass an option specifically for the restoration phase, instead of using the prefix ``resto.``, use the prefix ``resto_``. For example `Ipopt.Optimizer(resto_max_iter=0)`.
 
 You can use Ipopt with JuMP as follows:
 ```julia
