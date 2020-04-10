@@ -2,22 +2,42 @@ module Ipopt
 using Libdl
 using LinearAlgebra
 
-if isfile(joinpath(dirname(@__FILE__),"..","deps","deps.jl"))
-    include("../deps/deps.jl")
-else
-    error("Ipopt not properly installed. Please run Pkg.build(\"Ipopt\")")
-end
-
-function amplexefun(arguments::String)
-    temp_env = copy(ENV)
-    for var in Ipopt.amplexe_env_var
-        temp_env[var] = Ipopt.amplexe_env_val
+if VERSION < v"1.3"
+    if isfile(joinpath(dirname(@__FILE__),"..","deps","deps.jl"))
+        include("../deps/deps.jl")
+    else
+        error("Ipopt not properly installed. Please run import Pkg; Pkg.build(\"Ipopt\")")
     end
-    temp_dir = abspath(dirname(Ipopt.amplexe))
-    proc = run(pipeline(Cmd(`$(Ipopt.amplexe) $arguments`,env=temp_env,dir=temp_dir), stdout=stdout))
-    wait(proc)
-    kill(proc)
-    proc.exitcode
+    const libipopt_path = Libdl.dlpath(libipopt)
+    const amplexe_path = Libdl.dlpath(amplexe)
+
+    function amplexefun(arguments::String)
+        temp_env = copy(ENV)
+        for var in Ipopt.amplexe_env_var
+            temp_env[var] = Ipopt.amplexe_env_val
+        end
+        temp_dir = abspath(dirname(Ipopt.amplexe))
+        proc = run(pipeline(Cmd(`$(Ipopt.amplexe) $arguments`,env=temp_env,dir=temp_dir), stdout=stdout))
+        wait(proc)
+        kill(proc)
+        proc.exitcode
+    end
+else
+    import Ipopt_jll: libipopt, libipopt_path, amplexe, amplexe_path
+
+    function amplexefun(arguments::String)
+        # temp_env = copy(ENV)
+        # for var in Ipopt.amplexe_env_var
+        #     temp_env[var] = Ipopt.amplexe_env_val
+        # end
+        temp_dir = abspath(dirname(amplexe_path))
+        proc = amplexe() do amplexe_path
+          run(pipeline(Cmd(`$amplexe_path $arguments`,dir=temp_dir), stdout=stdout))
+        end
+        wait(proc)
+        kill(proc)
+        proc.exitcode
+    end
 end
 
 export createProblem, addOption
@@ -28,8 +48,7 @@ export IpoptProblem
 function __init__()
     julia_libdir = joinpath(dirname(first(filter(x -> occursin("libjulia", x), Libdl.dllist()))), "julia")
     julia_bindir = Sys.BINDIR
-    ipopt_libdir = dirname(libipopt)
-    ipopt_bindir = joinpath(dirname(libipopt), "..", "bin")
+    ipopt_libdir = libipopt_path |> dirname
     pathsep = Sys.iswindows() ? ';' : ':'
     @static if Sys.isapple()
         global amplexe_env_var = ["DYLD_LIBRARY_PATH"]
