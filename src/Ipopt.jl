@@ -9,7 +9,7 @@ if VERSION < v"1.3"
         error("Ipopt not properly installed. Please run import Pkg; Pkg.build(\"Ipopt\")")
     end
     const libipopt_path = Libdl.dlpath(libipopt)
-    const amplexe_path = Libdl.dlpath(amplexe)
+    const amplexe_path = amplexe
 
     function amplexefun(arguments::String)
         temp_env = copy(ENV)
