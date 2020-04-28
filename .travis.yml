@@ -5,6 +5,7 @@ os:
 julia:
     - 1.0
     - 1.1
+    - 1
 notifications:
     email: false
 sudo: false
@@ -13,4 +14,4 @@ addons:
         - gfortran
 after_success:
     - echo $TRAVIS_JULIA_VERSION
-    - julia -e 'Pkg.add("Coverage"); cd(Pkg.dir("Ipopt")); using Coverage; Coveralls.submit(process_folder())'
+    - julia -e 'using Pkg; Pkg.add("Coverage"); cd(Pkg.dir("Ipopt")); using Coverage; Coveralls.submit(process_folder())'

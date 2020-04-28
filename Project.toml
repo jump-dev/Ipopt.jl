@@ -5,6 +5,7 @@ version = "0.6.1"
 
 [deps]
 BinaryProvider = "b99e7846-7c00-51b0-8f62-c81ae34c0232"
+Ipopt_jll = "9cc047cb-c261-5740-88fc-0cf96f7bdcc7"
 Libdl = "8f399da3-3557-5675-b5ff-fb832c97cbdb"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 MathOptInterface = "b8f27783-ece8-5eb3-8dc8-9495eed66fee"
@@ -12,6 +13,7 @@ MathProgBase = "fdba3010-5040-5b88-9595-932c9decdf73"
 
 [compat]
 BinaryProvider = "0.5.3"
+Ipopt_jll = "3.13.1"
 MathOptInterface = "~0.9.5"
 MathProgBase = "~0.5.0, ~0.6, ~0.7"
 julia = "1"
