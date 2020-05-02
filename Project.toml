@@ -12,7 +12,7 @@ MathOptInterface = "b8f27783-ece8-5eb3-8dc8-9495eed66fee"
 MathProgBase = "fdba3010-5040-5b88-9595-932c9decdf73"
 
 [compat]
-BinaryProvider = "0.5.3"
+BinaryProvider = "0.5.9"
 Ipopt_jll = "3.13.1"
 MathOptInterface = "~0.9.5"
 MathProgBase = "~0.5.0, ~0.6, ~0.7"
