@@ -885,8 +885,20 @@ function MOI.optimize!(model::Optimizer)
     end
 
     # If nothing is provided, the default starting value is 0.0.
-    model.inner.x = [v.start === nothing ? 0.0 : v.start
-                     for v in model.variable_info]
+    if v.start !== nothing
+        model.inner.x = v.start
+    else
+        model.inner.x = fill(0.0, num_variables)
+        for (i, v) in enumerate(model.variable_info)
+            if v.has_lower_bound && v.has_upper_bound
+                model.inner.x[i] = 0.5*(v.lower_bound + x.upper_bound)
+            elseif v.has_lower_bound
+                model.inner.x[i] = x.lower_bound
+            elseif v.has_upper_bound
+                model.inner.x[i] = x.upper_bound]
+            end
+        end
+    end
 
     if model.nlp_dual_start === nothing
         model.nlp_dual_start = zeros(Float64, num_nlp_constraints)
@@ -907,6 +919,8 @@ function MOI.optimize!(model::Optimizer)
                             for v in model.variable_info]
     model.inner.mult_x_U = [v.upper_bound_dual_start === nothing ? 0.0 : v.lower_bound_dual_start
                             for v in model.variable_info]
+
+    model.silent && addOption(model.inner, "print_level ", 0)
 
     for (name, value) in model.options
         addOption(model.inner, name, value)
@@ -953,7 +967,7 @@ function MOI.get(model::Optimizer, ::MOI.TerminationStatus)
     elseif status == :Unrecoverable_Exception
         return MOI.OTHER_ERROR
     elseif status == :NonIpopt_Exception_Thrown
-        return MOI.OHTER_ERROR
+        return MOI.OTHER_ERROR
     elseif status == :Insufficient_Memory
         return MOI.MEMORY_LIMIT
     else
