@@ -1,16 +1,43 @@
-VERSION < v"0.7.0-beta2.199" && __precompile__()
-
 module Ipopt
-using Compat
-using Compat.LinearAlgebra
+using Libdl
+using LinearAlgebra
 
-if isfile(joinpath(dirname(@__FILE__),"..","deps","deps.jl"))
-    include("../deps/deps.jl")
+if VERSION < v"1.3"
+    if isfile(joinpath(dirname(@__FILE__),"..","deps","deps.jl"))
+        include("../deps/deps.jl")
+    else
+        error("Ipopt not properly installed. Please run import Pkg; Pkg.build(\"Ipopt\")")
+    end
+    const libipopt_path = Libdl.dlpath(libipopt)
+    const amplexe_path = amplexe
+
+    function amplexefun(arguments::String)
+        temp_env = copy(ENV)
+        for var in Ipopt.amplexe_env_var
+            temp_env[var] = Ipopt.amplexe_env_val
+        end
+        temp_dir = abspath(dirname(Ipopt.amplexe))
+        proc = run(pipeline(Cmd(`$(Ipopt.amplexe) $arguments`,env=temp_env,dir=temp_dir), stdout=stdout))
+        wait(proc)
+        kill(proc)
+        proc.exitcode
+    end
 else
-    error("Ipopt not properly installed. Please run Pkg.build(\"Ipopt\")")
-end
-if !use_BinaryProvider # defined in deps.jl
-    amplexe = joinpath(dirname(libipopt), "..", "bin", "ipopt")
+    import Ipopt_jll: libipopt, libipopt_path, amplexe, amplexe_path
+
+    function amplexefun(arguments::String)
+        # temp_env = copy(ENV)
+        # for var in Ipopt.amplexe_env_var
+        #     temp_env[var] = Ipopt.amplexe_env_val
+        # end
+        temp_dir = abspath(dirname(amplexe_path))
+        proc = amplexe() do amplexe_path
+          run(pipeline(Cmd(`$amplexe_path $arguments`,dir=temp_dir), stdout=stdout))
+        end
+        wait(proc)
+        kill(proc)
+        proc.exitcode
+    end
 end
 
 export createProblem, addOption
@@ -19,15 +46,28 @@ export solveProblem
 export IpoptProblem
 
 function __init__()
-    use_BinaryProvider && check_deps()
-    # Sets up the library paths so that we can run the ipopt binary from Julia.
-    # TODO: Restructure into a function that wraps the call to the binary and
-    # doesn't leave environment variables changed.
-    julia_libdir = joinpath(dirname(first(filter(x -> occursin("libjulia", x), Compat.Libdl.dllist()))), "julia")
-    @static if Compat.Sys.isapple()
-        ENV["DYLD_LIBRARY_PATH"] = string(get(ENV, "DYLD_LIBRARY_PATH", ""), ":", julia_libdir)
-    elseif Compat.Sys.islinux()
-        ENV["LD_LIBRARY_PATH"] = string(get(ENV, "LD_LIBRARY_PATH", ""), ":", julia_libdir)
+    julia_libdir = joinpath(dirname(first(filter(x -> occursin("libjulia", x), Libdl.dllist()))), "julia")
+    julia_bindir = Sys.BINDIR
+    ipopt_libdir = libipopt_path |> dirname
+    pathsep = Sys.iswindows() ? ';' : ':'
+    @static if Sys.isapple()
+        global amplexe_env_var = ["DYLD_LIBRARY_PATH"]
+        global amplexe_env_val = "$(julia_libdir)$(pathsep)$(get(ENV,"DYLD_LIBRARY_PATH",""))"
+    elseif Sys.islinux()
+        global amplexe_env_var = ["LD_LIBRARY_PATH"]
+        global amplexe_env_val = "$(julia_libdir)$(pathsep)$(get(ENV,"LD_LIBRARY_PATH",""))"
+    elseif Sys.iswindows()
+        # for some reason windows sometimes needs Path instead of PATH
+        global amplexe_env_var = ["PATH","Path","path"]
+        global amplexe_env_val = "$(julia_bindir)$(pathsep)$(get(ENV,"PATH",""))"
+    end
+
+    # Still need this for AmplNLWriter to work until it uses amplexefun defined above
+    # (amplexefun wraps the call to the binary and doesn't leave environment variables changed.)
+    @static if Sys.isapple()
+         ENV["DYLD_LIBRARY_PATH"] = string(get(ENV, "DYLD_LIBRARY_PATH", ""), ":", julia_libdir)
+    elseif Sys.islinux()
+         ENV["LD_LIBRARY_PATH"] = string(get(ENV, "LD_LIBRARY_PATH", ""), ":", julia_libdir, ":", ipopt_libdir)
     end
 end
 
@@ -64,9 +104,8 @@ mutable struct IpoptProblem
                    :Min)
         # Free the internal IpoptProblem structure when
         # the Julia IpoptProblem instance goes out of scope
-        @compat finalizer(freeProblem, prob)
-        # Return the object we just made
-        prob
+        finalizer(freeProblem, prob)
+        return prob
     end
 end
 

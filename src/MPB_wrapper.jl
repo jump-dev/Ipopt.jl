@@ -66,7 +66,7 @@ function MPB.loadproblem!(m::IpoptMathProgModel, numVar::Integer, numConstr::Int
     # Objective gradient callback
     function eval_grad_f_cb(x, grad_f)
         MPB.eval_grad_f(d, grad_f, x)
-        Compat.rmul!(grad_f, scl)
+        rmul!(grad_f, scl)
     end
 
     # Constraint value callback
@@ -175,7 +175,7 @@ function MPB.status(m::IpoptMathProgModel)
         #   :NonIpopt_Exception_Thrown
         #   :Insufficient_Memory
         #   :Internal_Error
-        Compat.@warn "Ipopt finished with status $stat_sym"
+        @warn "Ipopt finished with status $stat_sym"
         return :Error
     end
 
