@@ -885,17 +885,19 @@ function MOI.optimize!(model::Optimizer)
     end
 
     # If nothing is provided, the default starting value is 0.0.
-    if v.start !== nothing
-        model.inner.x = v.start
-    else
-        model.inner.x = fill(0.0, num_variables)
-        for (i, v) in enumerate(model.variable_info)
-            if v.has_lower_bound && v.has_upper_bound
+    model.inner.x = fill(0.0, num_variables)
+    for (i, v) in enumerate(model.variable_info)
+        if v.start !== nothing
+            model.inner.x[i] = v.start
+        else
+            if !(v.has_lower_bound && v.has_upper_bound)
+                continue
+            elseif v.has_lower_bound && v.has_upper_bound
                 model.inner.x[i] = 0.5*(v.lower_bound + x.upper_bound)
             elseif v.has_lower_bound
-                model.inner.x[i] = x.lower_bound
+                model.inner.x[i] = max(0.0, x.lower_bound)
             elseif v.has_upper_bound
-                model.inner.x[i] = x.upper_bound]
+                model.inner.x[i] = min(0.0, x.upper_bound)
             end
         end
     end
