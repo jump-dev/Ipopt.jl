@@ -1,4 +1,4 @@
-if VERSION >= v"1.3" && !haskey(ENV, "JULIA_CLP_LIBRARY_PATH")
+if VERSION >= v"1.3" && !(haskey(ENV, "JULIA_IPOPT_LIBRARY_PATH") && haskey(ENV, "JULIA_IPOPT_EXECUTABLE_PATH"))
     exit()  # Use Ipopt_jll instead.
 end
 
