@@ -893,11 +893,11 @@ function MOI.optimize!(model::Optimizer)
             if !(v.has_lower_bound && v.has_upper_bound)
                 continue
             elseif v.has_lower_bound && v.has_upper_bound
-                model.inner.x[i] = 0.5*(v.lower_bound + x.upper_bound)
+                model.inner.x[i] = 0.5*(v.lower_bound + v.upper_bound)
             elseif v.has_lower_bound
-                model.inner.x[i] = max(0.0, x.lower_bound)
+                model.inner.x[i] = max(0.0, v.lower_bound)
             elseif v.has_upper_bound
-                model.inner.x[i] = min(0.0, x.upper_bound)
+                model.inner.x[i] = min(0.0, v.upper_bound)
             end
         end
     end
@@ -922,7 +922,7 @@ function MOI.optimize!(model::Optimizer)
     model.inner.mult_x_U = [v.upper_bound_dual_start === nothing ? 0.0 : v.lower_bound_dual_start
                             for v in model.variable_info]
 
-    model.silent && addOption(model.inner, "print_level ", 0)
+    model.silent && addOption(model.inner, "print_level", 0)
 
     for (name, value) in model.options
         addOption(model.inner, name, value)
