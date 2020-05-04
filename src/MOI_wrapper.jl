@@ -890,13 +890,10 @@ function MOI.optimize!(model::Optimizer)
         if v.start !== nothing
             model.inner.x[i] = v.start
         else
-            if !v.has_lower_bound && !v.has_upper_bound
-                continue
-            elseif v.has_lower_bound && v.has_upper_bound
-                # mid(lower_bound, upper_bound, 0.0), if lower_bound <= upper_bound
-                if (0.0 <= v.lower_bound)
+            if v.has_lower_bound && v.has_upper_bound
+                if 0.0 <= v.lower_bound
                     model.inner.x[i] = v.lower_bound
-                elseif (v.upper_bound <= 0.0)
+                elseif v.upper_bound <= 0.0
                     model.inner.x[i] = v.upper_bound
                 end
             elseif v.has_lower_bound
