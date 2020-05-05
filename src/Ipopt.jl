@@ -2,7 +2,7 @@ module Ipopt
 using Libdl
 using LinearAlgebra
 
-if VERSION < v"1.3"
+if VERSION < v"1.3" || (haskey(ENV, "JULIA_IPOPT_LIBRARY_PATH") && haskey(ENV, "JULIA_IPOPT_EXECUTABLE_PATH"))
     if isfile(joinpath(dirname(@__FILE__),"..","deps","deps.jl"))
         include("../deps/deps.jl")
     else
