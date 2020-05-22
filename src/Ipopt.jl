@@ -2,13 +2,13 @@ module Ipopt
 using Libdl
 using LinearAlgebra
 
-if VERSION < v"1.3"
+if VERSION < v"1.3" || (haskey(ENV, "JULIA_IPOPT_LIBRARY_PATH") && haskey(ENV, "JULIA_IPOPT_EXECUTABLE_PATH"))
     if isfile(joinpath(dirname(@__FILE__),"..","deps","deps.jl"))
         include("../deps/deps.jl")
     else
         error("Ipopt not properly installed. Please run import Pkg; Pkg.build(\"Ipopt\")")
     end
-    const libipopt_path = Libdl.dlpath(libipopt)
+    const libipopt_path = libipopt
     const amplexe_path = amplexe
 
     function amplexefun(arguments::String)
