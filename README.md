@@ -16,6 +16,7 @@ julia> import Pkg; Pkg.add("Ipopt")
 ```
 
 In addition to installing the `Ipopt.jl` package, this will also download and install the Ipopt binaries. 
+(You do _not_ need to install Ipopt separately.)
 If you require a custom build of Ipopt, see the instructions below.
 
 ## Custom Installation
