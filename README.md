@@ -15,7 +15,9 @@ The package is registered in `METADATA.jl` and so can be installed with `Pkg.add
 julia> import Pkg; Pkg.add("Ipopt")
 ```
 
-Ipopt.jl will use [BinaryProvider.jl](https://github.com/JuliaPackaging/BinaryProvider.jl) to automatically install the Ipopt binaries. This should work for both the official Julia binaries from `https://julialang.org/downloads/` and source-builds.
+In addition to installing the `Ipopt.jl` package, this will also download and install the Ipopt binaries. 
+(You do _not_ need to install Ipopt separately.)
+If you require a custom build of Ipopt, see the instructions below.
 
 ## Custom Installation
 
