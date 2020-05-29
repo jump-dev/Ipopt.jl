@@ -132,6 +132,7 @@ end
 
 MOI.get(::Optimizer, ::MOI.SolverName) = "Ipopt"
 
+MOI.get(model::Optimizer, ::ObjectiveFunctionType) = typeof(model.objective)
 MOI.get(model::Optimizer, ::MOI.NumberOfVariables) = length(model.variable_info)
 
 function MOI.get(model::Optimizer, ::MOI.ListOfVariableIndices)
