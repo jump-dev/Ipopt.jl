@@ -133,10 +133,59 @@ end
 MOI.get(::Optimizer, ::MOI.SolverName) = "Ipopt"
 
 MOI.get(model::Optimizer, ::MOI.ObjectiveFunctionType) = typeof(model.objective)
+
 MOI.get(model::Optimizer, ::MOI.NumberOfVariables) = length(model.variable_info)
 
 function MOI.get(model::Optimizer, ::MOI.ListOfVariableIndices)
     return [MOI.VariableIndex(i) for i in 1:length(model.variable_info)]
+end
+
+
+function MOI.get(model::Optimizer, ::MOI.ListOfConstraints)
+    constraints = Set{Tuple{DataType, DataType}}()
+    for info in model.variable_info
+        if !info.has_lower_bound && !info.has_upper_bound
+            if info.is_fixed
+                push!(constraints, (MOI.SingleVariable, MOI.EqualTo{Float64}))
+            end
+        elseif info.has_lower_bound && !info.has_upper_bound
+            push!(constraints, (MOI.SingleVariable, MOI.GreaterThan{Float64}))
+        elseif !info.has_lower_bound && info.has_upper_bound
+            push!(constraints, (MOI.SingleVariable, MOI.LessThan{Float64}))
+        elseif info.has_lower_bound && info.has_upper_bound
+            # 3 separate cases
+            if info.lower_bound > info.upper_bound
+                push!(constraints, (MOI.SingleVariable, MOI.LessThan{Float64}))
+                push!(constraints, (MOI.SingleVariable, MOI.GreaterThan{Float64}))
+            elseif info.lower_bound == info.upper_bound
+                push!(constraints, (MOI.SingleVariable, MOI.EqualTo{Float64}))
+            else
+                push!(constraints, (MOI.SingleVariable, MOI.Interval{Float64}))
+            end
+        end 
+    end
+
+    # handling model constraints separately
+    if size(model.linear_le_constraints) > 0
+        push!(constraints, (MOI.ScalarAffineFunction{Float64}, MOI.LessThan{Float64}))
+    end
+    if size(model.linear_ge_constraints) > 0
+        push!(constraints, (MOI.ScalarAffineFunction{Float64}, MOI.GreaterThan{Float64}))
+    end
+    if size(model.linear_eq_constraints) > 0
+        push!(constraints, (MOI.ScalarAffineFunction{Float64}, MOI.EqualTo{Float64}))
+    end
+    if size(model.quadratic_le_constraints) > 0
+        push!(constraints, (MOI.ScalarQuadraticFunction{Float64}, MOI.LessThan{Float64}))
+    end
+    if size(model.quadratic_ge_constraints) > 0
+        push!(constraints, (MOI.ScalarQuadraticFunction{Float64}, MOI.GreaterThan{Float64}))
+    end
+    if size(model.quadratic_eq_constraints) > 0
+        push!(constraints, (MOI.ScalarQuadraticFunction{Float64}, MOI.EqualTo{Float64}))
+    end
+    
+    return collect(constraints)
 end
 
 
