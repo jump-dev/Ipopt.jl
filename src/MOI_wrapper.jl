@@ -166,19 +166,19 @@ function MOI.get(model::Optimizer, ::MOI.ListOfConstraints)
     end
 
     # handling model constraints separately
-    if size(model.linear_le_constraints) > 0
+    if size(model.linear_le_constraints)[1] > 0
         push!(constraints, (MOI.ScalarAffineFunction{Float64}, MOI.LessThan{Float64}))
     end
-    if size(model.linear_ge_constraints) > 0
+    if size(model.linear_ge_constraints)[1] > 0
         push!(constraints, (MOI.ScalarAffineFunction{Float64}, MOI.GreaterThan{Float64}))
     end
-    if size(model.linear_eq_constraints) > 0
+    if size(model.linear_eq_constraints)[1] > 0
         push!(constraints, (MOI.ScalarAffineFunction{Float64}, MOI.EqualTo{Float64}))
     end
-    if size(model.quadratic_le_constraints) > 0
+    if size(model.quadratic_le_constraints)[1] > 0
         push!(constraints, (MOI.ScalarQuadraticFunction{Float64}, MOI.LessThan{Float64}))
     end
-    if size(model.quadratic_ge_constraints) > 0
+    if size(model.quadratic_ge_constraints)[1] > 0
         push!(constraints, (MOI.ScalarQuadraticFunction{Float64}, MOI.GreaterThan{Float64}))
     end
     if size(model.quadratic_eq_constraints) > 0
