@@ -132,10 +132,50 @@ end
 
 MOI.get(::Optimizer, ::MOI.SolverName) = "Ipopt"
 
+MOI.get(model::Optimizer, ::MOI.ObjectiveFunctionType) = typeof(model.objective)
+
 MOI.get(model::Optimizer, ::MOI.NumberOfVariables) = length(model.variable_info)
 
 function MOI.get(model::Optimizer, ::MOI.ListOfVariableIndices)
     return [MOI.VariableIndex(i) for i in 1:length(model.variable_info)]
+end
+
+
+function MOI.get(model::Optimizer, ::MOI.ListOfConstraints)
+    constraints = Set{Tuple{DataType, DataType}}()
+    for info in model.variable_info
+        if info.has_lower_bound
+            push!(constraints, (MOI.SingleVariable, MOI.LessThan{Float64}))
+        end
+        if info.has_upper_bound
+            push!(constraints, (MOI.SingleVariable, MOI.GreaterThan{Float64}))
+        end
+        if info.fixed
+            push!(constraints, (MOI.SingleVariable, MOI.EqualTo{Float64}))
+        end
+    end
+
+    # handling model constraints separately
+    if !isempty(model.linear_le_constraints)
+        push!(constraints, (MOI.ScalarAffineFunction{Float64}, MOI.LessThan{Float64}))
+    end
+    if !isempty(model.linear_ge_constraints)
+        push!(constraints, (MOI.ScalarAffineFunction{Float64}, MOI.GreaterThan{Float64}))
+    end
+    if !isempty(model.linear_eq_constraints)
+        push!(constraints, (MOI.ScalarAffineFunction{Float64}, MOI.EqualTo{Float64}))
+    end
+    if !isempty(model.quadratic_le_constraints)
+        push!(constraints, (MOI.ScalarQuadraticFunction{Float64}, MOI.LessThan{Float64}))
+    end
+    if !isempty(model.quadratic_ge_constraints)
+        push!(constraints, (MOI.ScalarQuadraticFunction{Float64}, MOI.GreaterThan{Float64}))
+    end
+    if !isempty(model.quadratic_eq_constraints)
+        push!(constraints, (MOI.ScalarQuadraticFunction{Float64}, MOI.EqualTo{Float64}))
+    end
+    
+    return collect(constraints)
 end
 
 
