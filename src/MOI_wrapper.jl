@@ -150,7 +150,7 @@ function MOI.get(model::Optimizer, ::MOI.ListOfConstraints)
         if info.has_upper_bound
             push!(constraints, (MOI.SingleVariable, MOI.GreaterThan{Float64}))
         end
-        if info.fixed
+        if info.is_fixed
             push!(constraints, (MOI.SingleVariable, MOI.EqualTo{Float64}))
         end
     end
