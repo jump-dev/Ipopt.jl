@@ -1,8 +1,8 @@
 Ipopt.jl
 ========
 
-[![Build Status](https://travis-ci.org/JuliaOpt/Ipopt.jl.svg?branch=master)](https://travis-ci.org/JuliaOpt/Ipopt.jl)
-[![Coverage Status](https://img.shields.io/coveralls/JuliaOpt/Ipopt.jl.svg)](https://coveralls.io/r/JuliaOpt/Ipopt.jl)
+[![Build Status](https://travis-ci.org/jump-dev/Ipopt.jl.svg?branch=master)](https://travis-ci.org/jump-dev/Ipopt.jl)
+[![Coverage Status](https://img.shields.io/coveralls/jump-dev/Ipopt.jl.svg)](https://coveralls.io/r/jump-dev/Ipopt.jl)
 
 
 **Ipopt.jl** is a [Julia](http://julialang.org/) interface to the [Ipopt](http://www.coin-or.org/Ipopt/documentation/documentation.html) nonlinear solver.
@@ -34,8 +34,8 @@ To switch back to the default binaries clear `JULIA_IPOPT_LIBRARY_PATH` and `JUL
 JuMP and MathOptInterface
 ----------------------
 
-Ipopt implements the solver-independent [MathOptInterface](https://github.com/JuliaOpt/MathOptInterface.jl) interface,
-and so can be used within modeling software like [JuMP](https://github.com/JuliaOpt/JuMP.jl).
+Ipopt implements the solver-independent [MathOptInterface](https://github.com/jump-dev/MathOptInterface.jl) interface,
+and so can be used within modeling software like [JuMP](https://github.com/jump-dev/JuMP.jl).
 The solver object is called `Ipopt.Optimizer`. All options listed in the [Ipopt documentation](https://coin-or.github.io/Ipopt/OPTIONS.html#OPTIONS_REF) may be passed directly. For example, you can suppress output by saying `Ipopt.Optimizer(print_level=0)`. If you wish to pass an option specifically for the restoration phase, instead of using the prefix ``resto.``, use the prefix ``resto_``. For example `Ipopt.Optimizer(resto_max_iter=0)`.
 
 You can use Ipopt with JuMP as follows:
@@ -47,4 +47,4 @@ model = Model(with_optimizer(Ipopt.Optimizer, max_cpu_time=60.0))
 C Interface Wrapper
 -------------------
 
-Full documentation for the Ipopt C wrapper is available [here](http://ipoptjl.readthedocs.org/en/latest/ipopt.html). Use of the [nonlinear MathOptInterface interface](https://github.com/JuliaOpt/MathOptInterface.jl) is recommended over the low-level C interface because it permits one to easily switch between solvers.
+Full documentation for the Ipopt C wrapper is available [here](http://ipoptjl.readthedocs.org/en/latest/ipopt.html). Use of the [nonlinear MathOptInterface interface](https://github.com/jump-dev/MathOptInterface.jl) is recommended over the low-level C interface because it permits one to easily switch between solvers.
