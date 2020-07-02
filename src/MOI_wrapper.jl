@@ -183,12 +183,7 @@ function MOI.get(
     model::Ipopt.Optimizer,
     ::MOI.ListOfConstraintIndices{MOI.ScalarAffineFunction{Float64}, MOI.LessThan{Float64}}
 ) 
-    indices = MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64}, MOI.LessThan{Float64}}[]
-    n = size(model.linear_le_constraints)[1]
-    for i in 1:n 
-        push!(indices, MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64}, MOI.LessThan{Float64}}(i))
-    end
-    return indices
+    return MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64}, MOI.LessThan{Float64}}.(eachindex(model.linear_le_constraints))
 end
 
 
@@ -196,12 +191,15 @@ function MOI.get(
     model::Ipopt.Optimizer,
     ::MOI.ListOfConstraintIndices{MOI.ScalarAffineFunction{Float64}, MOI.EqualTo{Float64}}
 ) 
-    indices = MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64}, MOI.EqualTo{Float64}}[]
-    n = size(model.linear_eq_constraints)[1]
-    for i in 1:n 
-        push!(indices, MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64}, MOI.EqualTo{Float64}}(i))
-    end
-    return indices
+    return MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64}, MOI.EqualTo{Float64}}.(eachindex(model.linear_eq_constraints))
+end
+
+
+function MOI.get(
+    model::Ipopt.Optimizer,
+    ::MOI.ListOfConstraintIndices{MOI.ScalarAffineFunction{Float64}, MOI.GreaterThan{Float64}}
+) 
+    return MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64}, MOI.GreaterThan{Float64}}.(eachindex(model.linear_ge_constraints))
 end
 
 
