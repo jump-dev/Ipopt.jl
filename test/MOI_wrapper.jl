@@ -95,3 +95,7 @@ MOI.empty!(optimizer)
 @testset "MOI NLP tests" begin
     MOIT.nlptest(optimizer, config)
 end
+
+@testset "Testing attributes" begin
+    MOI.Test.copytest(MOI.instantiate(Ipopt.Optimizer, with_bridge_type=Float64), MOIU.Model{Float64}())
+end
