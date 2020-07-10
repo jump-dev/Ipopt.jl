@@ -139,9 +139,9 @@ MOI.get(model::Optimizer, ::MOI.NumberOfVariables) = length(model.variable_info)
 MOI.get(model::Optimizer, ::MOI.NumberOfConstraints{MOI.ScalarAffineFunction{Float64}, MOI.LessThan{Float64}}) = length(model.linear_le_constraints)
 MOI.get(model::Optimizer, ::MOI.NumberOfConstraints{MOI.ScalarAffineFunction{Float64}, MOI.EqualTo{Float64}}) = length(model.linear_eq_constraints)
 MOI.get(model::Optimizer, ::MOI.NumberOfConstraints{MOI.ScalarAffineFunction{Float64}, MOI.GreaterThan{Float64}}) = length(model.linear_ge_constraints)
-MOI.get(model::Optimizer, ::MOI.NumberOfConstraints{MOI.SingleVariable, MOI.LessThan{Float64}}) = length(filter(e -> e.has_upper_bound, model.variable_info))
-MOI.get(model::Optimizer, ::MOI.NumberOfConstraints{MOI.SingleVariable, MOI.EqualTo{Float64}}) = length(filter(e -> e.is_fixed, model.variable_info))
-MOI.get(model::Optimizer, ::MOI.NumberOfConstraints{MOI.SingleVariable, MOI.GreaterThan{Float64}}) = length(filter(e -> e.has_lower_bound, model.variable_info))
+MOI.get(model::Optimizer, ::MOI.NumberOfConstraints{MOI.SingleVariable, MOI.LessThan{Float64}}) = count(e -> e.has_upper_bound, model.variable_info)
+MOI.get(model::Optimizer, ::MOI.NumberOfConstraints{MOI.SingleVariable, MOI.EqualTo{Float64}}) = count(e -> e.is_fixed, model.variable_info)
+MOI.get(model::Optimizer, ::MOI.NumberOfConstraints{MOI.SingleVariable, MOI.GreaterThan{Float64}}) = count(e -> e.has_lower_bound, model.variable_info)
 
 function MOI.get(model::Optimizer, ::MOI.ListOfVariableIndices)
     return [MOI.VariableIndex(i) for i in 1:length(model.variable_info)]
