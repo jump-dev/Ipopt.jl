@@ -78,6 +78,8 @@ end
     linear_optimizer = MOI.Bridges.Constraint.SplitInterval{Float64}(
                          MOIU.CachingOptimizer(model_for_ipopt, optimizer))
     MOIT.contlineartest(linear_optimizer, config_no_duals, exclude)
+    # Tests setting bounds of `SingleVariable` constraint
+    MOIT.linear4test(optimizer, config_no_duals)
 end
 
 MOI.empty!(optimizer)
@@ -99,3 +101,10 @@ end
 @testset "Testing getters" begin
     MOI.Test.copytest(MOI.instantiate(Ipopt.Optimizer, with_bridge_type=Float64), MOIU.Model{Float64}())
 end
+
+@testset "Bounds set twice" begin
+    MOI.Test.set_lower_bound_twice(optimizer, Float64)
+    MOI.Test.set_upper_bound_twice(optimizer, Float64)
+end
+
+# TODO run basic tests for `SingleVariable` constraints: https://github.com/jump-dev/MathOptInterface.jl/pull/1133

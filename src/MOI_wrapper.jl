@@ -464,14 +464,29 @@ function MOI.add_constraint(model::Optimizer, v::MOI.SingleVariable, lt::MOI.Les
         error("Invalid upper bound value $(lt.upper).")
     end
     if has_upper_bound(model, vi)
-        error("Upper bound on variable $vi already exists.")
+        throw(MOI.UpperBoundAlreadySet{typeof(lt), typeof(lt)}(vi))
     end
     if is_fixed(model, vi)
-        error("Variable $vi is fixed. Cannot also set upper bound.")
+        throw(MOI.UpperBoundAlreadySet{MOI.EqualTo{Float64}, typeof(lt)}(vi))
     end
     model.variable_info[vi.value].upper_bound = lt.upper
     model.variable_info[vi.value].has_upper_bound = true
     return MOI.ConstraintIndex{MOI.SingleVariable, MOI.LessThan{Float64}}(vi.value)
+end
+
+function MOI.set(model::Optimizer, ::MOI.ConstraintSet,
+                 ci::MOI.ConstraintIndex{MOI.SingleVariable, MOI.LessThan{Float64}},
+                 set::MOI.LessThan{Float64})
+    MOI.throw_if_not_valid(model, ci)
+    model.variable_info[ci.value].upper_bound = set.upper
+    return
+end
+
+function MOI.delete(model::Optimizer, ci::MOI.ConstraintIndex{MOI.SingleVariable, MOI.LessThan{Float64}})
+    MOI.throw_if_not_valid(model, ci)
+    model.variable_info[ci.value].upper_bound = Inf
+    model.variable_info[ci.value].has_upper_bound = false
+    return
 end
 
 function MOI.add_constraint(model::Optimizer, v::MOI.SingleVariable, gt::MOI.GreaterThan{Float64})
@@ -481,14 +496,29 @@ function MOI.add_constraint(model::Optimizer, v::MOI.SingleVariable, gt::MOI.Gre
         error("Invalid lower bound value $(gt.lower).")
     end
     if has_lower_bound(model, vi)
-        error("Lower bound on variable $vi already exists.")
+        throw(MOI.LowerBoundAlreadySet{typeof(gt), typeof(gt)}(vi))
     end
     if is_fixed(model, vi)
-        error("Variable $vi is fixed. Cannot also set lower bound.")
+        throw(MOI.LowerBoundAlreadySet{MOI.EqualTo{Float64}, typeof(gt)}(vi))
     end
     model.variable_info[vi.value].lower_bound = gt.lower
     model.variable_info[vi.value].has_lower_bound = true
     return MOI.ConstraintIndex{MOI.SingleVariable, MOI.GreaterThan{Float64}}(vi.value)
+end
+
+function MOI.set(model::Optimizer, ::MOI.ConstraintSet,
+                 ci::MOI.ConstraintIndex{MOI.SingleVariable, MOI.GreaterThan{Float64}},
+                 set::MOI.GreaterThan{Float64})
+    MOI.throw_if_not_valid(model, ci)
+    model.variable_info[ci.value].lower_bound = set.lower
+    return
+end
+
+function MOI.delete(model::Optimizer, ci::MOI.ConstraintIndex{MOI.SingleVariable, MOI.GreaterThan{Float64}})
+    MOI.throw_if_not_valid(model, ci)
+    model.variable_info[ci.value].lower_bound = -Inf
+    model.variable_info[ci.value].has_lower_bound = false
+    return
 end
 
 function MOI.add_constraint(model::Optimizer, v::MOI.SingleVariable, eq::MOI.EqualTo{Float64})
@@ -498,18 +528,35 @@ function MOI.add_constraint(model::Optimizer, v::MOI.SingleVariable, eq::MOI.Equ
         error("Invalid fixed value $(gt.lower).")
     end
     if has_lower_bound(model, vi)
-        error("Variable $vi has a lower bound. Cannot be fixed.")
+        throw(MOI.LowerBoundAlreadySet{MOI.GreaterThan{Float64}, typeof(eq)}(vi))
     end
     if has_upper_bound(model, vi)
-        error("Variable $vi has an upper bound. Cannot be fixed.")
+        throw(MOI.UpperBoundAlreadySet{MOI.LessThan{Float64}, typeof(eq)}(vi))
     end
     if is_fixed(model, vi)
-        error("Variable $vi is already fixed.")
+        throw(MOI.LowerBoundAlreadySet{typeof(eq), typeof(eq)}(vi))
     end
     model.variable_info[vi.value].lower_bound = eq.value
     model.variable_info[vi.value].upper_bound = eq.value
     model.variable_info[vi.value].is_fixed = true
     return MOI.ConstraintIndex{MOI.SingleVariable, MOI.EqualTo{Float64}}(vi.value)
+end
+
+function MOI.set(model::Optimizer, ::MOI.ConstraintSet,
+                 ci::MOI.ConstraintIndex{MOI.SingleVariable, MOI.EqualTo{Float64}},
+                 set::MOI.EqualTo{Float64})
+    MOI.throw_if_not_valid(model, ci)
+    model.variable_info[ci.value].lower_bound = set.value
+    model.variable_info[ci.value].upper_bound = set.value
+    return
+end
+
+function MOI.delete(model::Optimizer, ci::MOI.ConstraintIndex{MOI.SingleVariable, MOI.EqualTo{Float64}})
+    MOI.throw_if_not_valid(model, ci)
+    model.variable_info[ci.value].lower_bound = -Inf
+    model.variable_info[ci.value].upper_bound = Inf
+    model.variable_info[ci.value].is_fixed = false
+    return
 end
 
 macro define_add_constraint(function_type, set_type, prefix)
