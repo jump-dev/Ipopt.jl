@@ -53,7 +53,7 @@ Full documentation for the Ipopt C wrapper is available [here](http://ipoptjl.re
 
 If you get a termination status `MOI.INVALID_MODEL`, it is probably because you have some undefined value
 in your model, e.g., a division by zero. Fix this by removing the division, or by imposing variable bounds
-so that you cut of the undefined region.
+so that you cut off the undefined region.
 
 Instead of
 ```julia
