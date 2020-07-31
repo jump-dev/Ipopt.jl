@@ -48,3 +48,22 @@ C Interface Wrapper
 -------------------
 
 Full documentation for the Ipopt C wrapper is available [here](http://ipoptjl.readthedocs.org/en/latest/ipopt.html). Use of the [nonlinear MathOptInterface interface](https://github.com/jump-dev/MathOptInterface.jl) is recommended over the low-level C interface because it permits one to easily switch between solvers.
+
+## `INVALID_MODEL` error
+
+If you get a termination status `MOI.INVALID_MODEL`, it is probably because you have some undefined value
+in your model, e.g., a division by zero. Fix this by removing the division, or by imposing variable bounds
+so that you cut of the undefined region.
+
+Instead of
+```julia
+model = Model(Ipopt.Optimizer)
+@variable(model, x)
+@NLobjective(model, 1 / x)
+```
+do
+```julia
+model = Model(Ipopt.Optimizer)
+@variable(model, x >= 0.0001)
+@NLobjective(model, 1 / x)
+```
