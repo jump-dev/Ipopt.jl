@@ -199,7 +199,7 @@ addOption
   function addOption(
     prob::IpoptProblem, keyword::ASCIIString, value::Integer)
 
-Sets a solver option, the full list is available `here <http://www.coin-or.org/Ipopt/documentation/node39.html>`_. Returns nothing, raises error if option could not be set correctly.
+Sets a solver option, the full list is available `here <https://coin-or.github.io/Ipopt/OPTIONS.html>`_. Returns nothing, raises error if option could not be set correctly.
 
 openOutputFile
 ^^^^^^^^^^^^^^
