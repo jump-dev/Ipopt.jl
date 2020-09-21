@@ -229,7 +229,7 @@ function MOI.get(model::Optimizer, ::MOI.ListOfConstraintIndices{MOI.SingleVaria
 end
 
 function MOI.get(
-    model::Ipopt.Optimizer,
+    model::Optimizer,
     ::MOI.ConstraintFunction,
     c::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64}, MOI.LessThan{Float64}}
 )
@@ -238,7 +238,7 @@ end
 
 
 function MOI.get(
-    model::Ipopt.Optimizer,
+    model::Optimizer,
     ::MOI.ConstraintFunction,
     c::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64}, MOI.EqualTo{Float64}}
 )
@@ -246,7 +246,7 @@ function MOI.get(
 end
 
 function MOI.get(
-    model::Ipopt.Optimizer,
+    model::Optimizer,
     ::MOI.ConstraintFunction,
     c::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64}, MOI.GreaterThan{Float64}}
 )
