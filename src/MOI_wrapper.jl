@@ -1235,22 +1235,22 @@ function MOI.optimize!(model::Optimizer)
     hessian_sparsity = has_hessian ? hessian_lagrangian_structure(model) : []
 
     # Objective callback
-    if model.sense == MOI.MIN_SENSE
-        objective_scale = 1.0
-    elseif model.sense == MOI.MAX_SENSE
-        objective_scale = -1.0
-    else # FEASIBILITY_SENSE
-        # TODO: This could produce confusing solver output if a nonzero
-        # objective is set.
-        objective_scale = 0.0
+    # TODO(odow): FEASIBILITY_SENSE could produce confusing solver output if a
+    # nonzero objective is set.
+    function eval_f_cb(x)
+        if model.sense == MOI.FEASIBILITY_SENSE
+            return 0.0
+        end
+        return eval_objective(model, x)
     end
-
-    eval_f_cb(x) = objective_scale * eval_objective(model, x)
 
     # Objective gradient callback
     function eval_grad_f_cb(x, grad_f)
-        eval_objective_gradient(model, grad_f, x)
-        rmul!(grad_f,objective_scale)
+        if model.sense == MOI.FEASIBILITY_SENSE
+            grad_f .= zero(eltype(grad_f))
+        else
+            eval_objective_gradient(model, grad_f, x)
+        end
         return
     end
 
@@ -1279,7 +1279,6 @@ function MOI.optimize!(model::Optimizer)
                     cols[i] = hessian_sparsity[i][2]
                 end
             else
-                obj_factor *= objective_scale
                 eval_hessian_lagrangian(model, values, x, obj_factor, lambda)
             end
             return
@@ -1310,6 +1309,12 @@ function MOI.optimize!(model::Optimizer)
         eval_jac_g_cb,
         eval_h_cb,
     )
+
+    if model.sense == MOI.MIN_SENSE
+        addOption(model.inner, "obj_scaling_factor", 1.0)
+    elseif model.sense == MOI.MAX_SENSE
+        addOption(model.inner, "obj_scaling_factor", -1.0)
+    end
 
     # Ipopt crashes by default if NaN/Inf values are returned from the
     # evaluation callbacks. This option tells Ipopt to explicitly check for them
@@ -1488,8 +1493,7 @@ end
 
 function MOI.get(model::Optimizer, attr::MOI.ObjectiveValue)
     MOI.check_result_index_bounds(model, attr)
-    scale = (model.sense == MOI.MAX_SENSE) ? -1 : 1
-    return scale * model.inner.obj_val
+    return model.inner.obj_val
 end
 
 # TODO: This is a bit off, because the variable primal should be available
@@ -1560,9 +1564,11 @@ function MOI.get(
     return model.inner.x[ci.value]
 end
 
+_dual_multiplier(model::Optimizer) = model.sense == MOI.MIN_SENSE ? 1.0 : -1.0
+
 macro define_constraint_dual(function_type, set_type, prefix)
-    constraint_array = Symbol(string(prefix) * "_constraints")
-    offset_function = Symbol(string(prefix) * "_offset")
+    constraint_array = Symbol("$(prefix)_constraints")
+    offset_function = Symbol("$(prefix)_offset")
     quote
         function MOI.get(
             model::Optimizer,
@@ -1573,9 +1579,8 @@ macro define_constraint_dual(function_type, set_type, prefix)
             if !(1 <= ci.value <= length(model.$(constraint_array)))
                 error("Invalid constraint index ", ci.value)
             end
-            # TODO: Unable to find documentation in Ipopt about the signs of duals.
-            # Rescaling by -1 here seems to pass the MOI tests.
-            return -1 * model.inner.mult_g[ci.value + $offset_function(model)]
+            s = -_dual_multiplier(model)
+            return s * model.inner.mult_g[ci.value + $offset_function(model)]
         end
     end
 end
@@ -1611,8 +1616,24 @@ function MOI.get(
 )
     MOI.check_result_index_bounds(model, attr)
     MOI.throw_if_not_valid(model, ci)
-    # MOI convention is for feasible LessThan duals to be nonpositive.
-    return -1 * model.inner.mult_x_U[ci.value]
+    # Due to differences between Ipopt's and MOI's definition of duality, it
+    # isn't sufficient to look at `mult_x_L` or `mult_x_U` in isolation. This is
+    # further complicated by our use of `obj_scaling_factor` for maximization
+    # problems. Instead, go with this first-principles heuristic for determining
+    # whether the reduced cost (i.e., the column dual) applies to the lower or
+    # upper bound.
+    reduced_cost = model.inner.mult_x_U[ci.value] + model.inner.mult_x_L[ci.value]
+    if model.sense == MOI.MIN_SENSE && reduced_cost < 0
+        # If minimizing, the reduced cost must be negative (ignoring tolerances).
+        return reduced_cost
+    elseif model.sense == MOI.MAX_SENSE && reduced_cost > 0
+        # If minimizing, the reduced cost must be positive (ignoring tolerances).
+        # However, because of the MOI dual convention, we return a negative value.
+        return -reduced_cost
+    else
+        # The reduced cost, if non-zero, must related to the lower bound.
+        return 0.0
+    end
 end
 
 function MOI.get(
@@ -1622,7 +1643,24 @@ function MOI.get(
 )
     MOI.check_result_index_bounds(model, attr)
     MOI.throw_if_not_valid(model, ci)
-    return model.inner.mult_x_L[ci.value]
+    # Due to differences between Ipopt's and MOI's definition of duality, it
+    # isn't sufficient to look at `mult_x_L` or `mult_x_U` in isolation. This is
+    # further complicated by our use of `obj_scaling_factor` for maximization
+    # problems. Instead, go with this first-principles heuristic for determining
+    # whether the reduced cost (i.e., the column dual) applies to the lower or
+    # upper bound.
+    reduced_cost = model.inner.mult_x_U[ci.value] + model.inner.mult_x_L[ci.value]
+    if model.sense == MOI.MIN_SENSE && reduced_cost > 0
+        # If minimizing, the reduced cost must be negative (ignoring tolerances).
+        return reduced_cost
+    elseif model.sense == MOI.MAX_SENSE && reduced_cost < 0
+        # If minimizing, the reduced cost must be positive (ignoring tolerances).
+        # However, because of the MOI dual convention, we return a negative value.
+        return -reduced_cost
+    else
+        # The reduced cost, if non-zero, must related to the upper bound.
+        return 0.0
+    end
 end
 
 function MOI.get(
@@ -1637,5 +1675,6 @@ end
 
 function MOI.get(model::Optimizer, attr::MOI.NLPBlockDual)
     MOI.check_result_index_bounds(model, attr)
-    return -1 * model.inner.mult_g[(1 + nlp_constraint_offset(model)):end]
+    s = -_dual_multiplier(model)
+    return s .* model.inner.mult_g[(1 + nlp_constraint_offset(model)):end]
 end
