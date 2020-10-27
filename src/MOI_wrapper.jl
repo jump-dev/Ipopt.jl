@@ -694,6 +694,11 @@ end
 
 # TODO(odow): this definition is incorrect. Should probably be
 # MOI.supports(::Optimizer, ::MOI.ConstrainDualStart, ::Type{<:MOI.ConstraintIndex})
+_dual_start(::Optimizer, ::Nothing, ::Int) = nothing
+function _dual_start(model::Optimizer, value::Real, scale::Int = 1)
+    return _dual_multiplier(model) * value * scale
+end
+
 function MOI.supports(
     ::Optimizer,
     ::MOI.ConstraintDualStart,
@@ -710,7 +715,7 @@ function MOI.set(
     value::Union{Real, Nothing},
 )
     MOI.throw_if_not_valid(model, ci)
-    model.variable_info[ci.value].lower_bound_dual_start = value
+    model.variable_info[ci.value].lower_bound_dual_start = _dual_start(model, value)
     return
 end
 
@@ -732,7 +737,7 @@ function MOI.set(
     value::Union{Real, Nothing},
 )
     MOI.throw_if_not_valid(model, ci)
-    model.variable_info[ci.value].upper_bound_dual_start = value
+    model.variable_info[ci.value].upper_bound_dual_start = _dual_start(model, value)
     return
 end
 
@@ -754,13 +759,13 @@ function MOI.set(
     value::Union{Real, Nothing},
 )
     MOI.throw_if_not_valid(model, ci)
-    model.variable_info[ci.value].upper_bound_dual_start = value
-    model.variable_info[ci.value].lower_bound_dual_start = value
+    model.variable_info[ci.value].upper_bound_dual_start = _dual_start(model, value)
+    model.variable_info[ci.value].lower_bound_dual_start = _dual_start(model, value)
     return
 end
 
 macro define_constraint_dual_start(function_type, set_type, prefix)
-    array_name = Symbol(string(prefix) * "_constraints")
+    array_name = Symbol("$(prefix)_constraints")
     quote
         # TODO(odow): this definition is incorrect. Should probably be
         # MOI.supports(::Optimizer, ::MOI.ConstrainDualStart, ::Type{<:MOI.ConstraintIndex})
@@ -775,12 +780,13 @@ macro define_constraint_dual_start(function_type, set_type, prefix)
             model::Optimizer,
             ::MOI.ConstraintDualStart,
             ci::MOI.ConstraintIndex{$function_type, $set_type},
+            value::Real,
         )
             if !(1 <= ci.value <= length(model.$(array_name)))
                 throw(MOI.InvalidIndex(ci))
             end
             # Rescaling by `-1`, see `@define_constraint_dual`.
-            model.$array_name[ci.value].dual_start = -value
+            model.$array_name[ci.value].dual_start = _dual_start(model, value, -1)
             return
         end
     end
@@ -815,7 +821,7 @@ function MOI.supports(::Optimizer, ::MOI.NLPBlockDualStart)
 end
 
 function MOI.set(model::Optimizer, ::MOI.NLPBlockDualStart, values)
-    model.nlp_dual_start = -values
+    model.nlp_dual_start = _dual_start.(Ref(model), values, -1)
     return
 end
 
@@ -1616,12 +1622,9 @@ function MOI.get(
 )
     MOI.check_result_index_bounds(model, attr)
     MOI.throw_if_not_valid(model, ci)
-    # Due to differences between Ipopt's and MOI's definition of duality, it
-    # isn't sufficient to look at `mult_x_L` or `mult_x_U` in isolation. This is
-    # further complicated by our use of `obj_scaling_factor` for maximization
-    # problems. Instead, go with this first-principles heuristic for determining
-    # whether the reduced cost (i.e., the column dual) applies to the lower or
-    # upper bound.
+    # Due to a bug in the handling of fixed variables and `obj_scaling_factor`,
+    # go with this first-principles heuristic for determining whether the
+    # reduced cost (i.e., the column dual) applies to the lower or upper bound.
     reduced_cost = model.inner.mult_x_U[ci.value] + model.inner.mult_x_L[ci.value]
     if model.sense == MOI.MIN_SENSE && reduced_cost < 0
         # If minimizing, the reduced cost must be negative (ignoring tolerances).
@@ -1643,12 +1646,9 @@ function MOI.get(
 )
     MOI.check_result_index_bounds(model, attr)
     MOI.throw_if_not_valid(model, ci)
-    # Due to differences between Ipopt's and MOI's definition of duality, it
-    # isn't sufficient to look at `mult_x_L` or `mult_x_U` in isolation. This is
-    # further complicated by our use of `obj_scaling_factor` for maximization
-    # problems. Instead, go with this first-principles heuristic for determining
-    # whether the reduced cost (i.e., the column dual) applies to the lower or
-    # upper bound.
+    # Due to a bug in the handling of fixed variables and `obj_scaling_factor`,
+    # go with this first-principles heuristic for determining whether the
+    # reduced cost (i.e., the column dual) applies to the lower or upper bound.
     reduced_cost = model.inner.mult_x_U[ci.value] + model.inner.mult_x_L[ci.value]
     if model.sense == MOI.MIN_SENSE && reduced_cost > 0
         # If minimizing, the reduced cost must be negative (ignoring tolerances).
