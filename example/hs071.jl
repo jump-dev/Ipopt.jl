@@ -8,6 +8,12 @@ using Ipopt
 # Start at (1,5,5,1)
 # End at (1.000..., 4.743..., 3.821..., 1.379...)
 
+# Expected output
+# EXIT: Optimal Solution Found.
+# Solve_Succeeded
+# [1.0, 4.742999641620817, 3.8211499816742873, 1.3794082916613506]
+# 17.014017143814982 # <<< objective function value
+
 function eval_f(x) 
   return x[1] * x[4] * (x[1] + x[2] + x[3]) + x[3]
 end
@@ -22,7 +28,7 @@ end
 function eval_grad_f(x, grad_f)
   # Bad: grad_f    = zeros(4)  # Allocates new array
   # OK:  grad_f[:] = zeros(4)  # Modifies 'in place'
-  grad_f[1] = x[1] * x[4] + x[4] * (x[1] + x[2] + x[3])
+  grad_f[1] = 2 * x[1] * x[4] + x[4] * (x[1] + x[2] + x[3])
   grad_f[2] = x[1] * x[4]
   grad_f[3] = x[1] * x[4] + 1
   grad_f[4] = x[1] * (x[1] + x[2] + x[3])
