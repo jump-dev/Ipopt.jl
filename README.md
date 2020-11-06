@@ -1,11 +1,10 @@
 Ipopt.jl
 ========
 
-[![Build Status](https://travis-ci.org/jump-dev/Ipopt.jl.svg?branch=master)](https://travis-ci.org/jump-dev/Ipopt.jl)
-[![Coverage Status](https://img.shields.io/coveralls/jump-dev/Ipopt.jl.svg)](https://coveralls.io/r/jump-dev/Ipopt.jl)
-
-
 **Ipopt.jl** is a [Julia](http://julialang.org/) interface to the [Ipopt](http://www.coin-or.org/Ipopt/documentation/documentation.html) nonlinear solver.
+
+[![Build Status](https://github.com/jump-dev/Ipopt.jl/workflows/CI/badge.svg?branch=master)](https://github.com/jump-dev/Ipopt.jl/actions?query=workflow%3ACI)
+[![codecov](https://codecov.io/gh/jump-dev/Ipopt.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/jump-dev/Ipopt.jl)
 
 ## Installation
 
@@ -15,7 +14,7 @@ The package is registered in `METADATA.jl` and so can be installed with `Pkg.add
 julia> import Pkg; Pkg.add("Ipopt")
 ```
 
-In addition to installing the `Ipopt.jl` package, this will also download and install the Ipopt binaries. 
+In addition to installing the `Ipopt.jl` package, this will also download and install the Ipopt binaries.
 (You do _not_ need to install Ipopt separately.)
 If you require a custom build of Ipopt, see the instructions below.
 
