@@ -525,7 +525,7 @@ function MOI.add_constraint(model::Optimizer, v::MOI.SingleVariable, eq::MOI.Equ
     vi = v.variable
     MOI.throw_if_not_valid(model, vi)
     if isnan(eq.value)
-        error("Invalid fixed value $(gt.lower).")
+        error("Invalid fixed value $(eq.value).")
     end
     if has_lower_bound(model, vi)
         throw(MOI.LowerBoundAlreadySet{MOI.GreaterThan{Float64}, typeof(eq)}(vi))
