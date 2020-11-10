@@ -692,8 +692,6 @@ function MOI.set(
     return
 end
 
-# TODO(odow): this definition is incorrect. Should probably be
-# MOI.supports(::Optimizer, ::MOI.ConstrainDualStart, ::Type{<:MOI.ConstraintIndex})
 _dual_start(::Optimizer, ::Nothing, ::Int) = nothing
 function _dual_start(model::Optimizer, value::Real, scale::Int = 1)
     return _dual_multiplier(model) * value * scale
@@ -719,13 +717,10 @@ function MOI.set(
     return
 end
 
-# TODO(odow): this definition is incorrect. Should probably be
-# MOI.supports(::Optimizer, ::MOI.ConstrainDualStart, ::Type{<:MOI.ConstraintIndex})
 function MOI.supports(
     ::Optimizer,
     ::MOI.ConstraintDualStart,
-    ::MOI.ConstraintIndex{MOI.SingleVariable, MOI.LessThan{Float64}},
-    ::Union{Real, Nothing},
+    ::Type{MOI.ConstraintIndex{MOI.SingleVariable, MOI.LessThan{Float64}}},
 )
     return true
 end
@@ -741,13 +736,10 @@ function MOI.set(
     return
 end
 
-# TODO(odow): this definition is incorrect. Should probably be
-# MOI.supports(::Optimizer, ::MOI.ConstrainDualStart, ::Type{<:MOI.ConstraintIndex})
 function MOI.supports(
     ::Optimizer,
     ::MOI.ConstraintDualStart,
-    ::MOI.ConstraintIndex{MOI.SingleVariable, MOI.EqualTo{Float64}},
-    ::Union{Real, Nothing},
+    ::Type{MOI.ConstraintIndex{MOI.SingleVariable, MOI.EqualTo{Float64}}},
 )
     return true
 end
@@ -767,12 +759,10 @@ end
 macro define_constraint_dual_start(function_type, set_type, prefix)
     array_name = Symbol("$(prefix)_constraints")
     quote
-        # TODO(odow): this definition is incorrect. Should probably be
-        # MOI.supports(::Optimizer, ::MOI.ConstrainDualStart, ::Type{<:MOI.ConstraintIndex})
         function MOI.supports(
             ::Optimizer,
             ::MOI.ConstraintDualStart,
-            ::MOI.ConstraintIndex{$function_type, $set_type},
+            ::Type{MOI.ConstraintIndex{$function_type, $set_type}},
         )
             return true
         end
@@ -1622,21 +1612,8 @@ function MOI.get(
 )
     MOI.check_result_index_bounds(model, attr)
     MOI.throw_if_not_valid(model, ci)
-    # Due to a bug in the handling of fixed variables and `obj_scaling_factor`,
-    # go with this first-principles heuristic for determining whether the
-    # reduced cost (i.e., the column dual) applies to the lower or upper bound.
-    reduced_cost = model.inner.mult_x_U[ci.value] + model.inner.mult_x_L[ci.value]
-    if model.sense == MOI.MIN_SENSE && reduced_cost < 0
-        # If minimizing, the reduced cost must be negative (ignoring tolerances).
-        return reduced_cost
-    elseif model.sense == MOI.MAX_SENSE && reduced_cost > 0
-        # If minimizing, the reduced cost must be positive (ignoring tolerances).
-        # However, because of the MOI dual convention, we return a negative value.
-        return -reduced_cost
-    else
-        # The reduced cost, if non-zero, must related to the lower bound.
-        return 0.0
-    end
+    rc = model.inner.mult_x_L[ci.value] - model.inner.mult_x_U[ci.value]
+    return min(0.0, _dual_multiplier(model) * rc)
 end
 
 function MOI.get(
@@ -1646,21 +1623,8 @@ function MOI.get(
 )
     MOI.check_result_index_bounds(model, attr)
     MOI.throw_if_not_valid(model, ci)
-    # Due to a bug in the handling of fixed variables and `obj_scaling_factor`,
-    # go with this first-principles heuristic for determining whether the
-    # reduced cost (i.e., the column dual) applies to the lower or upper bound.
-    reduced_cost = model.inner.mult_x_U[ci.value] + model.inner.mult_x_L[ci.value]
-    if model.sense == MOI.MIN_SENSE && reduced_cost > 0
-        # If minimizing, the reduced cost must be negative (ignoring tolerances).
-        return reduced_cost
-    elseif model.sense == MOI.MAX_SENSE && reduced_cost < 0
-        # If minimizing, the reduced cost must be positive (ignoring tolerances).
-        # However, because of the MOI dual convention, we return a negative value.
-        return -reduced_cost
-    else
-        # The reduced cost, if non-zero, must related to the upper bound.
-        return 0.0
-    end
+    rc = model.inner.mult_x_L[ci.value] - model.inner.mult_x_U[ci.value]
+    return max(0.0, _dual_multiplier(model) * rc)
 end
 
 function MOI.get(
@@ -1670,7 +1634,8 @@ function MOI.get(
 )
     MOI.check_result_index_bounds(model, attr)
     MOI.throw_if_not_valid(model, ci)
-    return model.inner.mult_x_L[ci.value] - model.inner.mult_x_U[ci.value]
+    rc = model.inner.mult_x_L[ci.value] - model.inner.mult_x_U[ci.value]
+    return _dual_multiplier(model) * rc
 end
 
 function MOI.get(model::Optimizer, attr::MOI.NLPBlockDual)
