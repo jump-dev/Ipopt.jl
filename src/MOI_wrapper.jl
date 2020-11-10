@@ -692,7 +692,7 @@ function MOI.set(
     return
 end
 
-_dual_start(::Optimizer, ::Nothing, ::Int) = nothing
+_dual_start(::Optimizer, ::Nothing, ::Int = 1) = 0.0
 function _dual_start(model::Optimizer, value::Real, scale::Int = 1)
     return _dual_multiplier(model) * value * scale
 end
@@ -700,8 +700,12 @@ end
 function MOI.supports(
     ::Optimizer,
     ::MOI.ConstraintDualStart,
-    ::MOI.ConstraintIndex{MOI.SingleVariable, MOI.GreaterThan{Float64}},
-    ::Union{Real, Nothing},
+    ::Type{
+        MOI.ConstraintIndex{
+            MOI.SingleVariable,
+            <:Union{MOI.GreaterThan, MOI.LessThan, MOI.EqualTo},
+        }
+    }
 )
     return true
 end
@@ -713,16 +717,8 @@ function MOI.set(
     value::Union{Real, Nothing},
 )
     MOI.throw_if_not_valid(model, ci)
-    model.variable_info[ci.value].lower_bound_dual_start = _dual_start(model, value)
+    model.variable_info[ci.value].lower_bound_dual_start = value
     return
-end
-
-function MOI.supports(
-    ::Optimizer,
-    ::MOI.ConstraintDualStart,
-    ::Type{MOI.ConstraintIndex{MOI.SingleVariable, MOI.LessThan{Float64}}},
-)
-    return true
 end
 
 function MOI.set(
@@ -732,16 +728,8 @@ function MOI.set(
     value::Union{Real, Nothing},
 )
     MOI.throw_if_not_valid(model, ci)
-    model.variable_info[ci.value].upper_bound_dual_start = _dual_start(model, value)
+    model.variable_info[ci.value].upper_bound_dual_start = value
     return
-end
-
-function MOI.supports(
-    ::Optimizer,
-    ::MOI.ConstraintDualStart,
-    ::Type{MOI.ConstraintIndex{MOI.SingleVariable, MOI.EqualTo{Float64}}},
-)
-    return true
 end
 
 function MOI.set(
@@ -751,8 +739,16 @@ function MOI.set(
     value::Union{Real, Nothing},
 )
     MOI.throw_if_not_valid(model, ci)
-    model.variable_info[ci.value].upper_bound_dual_start = _dual_start(model, value)
-    model.variable_info[ci.value].lower_bound_dual_start = _dual_start(model, value)
+    if value === nothing
+        model.variable_info[ci.value].upper_bound_dual_start = nothing
+        model.variable_info[ci.value].lower_bound_dual_start = nothing
+    elseif value >= 0.0
+        model.variable_info[ci.value].upper_bound_dual_start = 0.0
+        model.variable_info[ci.value].lower_bound_dual_start = value
+    else
+        model.variable_info[ci.value].upper_bound_dual_start = value
+        model.variable_info[ci.value].lower_bound_dual_start = 0.0
+    end
     return
 end
 
@@ -770,13 +766,12 @@ macro define_constraint_dual_start(function_type, set_type, prefix)
             model::Optimizer,
             ::MOI.ConstraintDualStart,
             ci::MOI.ConstraintIndex{$function_type, $set_type},
-            value::Real,
+            value::Union{Real, Nothing},
         )
             if !(1 <= ci.value <= length(model.$(array_name)))
                 throw(MOI.InvalidIndex(ci))
             end
-            # Rescaling by `-1`, see `@define_constraint_dual`.
-            model.$array_name[ci.value].dual_start = _dual_start(model, value, -1)
+            model.$array_name[ci.value].dual_start = value
             return
         end
     end
@@ -810,8 +805,10 @@ function MOI.supports(::Optimizer, ::MOI.NLPBlockDualStart)
     return true
 end
 
-function MOI.set(model::Optimizer, ::MOI.NLPBlockDualStart, values)
-    model.nlp_dual_start = _dual_start.(Ref(model), values, -1)
+function MOI.set(
+    model::Optimizer, ::MOI.NLPBlockDualStart, values::Union{Nothing, Vector}
+)
+    model.nlp_dual_start = values
     return
 end
 
@@ -1367,18 +1364,15 @@ function MOI.optimize!(model::Optimizer)
     ]
 
     model.inner.mult_g = [
-        start === nothing ? 0.0 : start for start in mult_g_start
+        _dual_start(model, start, -1) for start in mult_g_start
     ]
 
-    model.inner.mult_x_L = [
-        v.lower_bound_dual_start === nothing ? 0.0 : v.lower_bound_dual_start
-        for v in model.variable_info
-    ]
-
-    model.inner.mult_x_U = [
-        v.upper_bound_dual_start === nothing ? 0.0 : v.lower_bound_dual_start
-        for v in model.variable_info
-    ]
+    model.inner.mult_x_L = zeros(length(model.variable_info))
+    model.inner.mult_x_U = zeros(length(model.variable_info))
+    for (i, v) in enumerate(model.variable_info)
+        model.inner.mult_x_L[i] = _dual_start(model, v.lower_bound_dual_start)
+        model.inner.mult_x_U[i] = _dual_start(model, v.upper_bound_dual_start, -1)
+    end
 
     if model.silent
         addOption(model.inner, "print_level", 0)
