@@ -721,6 +721,15 @@ function MOI.set(
     return
 end
 
+function MOI.get(
+    model::Optimizer,
+    ::MOI.ConstraintDualStart,
+    ci::MOI.ConstraintIndex{MOI.SingleVariable, MOI.GreaterThan{Float64}},
+)
+    MOI.throw_if_not_valid(model, ci)
+    return model.variable_info[ci.value].lower_bound_dual_start
+end
+
 function MOI.set(
     model::Optimizer,
     ::MOI.ConstraintDualStart,
@@ -730,6 +739,15 @@ function MOI.set(
     MOI.throw_if_not_valid(model, ci)
     model.variable_info[ci.value].upper_bound_dual_start = value
     return
+end
+
+function MOI.get(
+    model::Optimizer,
+    ::MOI.ConstraintDualStart,
+    ci::MOI.ConstraintIndex{MOI.SingleVariable, MOI.LessThan{Float64}},
+)
+    MOI.throw_if_not_valid(model, ci)
+    return model.variable_info[ci.value].upper_bound_dual_start
 end
 
 function MOI.set(
@@ -752,6 +770,17 @@ function MOI.set(
     return
 end
 
+function MOI.get(
+    model::Optimizer,
+    ::MOI.ConstraintDualStart,
+    ci::MOI.ConstraintIndex{MOI.SingleVariable, MOI.EqualTo{Float64}},
+)
+    MOI.throw_if_not_valid(model, ci)
+    upper = model.variable_info[ci.value].upper_bound_dual_start
+    lower = model.variable_info[ci.value].lower_bound_dual_start
+    return upper == lower ? nothing : lower + upper
+end
+
 macro define_constraint_dual_start(function_type, set_type, prefix)
     array_name = Symbol("$(prefix)_constraints")
     quote
@@ -762,6 +791,7 @@ macro define_constraint_dual_start(function_type, set_type, prefix)
         )
             return true
         end
+
         function MOI.set(
             model::Optimizer,
             ::MOI.ConstraintDualStart,
@@ -773,6 +803,17 @@ macro define_constraint_dual_start(function_type, set_type, prefix)
             end
             model.$array_name[ci.value].dual_start = value
             return
+        end
+
+        function MOI.get(
+            model::Optimizer,
+            ::MOI.ConstraintDualStart,
+            ci::MOI.ConstraintIndex{$function_type, $set_type},
+        )
+            if !(1 <= ci.value <= length(model.$(array_name)))
+                throw(MOI.InvalidIndex(ci))
+            end
+            return model.$array_name[ci.value].dual_start
         end
     end
 end
@@ -811,6 +852,8 @@ function MOI.set(
     model.nlp_dual_start = values
     return
 end
+
+MOI.get(model::Optimizer, ::MOI.NLPBlockDualStart) = model.nlp_dual_start
 
 function MOI.set(model::Optimizer, ::MOI.NLPBlock, nlp_data::MOI.NLPBlockData)
     model.nlp_data = nlp_data
