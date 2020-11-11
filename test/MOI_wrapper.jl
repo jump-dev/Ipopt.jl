@@ -160,7 +160,7 @@ function test_check_derivatives_for_naninf()
         MOI.NLPBlock(),
         MOI.NLPBlockData(MOI.NLPBoundsPair.([-Inf], [0.0]), Issue136(), false),
     )
-    # Failure to set check_derivatives_for_naninf="no" may cause Ipopt to
+    # Failure to set check_derivatives_for_naninf="yes" may cause Ipopt to
     # segfault or return a NUMERICAL_ERROR status. Check that it is set to "yes"
     # by obtaining an INVALID_MODEL status.
     # MOI.set(model, MOI.RawParameter("check_derivatives_for_naninf"), "no")
