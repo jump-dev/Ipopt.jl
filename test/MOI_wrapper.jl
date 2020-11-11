@@ -139,6 +139,35 @@ function test_emptytest()
     MOI.Test.emptytest(BRIDGED_OPTIMIZER)
 end
 
+# Model structure for test_check_derivatives_for_naninf()
+struct Issue136 <: MOI.AbstractNLPEvaluator end
+MOI.initialize(::Issue136, ::Vector{Symbol}) = nothing
+MOI.features_available(d::Issue136) = [:Grad, :Jac]
+MOI.eval_objective(::Issue136, x) = x[1]
+MOI.eval_constraint(::Issue136, g, x) = (g[1] = x[1]^(1 / 3))
+MOI.eval_objective_gradient(::Issue136, grad_f, x) = (grad_f[1] = 1.0)
+MOI.jacobian_structure(::Issue136) = Tuple{Int64,Int64}[(1,1)]
+function MOI.eval_constraint_jacobian(::Issue136, J, x)
+    J[1] = (1 / 3) * x[1]^(1 / 3 - 1)
+    return
+end
+
+function test_check_derivatives_for_naninf()
+    model = Ipopt.Optimizer()
+    x = MOI.add_variable(model)
+    MOI.set(
+        model,
+        MOI.NLPBlock(),
+        MOI.NLPBlockData(MOI.NLPBoundsPair.([-Inf], [0.0]), Issue136(), false),
+    )
+    # Failure to set check_derivatives_for_naninf="yes" may cause Ipopt to
+    # segfault or return a NUMERICAL_ERROR status. Check that it is set to "yes"
+    # by obtaining an INVALID_MODEL status.
+    # MOI.set(model, MOI.RawParameter("check_derivatives_for_naninf"), "no")
+    MOI.optimize!(model)
+    @test MOI.get(model, MOI.TerminationStatus()) == MOI.INVALID_MODEL
+end
+
 end  # module TestMOIWrapper
 
 runtests(TestMOIWrapper)
