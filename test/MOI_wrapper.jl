@@ -128,15 +128,24 @@ function test_boundsettwice()
     MOI.Test.set_upper_bound_twice(OPTIMIZER, Float64)
 end
 
-
 function test_nametest()
     MOI.Test.nametest(BRIDGED_OPTIMIZER)
 end
+
 function test_validtest()
     MOI.Test.validtest(BRIDGED_OPTIMIZER)
 end
+
 function test_emptytest()
     MOI.Test.emptytest(BRIDGED_OPTIMIZER)
+end
+
+function test_solve_time()
+    model = Ipopt.Optimizer()
+    x = MOI.add_variable(model)
+    MOI.optimize!(model)
+    @test MOI.supports(model, MOI.SolveTime())
+    @test MOI.get(model, MOI.SolveTime()) > 0.0
 end
 
 end  # module TestMOIWrapper
