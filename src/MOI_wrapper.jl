@@ -420,7 +420,6 @@ function MOI.get(model::Optimizer, p::MOI.RawParameter)
     error("RawParameter with name $(p.name) is not set.")
 end
 
-MOI.supports(::Optimizer, ::MOI.SolveTime) = true
 MOI.get(model::Optimizer, ::MOI.SolveTime) = model.solve_time
 
 function MOI.empty!(model::Optimizer)
