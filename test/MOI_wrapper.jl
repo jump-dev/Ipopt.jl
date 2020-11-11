@@ -143,7 +143,7 @@ end
 function test_solve_time()
     model = Ipopt.Optimizer()
     x = MOI.add_variable(model)
-    @test MOI.get(model, MOI.SolveTime()) == NaN
+    @test isnan(MOI.get(model, MOI.SolveTime()))
     MOI.optimize!(model)
     @test MOI.get(model, MOI.SolveTime()) > 0.0
 end
