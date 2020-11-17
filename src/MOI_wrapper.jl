@@ -778,7 +778,7 @@ function MOI.get(
     MOI.throw_if_not_valid(model, ci)
     upper = model.variable_info[ci.value].upper_bound_dual_start
     lower = model.variable_info[ci.value].lower_bound_dual_start
-    return upper == lower ? nothing : lower + upper
+    return (upper === lower === nothing) ? nothing : lower + upper
 end
 
 macro define_constraint_dual_start(function_type, set_type, prefix)
