@@ -87,13 +87,14 @@ To switch back to the default binaries clear `JULIA_IPOPT_LIBRARY_PATH` and
 ## Linear Solvers
 
 To improve performance, Ipopt supports a number of linear solvers. Installing
-these can be tricky.
+these can be tricky, however, the following instructions should work. If they
+don't, or are not explicit enough, please open an issue.
 
-### Pardiso Project
+### Pardiso (Pardiso Project)
 
 #### Linux
 
-Tested on a clean install of Ubuntu 20.04.
+_Tested on a clean install of Ubuntu 20.04._
 
 1. Install lapack and libomp:
    ```
@@ -135,9 +136,25 @@ Tested on a clean install of Ubuntu 20.04.
 
 Currently untested. If you have instructions that work, please open an issue.
 
-### MA27
+### Pardiso (MKL)
 
 #### Linux
+
+Currently untested. If you have instructions that work, please open an issue.
+
+#### Mac
+
+Currently untested. If you have instructions that work, please open an issue.
+
+#### Windows
+
+Currently untested. If you have instructions that work, please open an issue.
+
+### HSL (MA27)
+
+#### Linux
+
+_Tested on a clean install of Ubuntu 20.04._
 
 1. Install Fortran compiler if necessary
    ```
@@ -182,6 +199,20 @@ Currently untested. If you have instructions that work, please open an issue.
    model = Model(Ipopt.Optimizer)
    set_optimizer_attribute(model, "linear_solver", "ma27")
    ```
+
+#### Windows
+
+Currently untested. If you have instructions that work, please open an issue.
+
+### HSL (MA86, MA97)
+
+#### Linux
+
+Currently untested. If you have instructions that work, please open an issue.
+
+#### Mac
+
+Currently untested. If you have instructions that work, please open an issue.
 
 #### Windows
 
