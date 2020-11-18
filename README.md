@@ -93,16 +93,43 @@ these can be tricky.
 
 #### Linux
 
-Currently untested. If you have instructions that work, please open an issue.
+Tested on a clean install of Ubuntu 20.04.
+
+1. Install lapack and libomp:
+   ```
+   sudo apt install liblapack3 libomp-dev
+   ```
+2. Download Pardiso from [https://www.pardiso-project.org](https://www.pardiso-project.org)
+3. Rename the file `libpardiso-XXXXX.so` to `libpardiso.so`, and place it
+   somewhere on your load path.
+   - Alternatively, if the library is located at `/full/path/libpardiso.dylib`,
+     start Julia with `export LD_LIBRARY_PATH=/full/path; julia`
+4. Set the option `linear_solver` to `pardiso`:
+   ```julia
+   using Libdl
+   # Note: these filenames may differ. Check `/usr/lib/x86_64-linux-gnu` for the
+   # specific extension.
+   Libdl.dlopen("/usr/lib/x86_64-linux-gnu/liblapack.so.3", RTLD_GLOBAL)
+   Libdl.dlopen("/usr/lib/x86_64-linux-gnu/libomp.so.5", RTLD_GLOBAL)
+
+   using JuMP, Ipopt
+   model = Model(Ipopt.Optimizer)
+   set_optimizer_attribute(model, "linear_solver", "pardiso")
+   ```
 
 #### Mac
 
 1. Download Pardiso from [https://www.pardiso-project.org](https://www.pardiso-project.org)
 2. Rename the file `libpardiso-XXXXX.dylib` to `libpardiso.dylib`, and place it
    somewhere on your load path.
-    - Alternatively, if the library is located at `/full/path/libpardiso.dylib`,
-      start Julia with `export LD_LOAD_PATH=/full/path; julia`
-4. Set the option `set_optimizer_attribute(model, "linear_solver", "pardiso")`
+   - Alternatively, if the library is located at `/full/path/libpardiso.dylib`,
+     start Julia with `export LD_LOAD_PATH=/full/path; julia`
+4. Set the option `linear_solver` to `pardiso`:
+   ```julia
+   using JuMP, Ipopt
+   model = Model(Ipopt.Optimizer)
+   set_optimizer_attribute(model, "linear_solver", "pardiso")
+   ```
 
 #### Windows
 
@@ -118,16 +145,21 @@ Currently untested. If you have instructions that work, please open an issue.
 
 1. Download HSL for IPOPT from http://www.hsl.rl.ac.uk/ipopt/
 2. Unzip the download, and run the following:
-    ```
-    ./configure --prefix=</full/path/somewhere>
-    make
-    ```
-    where `</full/path/somewhere>` is replaced as appropriate.
+   ```
+   ./configure --prefix=</full/path/somewhere>
+   make
+   ```
+   where `</full/path/somewhere>` is replaced as appropriate.
 3. Rename the files `/full/path/somewhere/lib/libcoinhsl.dylib` to
-    `/full/path/somewhere/lib/libhsl.dylib`, and place the library somewhere on
-    your load path.
-    - Alternatively, start Julia with `export LD_LOAD_PATH=/full/path/somewhere/lib; julia`
-4. Set the option `set_optimizer_attribute(model, "linear_solver", "ma27")`
+   `/full/path/somewhere/lib/libhsl.dylib`, and place the library somewhere on
+   your load path.
+   - Alternatively, start Julia with `export LD_LOAD_PATH=/full/path/somewhere/lib; julia`
+4. Set the option `linear_solver` to `ma27`:
+   ```julia
+   using JuMP, Ipopt
+   model = Model(Ipopt.Optimizer)
+   set_optimizer_attribute(model, "linear_solver", "ma27")
+   ```
 
 #### Windows
 
