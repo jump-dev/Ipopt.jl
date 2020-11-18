@@ -323,23 +323,28 @@ function openOutputFile(prob::IpoptProblem, file_name::String, print_level::Int)
     end
 end
 
-# TODO: Verify this function even works! Trying it with 0.5 on HS071
-# seems to change nothing.
-function setProblemScaling(prob::IpoptProblem, obj_scaling::Float64,
-    x_scaling = nothing,
-    g_scaling = nothing)
-    #/** Optional function for setting scaling parameter for the NLP.
-    # *  This corresponds to the get_scaling_parameters method in TNLP.
-    # *  If the pointers x_scaling or g_scaling are NULL, then no scaling
-    # *  for x resp. g is done. */
-    x_scale_arg = (x_scaling == nothing) ? C_NULL : x_scaling
-    g_scale_arg = (g_scaling == nothing) ? C_NULL : g_scaling
-    ret = ccall((:SetIpoptProblemScaling, libipopt),
-    Cint, (Ptr{Cvoid}, Float64, Ptr{Float64}, Ptr{Float64}),
-    prob.ref, obj_scaling, x_scale_arg, g_scale_arg)
+#/** Optional function for setting scaling parameter for the NLP.
+# *  This corresponds to the get_scaling_parameters method in TNLP.
+# *  If the pointers x_scaling or g_scaling are NULL, then no scaling
+# *  for x resp. g is done. */
+function setProblemScaling(
+    prob::IpoptProblem,
+    obj_scaling::Float64,
+    x_scaling::Union{Nothing, Vector{Float64}} = nothing,
+    g_scaling::Union{Nothing, Vector{Float64}} = nothing,
+)
+    x_scale_arg = (x_scaling === nothing) ? C_NULL : x_scaling
+    g_scale_arg = (g_scaling === nothing) ? C_NULL : g_scaling
+    ret = ccall(
+        (:SetIpoptProblemScaling, libipopt),
+        Cint,
+        (Ptr{Cvoid}, Float64, Ptr{Float64}, Ptr{Float64}),
+        prob.ref, obj_scaling, x_scale_arg, g_scale_arg
+    )
     if ret == 0
         error("IPOPT: Error setting problem scaling.")
     end
+    return
 end
 
 

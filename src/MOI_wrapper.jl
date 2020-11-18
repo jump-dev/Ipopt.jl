@@ -692,13 +692,20 @@ function MOI.set(
     return
 end
 
-# TODO(odow): this definition is incorrect. Should probably be
-# MOI.supports(::Optimizer, ::MOI.ConstrainDualStart, ::Type{<:MOI.ConstraintIndex})
+_dual_start(::Optimizer, ::Nothing, ::Int = 1) = 0.0
+function _dual_start(model::Optimizer, value::Real, scale::Int = 1)
+    return _dual_multiplier(model) * value * scale
+end
+
 function MOI.supports(
     ::Optimizer,
     ::MOI.ConstraintDualStart,
-    ::MOI.ConstraintIndex{MOI.SingleVariable, MOI.GreaterThan{Float64}},
-    ::Union{Real, Nothing},
+    ::Type{
+        MOI.ConstraintIndex{
+            MOI.SingleVariable,
+            <:Union{MOI.GreaterThan, MOI.LessThan, MOI.EqualTo},
+        }
+    }
 )
     return true
 end
@@ -714,15 +721,13 @@ function MOI.set(
     return
 end
 
-# TODO(odow): this definition is incorrect. Should probably be
-# MOI.supports(::Optimizer, ::MOI.ConstrainDualStart, ::Type{<:MOI.ConstraintIndex})
-function MOI.supports(
-    ::Optimizer,
+function MOI.get(
+    model::Optimizer,
     ::MOI.ConstraintDualStart,
-    ::MOI.ConstraintIndex{MOI.SingleVariable, MOI.LessThan{Float64}},
-    ::Union{Real, Nothing},
+    ci::MOI.ConstraintIndex{MOI.SingleVariable, MOI.GreaterThan{Float64}},
 )
-    return true
+    MOI.throw_if_not_valid(model, ci)
+    return model.variable_info[ci.value].lower_bound_dual_start
 end
 
 function MOI.set(
@@ -736,15 +741,13 @@ function MOI.set(
     return
 end
 
-# TODO(odow): this definition is incorrect. Should probably be
-# MOI.supports(::Optimizer, ::MOI.ConstrainDualStart, ::Type{<:MOI.ConstraintIndex})
-function MOI.supports(
-    ::Optimizer,
+function MOI.get(
+    model::Optimizer,
     ::MOI.ConstraintDualStart,
-    ::MOI.ConstraintIndex{MOI.SingleVariable, MOI.EqualTo{Float64}},
-    ::Union{Real, Nothing},
+    ci::MOI.ConstraintIndex{MOI.SingleVariable, MOI.LessThan{Float64}},
 )
-    return true
+    MOI.throw_if_not_valid(model, ci)
+    return model.variable_info[ci.value].upper_bound_dual_start
 end
 
 function MOI.set(
@@ -754,24 +757,55 @@ function MOI.set(
     value::Union{Real, Nothing},
 )
     MOI.throw_if_not_valid(model, ci)
-    model.variable_info[ci.value].upper_bound_dual_start = value
-    model.variable_info[ci.value].lower_bound_dual_start = value
+    if value === nothing
+        model.variable_info[ci.value].upper_bound_dual_start = nothing
+        model.variable_info[ci.value].lower_bound_dual_start = nothing
+    elseif value >= 0.0
+        model.variable_info[ci.value].upper_bound_dual_start = 0.0
+        model.variable_info[ci.value].lower_bound_dual_start = value
+    else
+        model.variable_info[ci.value].upper_bound_dual_start = value
+        model.variable_info[ci.value].lower_bound_dual_start = 0.0
+    end
     return
 end
 
+function MOI.get(
+    model::Optimizer,
+    ::MOI.ConstraintDualStart,
+    ci::MOI.ConstraintIndex{MOI.SingleVariable, MOI.EqualTo{Float64}},
+)
+    MOI.throw_if_not_valid(model, ci)
+    upper = model.variable_info[ci.value].upper_bound_dual_start
+    lower = model.variable_info[ci.value].lower_bound_dual_start
+    return (upper === lower === nothing) ? nothing : lower + upper
+end
+
 macro define_constraint_dual_start(function_type, set_type, prefix)
-    array_name = Symbol(string(prefix) * "_constraints")
+    array_name = Symbol("$(prefix)_constraints")
     quote
-        # TODO(odow): this definition is incorrect. Should probably be
-        # MOI.supports(::Optimizer, ::MOI.ConstrainDualStart, ::Type{<:MOI.ConstraintIndex})
         function MOI.supports(
             ::Optimizer,
             ::MOI.ConstraintDualStart,
-            ::MOI.ConstraintIndex{$function_type, $set_type},
+            ::Type{MOI.ConstraintIndex{$function_type, $set_type}},
         )
             return true
         end
+
         function MOI.set(
+            model::Optimizer,
+            ::MOI.ConstraintDualStart,
+            ci::MOI.ConstraintIndex{$function_type, $set_type},
+            value::Union{Real, Nothing},
+        )
+            if !(1 <= ci.value <= length(model.$(array_name)))
+                throw(MOI.InvalidIndex(ci))
+            end
+            model.$array_name[ci.value].dual_start = value
+            return
+        end
+
+        function MOI.get(
             model::Optimizer,
             ::MOI.ConstraintDualStart,
             ci::MOI.ConstraintIndex{$function_type, $set_type},
@@ -779,9 +813,7 @@ macro define_constraint_dual_start(function_type, set_type, prefix)
             if !(1 <= ci.value <= length(model.$(array_name)))
                 throw(MOI.InvalidIndex(ci))
             end
-            # Rescaling by `-1`, see `@define_constraint_dual`.
-            model.$array_name[ci.value].dual_start = -value
-            return
+            return model.$array_name[ci.value].dual_start
         end
     end
 end
@@ -814,10 +846,14 @@ function MOI.supports(::Optimizer, ::MOI.NLPBlockDualStart)
     return true
 end
 
-function MOI.set(model::Optimizer, ::MOI.NLPBlockDualStart, values)
-    model.nlp_dual_start = -values
+function MOI.set(
+    model::Optimizer, ::MOI.NLPBlockDualStart, values::Union{Nothing, Vector}
+)
+    model.nlp_dual_start = values
     return
 end
+
+MOI.get(model::Optimizer, ::MOI.NLPBlockDualStart) = model.nlp_dual_start
 
 function MOI.set(model::Optimizer, ::MOI.NLPBlock, nlp_data::MOI.NLPBlockData)
     model.nlp_data = nlp_data
@@ -1235,22 +1271,22 @@ function MOI.optimize!(model::Optimizer)
     hessian_sparsity = has_hessian ? hessian_lagrangian_structure(model) : []
 
     # Objective callback
-    if model.sense == MOI.MIN_SENSE
-        objective_scale = 1.0
-    elseif model.sense == MOI.MAX_SENSE
-        objective_scale = -1.0
-    else # FEASIBILITY_SENSE
-        # TODO: This could produce confusing solver output if a nonzero
-        # objective is set.
-        objective_scale = 0.0
+    # TODO(odow): FEASIBILITY_SENSE could produce confusing solver output if a
+    # nonzero objective is set.
+    function eval_f_cb(x)
+        if model.sense == MOI.FEASIBILITY_SENSE
+            return 0.0
+        end
+        return eval_objective(model, x)
     end
-
-    eval_f_cb(x) = objective_scale * eval_objective(model, x)
 
     # Objective gradient callback
     function eval_grad_f_cb(x, grad_f)
-        eval_objective_gradient(model, grad_f, x)
-        rmul!(grad_f,objective_scale)
+        if model.sense == MOI.FEASIBILITY_SENSE
+            grad_f .= zero(eltype(grad_f))
+        else
+            eval_objective_gradient(model, grad_f, x)
+        end
         return
     end
 
@@ -1279,7 +1315,6 @@ function MOI.optimize!(model::Optimizer)
                     cols[i] = hessian_sparsity[i][2]
                 end
             else
-                obj_factor *= objective_scale
                 eval_hessian_lagrangian(model, values, x, obj_factor, lambda)
             end
             return
@@ -1310,6 +1345,12 @@ function MOI.optimize!(model::Optimizer)
         eval_jac_g_cb,
         eval_h_cb,
     )
+
+    if model.sense == MOI.MIN_SENSE
+        addOption(model.inner, "obj_scaling_factor", 1.0)
+    elseif model.sense == MOI.MAX_SENSE
+        addOption(model.inner, "obj_scaling_factor", -1.0)
+    end
 
     # Ipopt crashes by default if NaN/Inf values are returned from the
     # evaluation callbacks. This option tells Ipopt to explicitly check for them
@@ -1366,18 +1407,15 @@ function MOI.optimize!(model::Optimizer)
     ]
 
     model.inner.mult_g = [
-        start === nothing ? 0.0 : start for start in mult_g_start
+        _dual_start(model, start, -1) for start in mult_g_start
     ]
 
-    model.inner.mult_x_L = [
-        v.lower_bound_dual_start === nothing ? 0.0 : v.lower_bound_dual_start
-        for v in model.variable_info
-    ]
-
-    model.inner.mult_x_U = [
-        v.upper_bound_dual_start === nothing ? 0.0 : v.lower_bound_dual_start
-        for v in model.variable_info
-    ]
+    model.inner.mult_x_L = zeros(length(model.variable_info))
+    model.inner.mult_x_U = zeros(length(model.variable_info))
+    for (i, v) in enumerate(model.variable_info)
+        model.inner.mult_x_L[i] = _dual_start(model, v.lower_bound_dual_start)
+        model.inner.mult_x_U[i] = _dual_start(model, v.upper_bound_dual_start, -1)
+    end
 
     if model.silent
         addOption(model.inner, "print_level", 0)
@@ -1488,8 +1526,7 @@ end
 
 function MOI.get(model::Optimizer, attr::MOI.ObjectiveValue)
     MOI.check_result_index_bounds(model, attr)
-    scale = (model.sense == MOI.MAX_SENSE) ? -1 : 1
-    return scale * model.inner.obj_val
+    return model.inner.obj_val
 end
 
 # TODO: This is a bit off, because the variable primal should be available
@@ -1560,9 +1597,11 @@ function MOI.get(
     return model.inner.x[ci.value]
 end
 
+_dual_multiplier(model::Optimizer) = model.sense == MOI.MIN_SENSE ? 1.0 : -1.0
+
 macro define_constraint_dual(function_type, set_type, prefix)
-    constraint_array = Symbol(string(prefix) * "_constraints")
-    offset_function = Symbol(string(prefix) * "_offset")
+    constraint_array = Symbol("$(prefix)_constraints")
+    offset_function = Symbol("$(prefix)_offset")
     quote
         function MOI.get(
             model::Optimizer,
@@ -1573,9 +1612,8 @@ macro define_constraint_dual(function_type, set_type, prefix)
             if !(1 <= ci.value <= length(model.$(constraint_array)))
                 error("Invalid constraint index ", ci.value)
             end
-            # TODO: Unable to find documentation in Ipopt about the signs of duals.
-            # Rescaling by -1 here seems to pass the MOI tests.
-            return -1 * model.inner.mult_g[ci.value + $offset_function(model)]
+            s = -_dual_multiplier(model)
+            return s * model.inner.mult_g[ci.value + $offset_function(model)]
         end
     end
 end
@@ -1611,8 +1649,8 @@ function MOI.get(
 )
     MOI.check_result_index_bounds(model, attr)
     MOI.throw_if_not_valid(model, ci)
-    # MOI convention is for feasible LessThan duals to be nonpositive.
-    return -1 * model.inner.mult_x_U[ci.value]
+    rc = model.inner.mult_x_L[ci.value] - model.inner.mult_x_U[ci.value]
+    return min(0.0, _dual_multiplier(model) * rc)
 end
 
 function MOI.get(
@@ -1622,7 +1660,8 @@ function MOI.get(
 )
     MOI.check_result_index_bounds(model, attr)
     MOI.throw_if_not_valid(model, ci)
-    return model.inner.mult_x_L[ci.value]
+    rc = model.inner.mult_x_L[ci.value] - model.inner.mult_x_U[ci.value]
+    return max(0.0, _dual_multiplier(model) * rc)
 end
 
 function MOI.get(
@@ -1632,10 +1671,12 @@ function MOI.get(
 )
     MOI.check_result_index_bounds(model, attr)
     MOI.throw_if_not_valid(model, ci)
-    return model.inner.mult_x_L[ci.value] - model.inner.mult_x_U[ci.value]
+    rc = model.inner.mult_x_L[ci.value] - model.inner.mult_x_U[ci.value]
+    return _dual_multiplier(model) * rc
 end
 
 function MOI.get(model::Optimizer, attr::MOI.NLPBlockDual)
     MOI.check_result_index_bounds(model, attr)
-    return -1 * model.inner.mult_g[(1 + nlp_constraint_offset(model)):end]
+    s = -_dual_multiplier(model)
+    return s .* model.inner.mult_g[(1 + nlp_constraint_offset(model)):end]
 end
