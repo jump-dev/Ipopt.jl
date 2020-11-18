@@ -139,7 +139,28 @@ Currently untested. If you have instructions that work, please open an issue.
 
 #### Linux
 
-Currently untested. If you have instructions that work, please open an issue.
+1. Install Fortran compiler if necessary
+   ```
+   sudo apt install gfortran
+   ```
+2. Download HSL for IPOPT from http://www.hsl.rl.ac.uk/ipopt/
+3. Unzip the download, and run the following:
+   ```
+   ./configure --prefix=</full/path/somewhere>
+   make
+   make install
+   ```
+   where `</full/path/somewhere>` is replaced as appropriate.
+4. Rename the files `/full/path/somewhere/lib/libcoinhsl.so` to
+   `/full/path/somewhere/lib/libhsl.so`, and place the library somewhere on
+   your load path.
+   - Alternatively, start Julia with `export LD_LIBRARY_PATH=/full/path/somewhere/lib; julia`
+5. Set the option `linear_solver` to `ma27`:
+   ```julia
+   using JuMP, Ipopt
+   model = Model(Ipopt.Optimizer)
+   set_optimizer_attribute(model, "linear_solver", "ma27")
+   ```
 
 #### Mac
 
@@ -148,6 +169,7 @@ Currently untested. If you have instructions that work, please open an issue.
    ```
    ./configure --prefix=</full/path/somewhere>
    make
+   make install
    ```
    where `</full/path/somewhere>` is replaced as appropriate.
 3. Rename the files `/full/path/somewhere/lib/libcoinhsl.dylib` to
