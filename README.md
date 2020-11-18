@@ -91,12 +91,30 @@ these can be tricky.
 
 ### Pardiso Project
 
+#### Linux
+
+Currently untested. If you have instructions that work, please open an issue.
+
+#### Mac
+
 1. Download Pardiso from [https://www.pardiso-project.org](https://www.pardiso-project.org)
-2. Rename the file `libpardiso-XXXXX.YYY` to `libpardiso.YYY`, and place it
+2. Rename the file `libpardiso-XXXXX.dylib` to `libpardiso.dylib`, and place it
    somewhere on your load path.
-3. Set the option `set_optimizer_attribute(model, "linear_solver", "pardiso")`
+    - Alternatively, if the library is located at `/full/path/libpardiso.dylib`,
+      start Julia with `export LD_LOAD_PATH=/full/path; julia`
+4. Set the option `set_optimizer_attribute(model, "linear_solver", "pardiso")`
+
+#### Windows
+
+Currently untested. If you have instructions that work, please open an issue.
 
 ### MA27
+
+#### Linux
+
+Currently untested. If you have instructions that work, please open an issue.
+
+#### Mac
 
 1. Download HSL for IPOPT from http://www.hsl.rl.ac.uk/ipopt/
 2. Unzip the download, and run the following:
@@ -105,7 +123,12 @@ these can be tricky.
     make
     ```
     where `</full/path/somewhere>` is replaced as appropriate.
-3. Rename the files `/full/path/somewhere/lib/libcoinhsl.xxx` to
-    `/full/path/somewhere/lib/libhsl.xxx`, and place the library somewhere on
+3. Rename the files `/full/path/somewhere/lib/libcoinhsl.dylib` to
+    `/full/path/somewhere/lib/libhsl.dylib`, and place the library somewhere on
     your load path.
+    - Alternatively, start Julia with `export LD_LOAD_PATH=/full/path/somewhere/lib; julia`
 4. Set the option `set_optimizer_attribute(model, "linear_solver", "ma27")`
+
+#### Windows
+
+Currently untested. If you have instructions that work, please open an issue.
