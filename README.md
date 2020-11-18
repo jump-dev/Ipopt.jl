@@ -46,7 +46,8 @@ model = Model(with_optimizer(Ipopt.Optimizer, max_cpu_time=60.0))
 C Interface Wrapper
 -------------------
 
-Full documentation for the Ipopt C wrapper is available [here](http://ipoptjl.readthedocs.org/en/latest/ipopt.html). Use of the [nonlinear MathOptInterface interface](https://github.com/jump-dev/MathOptInterface.jl) is recommended over the low-level C interface because it permits one to easily switch between solvers.
+Full documentation for the Ipopt C wrapper [is available](https://github.com/jump-dev/Ipopt.jl/blob/master/doc/C_API.md).
+However, we strongly encourage you to use Ipopt with JuMP instead.
 
 ## `INVALID_MODEL` error
 
