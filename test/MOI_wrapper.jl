@@ -215,6 +215,11 @@ function test_check_derivatives_for_naninf()
     @test MOI.get(model, MOI.TerminationStatus()) == MOI.INVALID_MODEL
 end
 
+function test_deprecation()
+    model = Ipopt.Optimizer(print_level = 0)
+    @test MOI.get(model, MOI.RawParameter("print_level")) == 0
+end
+
 end  # module TestMOIWrapper
 
 runtests(TestMOIWrapper)
