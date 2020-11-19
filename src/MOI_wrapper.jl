@@ -81,12 +81,14 @@ end
 
 empty_nlp_data() = MOI.NLPBlockData([], EmptyNLPEvaluator(), false)
 
-function Optimizer(; options...)
-    options_dict = Dict{String, Any}()
-    # TODO: Setting options through the constructor could be deprecated in the
-    # future.
-    for (name, value) in options
-        options_dict[string(name)] = value
+function Optimizer(; kwargs...)
+    if length(kwargs) > 0
+        @warn("""Passing optimizer attributes as keyword arguments to
+        `Ipopt.Optimizer` is deprecated. Use
+            MOI.set(model, MOI.RawParameter("key"), value)
+        or
+            JuMP.set_optimizer_attribute(model, "key", value)
+        instead.""")
     end
     return Optimizer(
         nothing,
@@ -102,7 +104,10 @@ function Optimizer(; options...)
         [],
         nothing,
         false,
-        options_dict,
+        Dict{String, Any}(
+            # Remove when `kwargs...` support is dropped.
+            string(key) => value for (key, value) in kwargs
+        ),
         NaN,
     )
 end
