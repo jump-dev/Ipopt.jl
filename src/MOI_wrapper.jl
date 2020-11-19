@@ -45,6 +45,8 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
 
     # Solution attributes.
     solve_time::Float64
+
+    callback::Union{Nothing, Function}
 end
 
 struct EmptyNLPEvaluator <: MOI.AbstractNLPEvaluator end
@@ -109,6 +111,7 @@ function Optimizer(; kwargs...)
             string(key) => value for (key, value) in kwargs
         ),
         NaN,
+        nothing,
     )
 end
 
@@ -464,7 +467,7 @@ function MOI.add_variables(model::Optimizer, n::Int)
 end
 
 function MOI.is_valid(model::Optimizer, vi::MOI.VariableIndex)
-    return vi.value in eachindex(model.variable_info)
+    return column(vi) in eachindex(model.variable_info)
 end
 
 function MOI.is_valid(
@@ -512,15 +515,15 @@ function check_inbounds(model::Optimizer, quad::MOI.ScalarQuadraticFunction)
 end
 
 function has_upper_bound(model::Optimizer, vi::MOI.VariableIndex)
-    return model.variable_info[vi.value].has_upper_bound
+    return model.variable_info[column(vi)].has_upper_bound
 end
 
 function has_lower_bound(model::Optimizer, vi::MOI.VariableIndex)
-    return model.variable_info[vi.value].has_lower_bound
+    return model.variable_info[column(vi)].has_lower_bound
 end
 
 function is_fixed(model::Optimizer, vi::MOI.VariableIndex)
-    return model.variable_info[vi.value].is_fixed
+    return model.variable_info[column(vi)].is_fixed
 end
 
 function MOI.add_constraint(
@@ -537,9 +540,10 @@ function MOI.add_constraint(
     if is_fixed(model, vi)
         throw(MOI.UpperBoundAlreadySet{MOI.EqualTo{Float64}, typeof(lt)}(vi))
     end
-    model.variable_info[vi.value].upper_bound = lt.upper
-    model.variable_info[vi.value].has_upper_bound = true
-    return MOI.ConstraintIndex{MOI.SingleVariable, MOI.LessThan{Float64}}(vi.value)
+    col = column(vi)
+    model.variable_info[col].upper_bound = lt.upper
+    model.variable_info[col].has_upper_bound = true
+    return MOI.ConstraintIndex{MOI.SingleVariable, MOI.LessThan{Float64}}(col)
 end
 
 function MOI.set(
@@ -577,9 +581,10 @@ function MOI.add_constraint(
     if is_fixed(model, vi)
         throw(MOI.LowerBoundAlreadySet{MOI.EqualTo{Float64}, typeof(gt)}(vi))
     end
-    model.variable_info[vi.value].lower_bound = gt.lower
-    model.variable_info[vi.value].has_lower_bound = true
-    return MOI.ConstraintIndex{MOI.SingleVariable, MOI.GreaterThan{Float64}}(vi.value)
+    col = column(vi)
+    model.variable_info[col].lower_bound = gt.lower
+    model.variable_info[col].has_lower_bound = true
+    return MOI.ConstraintIndex{MOI.SingleVariable, MOI.GreaterThan{Float64}}(col)
 end
 
 function MOI.set(
@@ -620,10 +625,11 @@ function MOI.add_constraint(
     if is_fixed(model, vi)
         throw(MOI.LowerBoundAlreadySet{typeof(eq), typeof(eq)}(vi))
     end
-    model.variable_info[vi.value].lower_bound = eq.value
-    model.variable_info[vi.value].upper_bound = eq.value
-    model.variable_info[vi.value].is_fixed = true
-    return MOI.ConstraintIndex{MOI.SingleVariable, MOI.EqualTo{Float64}}(vi.value)
+    col = column(vi)
+    model.variable_info[col].lower_bound = eq.value
+    model.variable_info[col].upper_bound = eq.value
+    model.variable_info[col].is_fixed = true
+    return MOI.ConstraintIndex{MOI.SingleVariable, MOI.EqualTo{Float64}}(col)
 end
 
 function MOI.set(
@@ -693,7 +699,7 @@ function MOI.set(
     value::Union{Real, Nothing},
 )
     MOI.throw_if_not_valid(model, vi)
-    model.variable_info[vi.value].start = value
+    model.variable_info[column(vi)].start = value
     return
 end
 
@@ -1429,6 +1435,9 @@ function MOI.optimize!(model::Optimizer)
     for (name, value) in model.options
         addOption(model.inner, name, value)
     end
+
+    _set_intermediate_callback(model.inner, model.callback)
+
     solveProblem(model.inner)
 
     model.solve_time = time() - start_time
@@ -1534,6 +1543,13 @@ function MOI.get(model::Optimizer, attr::MOI.ObjectiveValue)
     return model.inner.obj_val
 end
 
+"""
+    column(x::MOI.VariableIndex)
+
+Return the column associated with a variable.
+"""
+column(x::MOI.VariableIndex) = x.value
+
 # TODO: This is a bit off, because the variable primal should be available
 # only after a solve. If model.inner is initialized but we haven't solved, then
 # the primal values we return do not have the intended meaning.
@@ -1542,7 +1558,7 @@ function MOI.get(
 )
     MOI.check_result_index_bounds(model, attr)
     MOI.throw_if_not_valid(model, vi)
-    return model.inner.x[vi.value]
+    return model.inner.x[column(vi)]
 end
 
 macro define_constraint_primal(function_type, set_type, prefix)
@@ -1684,4 +1700,102 @@ function MOI.get(model::Optimizer, attr::MOI.NLPBlockDual)
     MOI.check_result_index_bounds(model, attr)
     s = -_dual_multiplier(model)
     return s .* model.inner.mult_g[(1 + nlp_constraint_offset(model)):end]
+end
+
+"""
+    CallbackFunction()
+
+A solver-dependent callback for Ipopt's IntermediateCallback.
+
+The callback should be a function like the following:
+```julia
+function my_intermediate_callback(
+    prob::IpoptProblem,
+    alg_mod::Cint,
+    iter_count::Cint,
+    obj_value::Float64,
+    inf_pr::Float64,
+    inf_du::Float64,
+    mu::Float64,
+    d_norm::Float64,
+    regularization_size::Float64,
+    alpha_du::Float64,
+    alpha_pr::Float64,
+    ls_trials::Cint,
+)
+    # ... user code ...
+    return true # or `return false` to terminate the solve.
+end
+```
+
+`prob` is an `IpoptProblem`, the object defining the low-level interface. Use
+`prob.x` to obtain the current primal iterate as a vector. Use
+`column(x::MOI.VariableIndex)` to map a `MOI.VariableIndex` to the 1-based
+column index.
+
+The remainder of the arguments are defined in the Ipopt documentation:
+https://coin-or.github.io/Ipopt/OUTPUT.html
+
+Note: Calling `setIntermediateCallback` will over-write this callback! Don't
+call both.
+"""
+struct CallbackFunction <: MOI.AbstractCallback end
+
+function _callback_function_wrapper(
+    alg_mod::Cint,
+    iter_count::Cint,
+    obj_value::Float64,
+    inf_pr::Float64,
+    inf_du::Float64,
+    mu::Float64,
+    d_norm::Float64,
+    regularization_size::Float64,
+    alpha_du::Float64,
+    alpha_pr::Float64,
+    s_trials::Cint,
+    p_problem::Ptr{Cvoid},
+)
+    prob = unsafe_pointer_to_objref(p_problem)::IpoptProblem
+    keep_going = prob.intermediate(
+        prob,
+        alg_mod,
+        iter_count,
+        obj_value,
+        inf_pr,
+        inf_du,
+        mu,
+        d_norm,
+        regularization_size,
+        alpha_du,
+        alpha_pr,
+        s_trials,
+    )
+    return keep_going ? Cint(1) : Cint(0)
+end
+
+function MOI.set(model::Optimizer, ::CallbackFunction, f::Function)
+    model.callback = f
+    return
+end
+
+function _set_intermediate_callback(prob::IpoptProblem, callback::Nothing)
+    prob.intermediate = nothing
+    return
+end
+
+function _set_intermediate_callback(prob::IpoptProblem, callback::Function)
+    prob.intermediate = callback
+    ipopt_callback = @cfunction(
+        _callback_function_wrapper,
+        Cint,
+       (Cint, Cint, Float64, Float64, Float64, Float64, Float64, Float64, Float64, Float64, Cint, Ptr{Cvoid}),
+    )
+    ret = ccall(
+        (:SetIntermediateCallback, libipopt), Cint, (Ptr{Cvoid}, Ptr{Cvoid}),
+        prob.ref, ipopt_callback,
+    )
+    if ret == 0
+        error("IPOPT: Something went wrong setting `CallbackFunction`.")
+    end
+    return
 end
