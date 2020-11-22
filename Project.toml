@@ -17,7 +17,7 @@ BinaryProvider = "0.5.9"
 Ipopt_jll = "3.13.1"
 MathOptInterface = "~0.9.5"
 MathProgBase = "~0.5.0, ~0.6, ~0.7"
-MUMPS_seq_jll = "5.2"
+MUMPS_seq_jll = "=5.2"
 julia = "1"
 
 [extras]
