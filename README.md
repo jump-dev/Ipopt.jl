@@ -82,8 +82,8 @@ executable repspectively. Then call `import Pkg; Pkg.build("Ipopt")`.
 For instance, given `/Users/oscar/lib/libipopt.dylib` and
 `/Users/oscar/bin/ipopt`, run:
 ```julia
-ENV["JULIA_IPOPT_LIBRARY_PATH"] = "/home/oscar/lib"
-ENV["JULIA_IPOPT_EXECUTABLE_PATH"] = "/home/oscar/bin"
+ENV["JULIA_IPOPT_LIBRARY_PATH"] = "/Users/oscar/lib"
+ENV["JULIA_IPOPT_EXECUTABLE_PATH"] = "/Users/oscar/bin"
 import Pkg
 Pkg.build("Ipopt")
 ```
