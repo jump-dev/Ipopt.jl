@@ -88,8 +88,16 @@ import Pkg
 Pkg.build("Ipopt")
 ```
 
-**Very important note: before calling `using Ipopt` in any Julia session, you
-must set these environment variables.**
+**Very important note: you must set these environment variables before 
+calling `using Ipopt` in every Julia session.**
+
+For example:
+```julia
+ENV["JULIA_IPOPT_LIBRARY_PATH"] = "/Users/oscar/lib"
+ENV["JULIA_IPOPT_EXECUTABLE_PATH"] = "/Users/oscar/bin"
+using Ipopt
+```
+Alternatively, you can set these permanently through your operating system.
 
 To switch back to the default binaries, run
 ```julia
