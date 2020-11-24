@@ -124,11 +124,11 @@ _Tested on a clean install of Ubuntu 20.04._
    sudo apt install liblapack3 libomp-dev
    ```
 2. Download Pardiso from [https://www.pardiso-project.org](https://www.pardiso-project.org)
-3. Rename the file `libpardiso-XXXXX.so` to `libpardiso.so`, and place it
-   somewhere on your load path.
+3. Rename the file `libpardiso-XXXXX.so` to `libpardiso.so`
+4. Place the `libpardiso.so` library somewhere on your load path.
    - Alternatively, if the library is located at `/full/path/libpardiso.dylib`,
      start Julia with `export LD_LIBRARY_PATH=/full/path; julia`
-4. Set the option `linear_solver` to `pardiso`:
+5. Set the option `linear_solver` to `pardiso`:
    ```julia
    using Libdl
    # Note: these filenames may differ. Check `/usr/lib/x86_64-linux-gnu` for the
@@ -146,8 +146,8 @@ _Tested on a clean install of Ubuntu 20.04._
 _Tested on a MacBook Pro, 10.15.7._
 
 1. Download Pardiso from [https://www.pardiso-project.org](https://www.pardiso-project.org)
-2. Rename the file `libpardiso-XXXXX.dylib` to `libpardiso.dylib`, and place it
-   somewhere on your load path.
+2. Rename the file `libpardiso-XXXXX.dylib` to `libpardiso.dylib`.
+3. Place the `libpardiso.dylib` library somewhere on your load path.
    - Alternatively, if the library is located at `/full/path/libpardiso.dylib`,
      start Julia with `export LD_LOAD_PATH=/full/path; julia`
 4. Set the option `linear_solver` to `pardiso`:
@@ -193,11 +193,11 @@ _Tested on a clean install of Ubuntu 20.04._
    make install
    ```
    where `</full/path/somewhere>` is replaced as appropriate.
-4. Rename the files `/full/path/somewhere/lib/libcoinhsl.so` to
-   `/full/path/somewhere/lib/libhsl.so`, and place the library somewhere on
-   your load path.
+4. Rename the file `/full/path/somewhere/lib/libcoinhsl.so` to
+   `/full/path/somewhere/lib/libhsl.so`.
+5. Place the `libhsl.so` library somewhere on your load path.
    - Alternatively, start Julia with `export LD_LIBRARY_PATH=/full/path/somewhere/lib; julia`
-5. Set the option `linear_solver` to `ma27`:
+6. Set the option `linear_solver` to `ma27`:
    ```julia
    using JuMP, Ipopt
    model = Model(Ipopt.Optimizer)
@@ -216,11 +216,11 @@ _Tested on a MacBook Pro, 10.15.7._
    make install
    ```
    where `</full/path/somewhere>` is replaced as appropriate.
-3. Rename the files `/full/path/somewhere/lib/libcoinhsl.dylib` to
-   `/full/path/somewhere/lib/libhsl.dylib`, and place the library somewhere on
-   your load path.
+3. Rename the file `/full/path/somewhere/lib/libcoinhsl.dylib` to
+   `/full/path/somewhere/lib/libhsl.dylib`
+4. Place the `libhsl.dylib` library somewhere on your load path.
    - Alternatively, start Julia with `export LD_LOAD_PATH=/full/path/somewhere/lib; julia`
-4. Set the option `linear_solver` to `ma27`:
+5. Set the option `linear_solver` to `ma27`:
    ```julia
    using JuMP, Ipopt
    model = Model(Ipopt.Optimizer)
