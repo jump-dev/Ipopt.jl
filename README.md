@@ -40,8 +40,8 @@ Supported options are listed in the [Ipopt documentation](https://coin-or.github
 
 ## C Interface Wrapper
 
-Full documentation for the Ipopt C wrapper is available [here](http://ipoptjl.readthedocs.org/en/latest/ipopt.html);
-however, we strongly recommend you use Ipopt via JuMP.
+Full documentation for the Ipopt C wrapper [is available](https://github.com/jump-dev/Ipopt.jl/blob/master/doc/C_API.md).
+However, we strongly encourage you to use Ipopt with JuMP instead.
 
 ## `INVALID_MODEL` error
 
