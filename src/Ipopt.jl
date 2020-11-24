@@ -321,6 +321,13 @@ function createProblem(
 )
     @assert n == length(x_L) == length(x_U)
     @assert m == length(g_L) == length(g_U)
+    if n == 0
+        # Ipopt cannot create a problem if there are no variables. As a hack,
+        # add a variable fixed to 0.
+        n = 1
+        push!(x_L, 0.0)
+        push!(x_U, 0.0)
+    end
     # Wrap callbacks
     eval_f_cb = @cfunction(
         eval_f_wrapper,

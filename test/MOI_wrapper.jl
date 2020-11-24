@@ -254,6 +254,12 @@ function test_callback()
     @test length(x_vals) == 2
 end
 
+function test_empty_optimize()
+    model = Ipopt.Optimizer()
+    MOI.optimize!(model)
+    @test MOI.get(model, MOI.TerminationStatus()) == MOI.LOCALLY_SOLVED
+end
+
 end  # module TestMOIWrapper
 
 runtests(TestMOIWrapper)
