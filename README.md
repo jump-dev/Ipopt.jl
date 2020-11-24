@@ -38,6 +38,48 @@ set_optimizer_attribute(model, "print_level", 0)
 
 Supported options are listed in the [Ipopt documentation](https://coin-or.github.io/Ipopt/OPTIONS.html#OPTIONS_REF).
 
+### Solver-specific callback
+
+Ipopt provides a callback that can be used to log the status of the optimization
+during a solve. It can also be used to terminate the optimization by returning
+`false`. Here is an example:
+
+```julia
+using JuMP, Ipopt, Test
+model = Model(Ipopt.Optimizer)
+set_silent(model)
+@variable(model, x >= 1)
+@objective(model, Min, x + 0.5)
+x_vals = Float64[]
+function my_callback(
+   prob::IpoptProblem,
+   alg_mod::Cint,
+   iter_count::Cint,
+   obj_value::Float64,
+   inf_pr::Float64,
+   inf_du::Float64,
+   mu::Float64,
+   d_norm::Float64,
+   regularization_size::Float64,
+   alpha_du::Float64,
+   alpha_pr::Float64,
+   ls_trials::Cint,
+)
+   c = Ipopt.column(index(x))
+   push!(x_vals, prob.x[c])
+   @test isapprox(obj_value, 1.0 * x_vals[end] + 0.5, atol = 1e-1)
+   # return `true` to keep going, or `false` to terminate the optimization.
+   return iter_count < 1
+end
+MOI.set(model, Ipopt.CallbackFunction(), my_callback)
+optimize!(model)
+@test MOI.get(model, MOI.TerminationStatus()) == MOI.INTERRUPTED
+@test length(x_vals) == 2
+```
+See the [Ipopt documentation](https://coin-or.github.io/Ipopt/OUTPUT.html) for
+an explanation of the arguments to the callback. They are identical to the
+output contained in the logging table printed to the screen.
+
 ## C Interface Wrapper
 
 Full documentation for the Ipopt C wrapper [is available](https://github.com/jump-dev/Ipopt.jl/blob/master/doc/C_API.md).
@@ -88,7 +130,7 @@ import Pkg
 Pkg.build("Ipopt")
 ```
 
-**Very important note: you must set these environment variables before 
+**Very important note: you must set these environment variables before
 calling `using Ipopt` in every Julia session.**
 
 For example:
