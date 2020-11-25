@@ -321,13 +321,6 @@ function createProblem(
 )
     @assert n == length(x_L) == length(x_U)
     @assert m == length(g_L) == length(g_U)
-    if n == 0
-        # Ipopt cannot create a problem if there are no variables. As a hack,
-        # add a variable fixed to 0.
-        n = 1
-        push!(x_L, 0.0)
-        push!(x_U, 0.0)
-    end
     # Wrap callbacks
     eval_f_cb = @cfunction(
         eval_f_wrapper,
@@ -374,7 +367,15 @@ function createProblem(
     )
 
     if problem_p == C_NULL
-        error("IPOPT: Failed to construct problem.")
+        if n == 0
+            error(
+                "IPOPT: Failed to construct problem because there are 0 " *
+                "variables. If you intended to construct an empty problem, " *
+                "one work-around is to add a variable fixed to 0."
+            )
+        else
+            error("IPOPT: Failed to construct problem for some unknown reason.")
+        end
     end
     return IpoptProblem(
         problem_p, n, m, eval_f, eval_g, eval_grad_f, eval_jac_g, eval_h,

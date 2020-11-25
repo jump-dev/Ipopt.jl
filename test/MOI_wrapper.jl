@@ -256,8 +256,12 @@ end
 
 function test_empty_optimize()
     model = Ipopt.Optimizer()
-    MOI.optimize!(model)
-    @test MOI.get(model, MOI.TerminationStatus()) == MOI.LOCALLY_SOLVED
+    err = ErrorException(
+        "IPOPT: Failed to construct problem because there are 0 variables. " *
+        "If you intended to construct an empty problem, one work-around is " *
+        "to add a variable fixed to 0."
+    )
+    @test_throws err MOI.optimize!(model)
 end
 
 end  # module TestMOIWrapper
