@@ -227,7 +227,7 @@ _Tested on a clean install of Ubuntu 20.04._
    ```
    sudo apt install gfortran
    ```
-2. Download HSL for IPOPT from http://www.hsl.rl.ac.uk/ipopt/
+2. Download [HSL for IPOPT from HSL](http://www.hsl.rl.ac.uk/ipopt/)
 3. Unzip the download, and run the following:
    ```
    ./configure --prefix=</full/path/somewhere>
@@ -277,7 +277,30 @@ Currently untested. If you have instructions that work, please open an issue.
 
 #### Linux
 
-Currently untested. If you have instructions that work, please open an issue.
+_Tested on a clean install of Ubuntu 20.04._
+
+1. Install Fortran compiler if necessary
+   ```
+   sudo apt install gfortran
+   ```
+2. Download [HSL_MA86 from HSL](http://www.hsl.rl.ac.uk/download/HSL_MA86/1.6.0/)
+3. Unzip the download, and run the following:
+   ```
+   ./configure --prefix=</full/path/somewhere>
+   make
+   make install
+   ```
+   where `</full/path/somewhere>` is replaced as appropriate.
+4. Rename the file `/full/path/somewhere/lib/libhsl_ma86.so` to
+   `/full/path/somewhere/lib/libhsl.so`.
+5. Place the `libhsl.so` library somewhere on your load path.
+   - Alternatively, start Julia with `export LD_LIBRARY_PATH=/full/path/somewhere/lib; julia`
+6. Set the option `linear_solver` to `ma86`:
+   ```julia
+   using JuMP, Ipopt
+   model = Model(Ipopt.Optimizer)
+   set_optimizer_attribute(model, "linear_solver", "ma86")
+   ```
 
 #### Mac
 
@@ -291,7 +314,7 @@ _Tested on a MacBook Pro, 10.15.7._
    make install
    ```
    where `</full/path/somewhere>` is replaced as appropriate.
-3. Rename the file `/full/path/somewhere/lib/libhsl_ma86.0.dylib` to
+3. Rename the file `/full/path/somewhere/lib/libhsl_ma86.dylib` to
    `/full/path/somewhere/lib/libhsl.dylib`
 4. Place the `libhsl.dylib` library somewhere on your load path.
    - Alternatively, start Julia with `export DL_LOAD_PATH=/full/path/somewhere/lib; julia`
