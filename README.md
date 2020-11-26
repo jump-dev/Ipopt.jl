@@ -203,128 +203,75 @@ _Tested on a MacBook Pro, 10.15.7._
 
 Currently untested. If you have instructions that work, please open an issue.
 
+### HSL (MA27, MA86, MA97)
+
+#### Linux
+
+_Tested on a clean install of Ubuntu 20.04._
+
+1. Install Fortran compiler if necessary
+   ```
+   sudo apt install gfortran
+   ```
+2. Download the appropriate version of HSL.
+   - MA27: [HSL for IPOPT from HSL](http://www.hsl.rl.ac.uk/ipopt/)
+   - MA86: [HSL_MA86 from HSL](http://www.hsl.rl.ac.uk/download/HSL_MA86/1.6.0/)
+   - Other: http://www.hsl.rl.ac.uk/catalogue/
+3. Unzip the download, `cd` to the directory, and run the following:
+   ```
+   ./configure --prefix=</full/path/somewhere>
+   make
+   make install
+   ```
+   where `</full/path/somewhere>` is replaced as appropriate.
+4. Rename the resutling HSL library to `/full/path/somewhere/lib/libhsl.so`.
+   - For `ma27`, the file is `/full/path/somewhere/lib/libcoinhsl.so`
+   - For `ma86`, the file is `/full/path/somewhere/lib/libhsl_ma86.so`
+5. Place the `libhsl.so` library somewhere on your load path.
+   - Alternatively, start Julia with `export LD_LIBRARY_PATH=/full/path/somewhere/lib; julia`
+6. Set the option `linear_solver` to `ma27` or `ma86` as appropriate:
+   ```julia
+   using JuMP, Ipopt
+   model = Model(Ipopt.Optimizer)
+   set_optimizer_attribute(model, "linear_solver", "ma27")
+   # or
+   set_optimizer_attribute(model, "linear_solver", "ma86")
+   ```
+
+#### Mac
+
+_Tested on a MacBook Pro, 10.15.7._
+
+1. Download the appropriate version of HSL.
+   - MA27: [HSL for IPOPT from HSL](http://www.hsl.rl.ac.uk/ipopt/)
+   - MA86: [HSL_MA86 from HSL](http://www.hsl.rl.ac.uk/download/HSL_MA86/1.6.0/)
+   - Other: http://www.hsl.rl.ac.uk/catalogue/
+2. Unzip the download, `cd` to the directory, and run the following:
+   ```
+   ./configure --prefix=</full/path/somewhere>
+   make
+   make install
+   ```
+   where `</full/path/somewhere>` is replaced as appropriate.
+3. Rename the resutling HSL library to `/full/path/somewhere/lib/libhsl.dylib`.
+   - For `ma27`, the file is `/full/path/somewhere/lib/libcoinhsl.dylib`
+   - For `ma86`, the file is `/full/path/somewhere/lib/libhsl_ma86.dylib`
+4. Place the `libhsl.dylib` library somewhere on your load path.
+   - Alternatively, start Julia with `export DL_LOAD_PATH=/full/path/somewhere/lib; julia`
+5. Set the option `linear_solver` to `ma27` or `ma86` as appropriate:
+   ```julia
+   using JuMP, Ipopt
+   model = Model(Ipopt.Optimizer)
+   set_optimizer_attribute(model, "linear_solver", "ma27")
+   # or
+   set_optimizer_attribute(model, "linear_solver", "ma86")
+   ```
+
+#### Windows
+
+Currently untested. If you have instructions that work, please open an issue.
+
 ### Pardiso (MKL)
 
-#### Linux
-
-Currently untested. If you have instructions that work, please open an issue.
-
-#### Mac
-
-Currently untested. If you have instructions that work, please open an issue.
-
-#### Windows
-
-Currently untested. If you have instructions that work, please open an issue.
-
-### HSL (MA27)
-
-#### Linux
-
-_Tested on a clean install of Ubuntu 20.04._
-
-1. Install Fortran compiler if necessary
-   ```
-   sudo apt install gfortran
-   ```
-2. Download [HSL for IPOPT from HSL](http://www.hsl.rl.ac.uk/ipopt/)
-3. Unzip the download, and run the following:
-   ```
-   ./configure --prefix=</full/path/somewhere>
-   make
-   make install
-   ```
-   where `</full/path/somewhere>` is replaced as appropriate.
-4. Rename the file `/full/path/somewhere/lib/libcoinhsl.so` to
-   `/full/path/somewhere/lib/libhsl.so`.
-5. Place the `libhsl.so` library somewhere on your load path.
-   - Alternatively, start Julia with `export LD_LIBRARY_PATH=/full/path/somewhere/lib; julia`
-6. Set the option `linear_solver` to `ma27`:
-   ```julia
-   using JuMP, Ipopt
-   model = Model(Ipopt.Optimizer)
-   set_optimizer_attribute(model, "linear_solver", "ma27")
-   ```
-
-#### Mac
-
-_Tested on a MacBook Pro, 10.15.7._
-
-1. Download HSL for IPOPT from http://www.hsl.rl.ac.uk/ipopt/
-2. Unzip the download, and run the following:
-   ```
-   ./configure --prefix=</full/path/somewhere>
-   make
-   make install
-   ```
-   where `</full/path/somewhere>` is replaced as appropriate.
-3. Rename the file `/full/path/somewhere/lib/libcoinhsl.dylib` to
-   `/full/path/somewhere/lib/libhsl.dylib`
-4. Place the `libhsl.dylib` library somewhere on your load path.
-   - Alternatively, start Julia with `export DL_LOAD_PATH=/full/path/somewhere/lib; julia`
-5. Set the option `linear_solver` to `ma27`:
-   ```julia
-   using JuMP, Ipopt
-   model = Model(Ipopt.Optimizer)
-   set_optimizer_attribute(model, "linear_solver", "ma27")
-   ```
-
-#### Windows
-
-Currently untested. If you have instructions that work, please open an issue.
-
-### HSL (MA86, MA97)
-
-#### Linux
-
-_Tested on a clean install of Ubuntu 20.04._
-
-1. Install Fortran compiler if necessary
-   ```
-   sudo apt install gfortran
-   ```
-2. Download [HSL_MA86 from HSL](http://www.hsl.rl.ac.uk/download/HSL_MA86/1.6.0/)
-3. Unzip the download, and run the following:
-   ```
-   ./configure --prefix=</full/path/somewhere>
-   make
-   make install
-   ```
-   where `</full/path/somewhere>` is replaced as appropriate.
-4. Rename the file `/full/path/somewhere/lib/libhsl_ma86.so` to
-   `/full/path/somewhere/lib/libhsl.so`.
-5. Place the `libhsl.so` library somewhere on your load path.
-   - Alternatively, start Julia with `export LD_LIBRARY_PATH=/full/path/somewhere/lib; julia`
-6. Set the option `linear_solver` to `ma86`:
-   ```julia
-   using JuMP, Ipopt
-   model = Model(Ipopt.Optimizer)
-   set_optimizer_attribute(model, "linear_solver", "ma86")
-   ```
-
-#### Mac
-
-_Tested on a MacBook Pro, 10.15.7._
-
-1. Download [HSL_MA86 from HSL](http://www.hsl.rl.ac.uk/download/HSL_MA86/1.6.0/)
-2. Unzip the download, and run the following:
-   ```
-   ./configure --prefix=</full/path/somewhere>
-   make
-   make install
-   ```
-   where `</full/path/somewhere>` is replaced as appropriate.
-3. Rename the file `/full/path/somewhere/lib/libhsl_ma86.dylib` to
-   `/full/path/somewhere/lib/libhsl.dylib`
-4. Place the `libhsl.dylib` library somewhere on your load path.
-   - Alternatively, start Julia with `export DL_LOAD_PATH=/full/path/somewhere/lib; julia`
-5. Set the option `linear_solver` to `ma86`:
-   ```julia
-   using JuMP, Ipopt
-   model = Model(Ipopt.Optimizer)
-   set_optimizer_attribute(model, "linear_solver", "ma86")
-   ```
-
-#### Windows
-
-Currently untested. If you have instructions that work, please open an issue.
+Currently untested on all platforms. If you have instructions that work, please
+open an issue.
