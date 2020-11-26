@@ -191,7 +191,7 @@ _Tested on a MacBook Pro, 10.15.7._
 2. Rename the file `libpardiso-XXXXX.dylib` to `libpardiso.dylib`.
 3. Place the `libpardiso.dylib` library somewhere on your load path.
    - Alternatively, if the library is located at `/full/path/libpardiso.dylib`,
-     start Julia with `export LD_LOAD_PATH=/full/path; julia`
+     start Julia with `export DL_LOAD_PATH=/full/path; julia`
 4. Set the option `linear_solver` to `pardiso`:
    ```julia
    using JuMP, Ipopt
@@ -261,7 +261,7 @@ _Tested on a MacBook Pro, 10.15.7._
 3. Rename the file `/full/path/somewhere/lib/libcoinhsl.dylib` to
    `/full/path/somewhere/lib/libhsl.dylib`
 4. Place the `libhsl.dylib` library somewhere on your load path.
-   - Alternatively, start Julia with `export LD_LOAD_PATH=/full/path/somewhere/lib; julia`
+   - Alternatively, start Julia with `export DL_LOAD_PATH=/full/path/somewhere/lib; julia`
 5. Set the option `linear_solver` to `ma27`:
    ```julia
    using JuMP, Ipopt
@@ -281,7 +281,26 @@ Currently untested. If you have instructions that work, please open an issue.
 
 #### Mac
 
-Currently untested. If you have instructions that work, please open an issue.
+_Tested on a MacBook Pro, 10.15.7._
+
+1. Download [HSL_MA86 from HSL](http://www.hsl.rl.ac.uk/download/HSL_MA86/1.6.0/)
+2. Unzip the download, and run the following:
+   ```
+   ./configure --prefix=</full/path/somewhere>
+   make
+   make install
+   ```
+   where `</full/path/somewhere>` is replaced as appropriate.
+3. Rename the file `/full/path/somewhere/lib/libhsl_ma86.0.dylib` to
+   `/full/path/somewhere/lib/libhsl.dylib`
+4. Place the `libhsl.dylib` library somewhere on your load path.
+   - Alternatively, start Julia with `export DL_LOAD_PATH=/full/path/somewhere/lib; julia`
+5. Set the option `linear_solver` to `ma86`:
+   ```julia
+   using JuMP, Ipopt
+   model = Model(Ipopt.Optimizer)
+   set_optimizer_attribute(model, "linear_solver", "ma86")
+   ```
 
 #### Windows
 
