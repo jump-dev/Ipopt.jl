@@ -3,7 +3,7 @@
 ![](https://www.coin-or.org/wordpress/wp-content/uploads/2014/08/COINOR.png)
 
 **Ipopt.jl** is a [Julia](http://julialang.org/) interface to the [COIN-OR](www.coin-or.org)
-nonlinear solver [Ipopt](http://www.coin-or.org/Ipopt/documentation/documentation.html).
+nonlinear solver [Ipopt](https://coin-or.github.io/Ipopt/).
 
 *Note: This wrapper is maintained by the JuMP community and is not a COIN-OR
 project.*
