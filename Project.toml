@@ -13,7 +13,7 @@ MathProgBase = "fdba3010-5040-5b88-9595-932c9decdf73"
 
 [compat]
 BinaryProvider = "0.5.9"
-Ipopt_jll = "3.13.2"
+Ipopt_jll = "=3.13.2, =3.13.4"
 MathOptInterface = "~0.9.5"
 MathProgBase = "~0.5.0, ~0.6, ~0.7"
 julia = "1"
