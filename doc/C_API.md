@@ -2,7 +2,7 @@
 
 ## Example
 
-The official documentation uses a sample problem, [HS071](http://www.coin-or.org/Ipopt/documentation/node20.html)
+The official documentation uses a sample problem, [HS071](https://coin-or.github.io/Ipopt/INTERFACES.html)
 to motivate the various interfaces. Here is what that particular problem looks
 like in Julia with the Ipopt.jl interface::
 
