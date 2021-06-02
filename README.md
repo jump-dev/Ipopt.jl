@@ -167,9 +167,14 @@ _Tested on a clean install of Ubuntu 20.04._
    ```
 2. Download Pardiso from [https://www.pardiso-project.org](https://www.pardiso-project.org)
 3. Rename the file `libpardiso-XXXXX.so` to `libpardiso.so`
-4. Place the `libpardiso.so` library somewhere on your load path.
-   - Alternatively, if the library is located at `/full/path/libpardiso.dylib`,
+4. Place the `libpardiso.so` library somewhere on your load path
+   - Alternatively, if the library is located at `/full/path/libpardiso.so`,
      start Julia with `export LD_LIBRARY_PATH=/full/path; julia`
+
+     To make this permanent, modify your `.bashrc` to include:
+     ```
+     export LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:/full/path/"
+     ```
 5. Set the option `linear_solver` to `pardiso`:
    ```julia
    using Libdl
