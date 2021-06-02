@@ -127,7 +127,7 @@ function Optimizer(; kwargs...)
     if length(kwargs) > 0
         @warn("""Passing optimizer attributes as keyword arguments to
         `Ipopt.Optimizer` is deprecated. Use
-            MOI.set(model, MOI.RawParameter("key"), value)
+            MOI.set(model, MOI.RawOptimizerAttribute("key"), value)
         or
             JuMP.set_optimizer_attribute(model, "key", value)
         instead.""")
@@ -179,7 +179,7 @@ MOI.supports(::Optimizer, ::MOI.ObjectiveSense) = true
 
 MOI.supports(::Optimizer, ::MOI.Silent) = true
 
-MOI.supports(::Optimizer, ::MOI.RawParameter) = true
+MOI.supports(::Optimizer, ::MOI.RawOptimizerAttribute) = true
 
 function MOI.supports(
     ::Optimizer,
@@ -317,7 +317,7 @@ function MOI.get(model::Optimizer, ::MOI.ListOfVariableIndices)
     return [MOI.VariableIndex(i) for i in 1:length(model.variable_info)]
 end
 
-function MOI.get(model::Optimizer, ::MOI.ListOfConstraints)
+function MOI.get(model::Optimizer, ::MOI.ListOfConstraintTypesPresent)
     constraints = Set{Tuple{DataType,DataType}}()
     for info in model.variable_info
         if info.has_lower_bound
@@ -589,7 +589,8 @@ const TIME_LIMIT = "max_cpu_time"
 MOI.supports(::Optimizer, ::MOI.TimeLimitSec) = true
 
 function MOI.set(model::Optimizer, ::MOI.TimeLimitSec, value::Real)
-    return MOI.set(model, MOI.RawParameter(TIME_LIMIT), Float64(value))
+    MOI.set(model, MOI.RawOptimizerAttribute(TIME_LIMIT), Float64(value))
+    return
 end
 
 function MOI.set(model::Optimizer, attr::MOI.TimeLimitSec, ::Nothing)
@@ -600,19 +601,19 @@ function MOI.get(model::Optimizer, ::MOI.TimeLimitSec)
     return get(model.options, TIME_LIMIT, nothing)
 end
 
-function MOI.set(model::Optimizer, p::MOI.RawParameter, value)
+function MOI.set(model::Optimizer, p::MOI.RawOptimizerAttribute, value)
     model.options[p.name] = value
     return
 end
 
-function MOI.get(model::Optimizer, p::MOI.RawParameter)
-    if haskey(model.options, p.name)
-        return model.options[p.name]
+function MOI.get(model::Optimizer, p::MOI.RawOptimizerAttribute)
+    if !haskey(model.options, p.name)
+        error("RawParameter with name $(p.name) is not set.")
     end
-    return error("RawParameter with name $(p.name) is not set.")
+    return model.options[p.name]
 end
 
-MOI.get(model::Optimizer, ::MOI.SolveTime) = model.solve_time
+MOI.get(model::Optimizer, ::MOI.SolveTimeSec) = model.solve_time
 
 function MOI.empty!(model::Optimizer)
     model.inner = nothing
@@ -684,17 +685,17 @@ end
 
 function check_inbounds(model::Optimizer, aff::MOI.ScalarAffineFunction)
     for term in aff.terms
-        MOI.throw_if_not_valid(model, term.variable_index)
+        MOI.throw_if_not_valid(model, term.variable)
     end
 end
 
 function check_inbounds(model::Optimizer, quad::MOI.ScalarQuadraticFunction)
     for term in quad.affine_terms
-        MOI.throw_if_not_valid(model, term.variable_index)
+        MOI.throw_if_not_valid(model, term.variable)
     end
     for term in quad.quadratic_terms
-        MOI.throw_if_not_valid(model, term.variable_index_1)
-        MOI.throw_if_not_valid(model, term.variable_index_2)
+        MOI.throw_if_not_valid(model, term.variable_1)
+        MOI.throw_if_not_valid(model, term.variable_2)
     end
 end
 
@@ -1140,7 +1141,7 @@ function append_to_jacobian_sparsity!(
     row,
 )
     for term in aff.terms
-        push!(jacobian_sparsity, (row, term.variable_index.value))
+        push!(jacobian_sparsity, (row, term.variable.value))
     end
 end
 
@@ -1150,11 +1151,11 @@ function append_to_jacobian_sparsity!(
     row,
 )
     for term in quad.affine_terms
-        push!(jacobian_sparsity, (row, term.variable_index.value))
+        push!(jacobian_sparsity, (row, term.variable.value))
     end
     for term in quad.quadratic_terms
-        row_idx = term.variable_index_1
-        col_idx = term.variable_index_2
+        row_idx = term.variable_1
+        col_idx = term.variable_2
         if row_idx == col_idx
             push!(jacobian_sparsity, (row, row_idx.value))
         else
@@ -1215,7 +1216,7 @@ function append_to_hessian_sparsity!(
     for term in quad.quadratic_terms
         push!(
             hessian_sparsity,
-            (term.variable_index_1.value, term.variable_index_2.value),
+            (term.variable_1.value, term.variable_2.value),
         )
     end
 end
@@ -1250,7 +1251,7 @@ function eval_function(aff::MOI.ScalarAffineFunction, x)
         # Note the implicit assumtion that VariableIndex values match up with
         # x indices. This is valid because in this wrapper ListOfVariableIndices
         # is always [1, ..., NumberOfVariables].
-        function_value += term.coefficient * x[term.variable_index.value]
+        function_value += term.coefficient * x[term.variable.value]
     end
     return function_value
 end
@@ -1258,11 +1259,11 @@ end
 function eval_function(quad::MOI.ScalarQuadraticFunction, x)
     function_value = quad.constant
     for term in quad.affine_terms
-        function_value += term.coefficient * x[term.variable_index.value]
+        function_value += term.coefficient * x[term.variable.value]
     end
     for term in quad.quadratic_terms
-        row_idx = term.variable_index_1
-        col_idx = term.variable_index_2
+        row_idx = term.variable_1
+        col_idx = term.variable_2
         coefficient = term.coefficient
         if row_idx == col_idx
             function_value +=
@@ -1295,18 +1296,18 @@ end
 function fill_gradient!(grad, x, aff::MOI.ScalarAffineFunction{Float64})
     fill!(grad, 0.0)
     for term in aff.terms
-        grad[term.variable_index.value] += term.coefficient
+        grad[term.variable.value] += term.coefficient
     end
 end
 
 function fill_gradient!(grad, x, quad::MOI.ScalarQuadraticFunction{Float64})
     fill!(grad, 0.0)
     for term in quad.affine_terms
-        grad[term.variable_index.value] += term.coefficient
+        grad[term.variable.value] += term.coefficient
     end
     for term in quad.quadratic_terms
-        row_idx = term.variable_index_1
-        col_idx = term.variable_index_2
+        row_idx = term.variable_1
+        col_idx = term.variable_2
         coefficient = term.coefficient
         if row_idx == col_idx
             grad[row_idx.value] += coefficient * x[row_idx.value]
@@ -1377,8 +1378,8 @@ function fill_constraint_jacobian!(
     end
     num_quadratic_coefficients = 0
     for term in quad.quadratic_terms
-        row_idx = term.variable_index_1
-        col_idx = term.variable_index_2
+        row_idx = term.variable_1
+        col_idx = term.variable_2
         coefficient = term.coefficient
         offset =
             start_offset + num_affine_coefficients + num_quadratic_coefficients
@@ -1770,7 +1771,7 @@ function MOI.get(model::Optimizer, ::MOI.ResultCount)
 end
 
 function MOI.get(model::Optimizer, attr::MOI.PrimalStatus)
-    if !(1 <= attr.N <= MOI.get(model, MOI.ResultCount()))
+    if !(1 <= attr.result_index <= MOI.get(model, MOI.ResultCount()))
         return MOI.NO_SOLUTION
     end
     status = ApplicationReturnStatus[model.inner.status]
@@ -1790,7 +1791,7 @@ function MOI.get(model::Optimizer, attr::MOI.PrimalStatus)
 end
 
 function MOI.get(model::Optimizer, attr::MOI.DualStatus)
-    if !(1 <= attr.N <= MOI.get(model, MOI.ResultCount()))
+    if !(1 <= attr.result_index <= MOI.get(model, MOI.ResultCount()))
         return MOI.NO_SOLUTION
     end
     status = ApplicationReturnStatus[model.inner.status]

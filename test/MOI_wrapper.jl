@@ -13,7 +13,7 @@ MOI.set(OPTIMIZER, MOI.Silent(), true)
 # that have lower_bound == upper_bound.
 MOI.set(
     OPTIMIZER,
-    MOI.RawParameter("fixed_variable_treatment"),
+    MOI.RawOptimizerAttribute("fixed_variable_treatment"),
     "make_constraint",
 )
 
@@ -21,19 +21,20 @@ MOI.set(
 const BRIDGED_OPTIMIZER = MOI.Bridges.full_bridge_optimizer(
     MOI.Utilities.CachingOptimizer(
         MOI.Utilities.UniversalFallback(MOI.Utilities.Model{Float64}()),
-        OPTIMIZER,
+        Ipopt.Optimizer(),
     ),
     Float64,
 )
+MOI.set(BRIDGED_OPTIMIZER, MOI.Silent(), true)
 
-const CONFIG = MOI.Test.TestConfig(
+const CONFIG = MOI.Test.Config(
     atol = 1e-4,
     rtol = 1e-4,
     optimal_status = MOI.LOCALLY_SOLVED,
     infeas_certificates = false,
 )
 
-const CONFIG_NO_DUAL = MOI.Test.TestConfig(
+const CONFIG_NO_DUAL = MOI.Test.Config(
     atol = 1e-4,
     rtol = 1e-4,
     optimal_status = MOI.LOCALLY_SOLVED,
@@ -148,8 +149,8 @@ function test_qp()
 end
 
 function test_qcp()
-    MOI.empty!(BRIDGED_OPTIMIZER)
-    return MOI.Test.qcptest(BRIDGED_OPTIMIZER, CONFIG_NO_DUAL)
+    MOI.Test.qcptest(BRIDGED_OPTIMIZER, CONFIG_NO_DUAL)
+    return
 end
 
 function test_nlptest()
@@ -183,9 +184,9 @@ end
 function test_solve_time()
     model = Ipopt.Optimizer()
     x = MOI.add_variable(model)
-    @test isnan(MOI.get(model, MOI.SolveTime()))
+    @test isnan(MOI.get(model, MOI.SolveTimeSec()))
     MOI.optimize!(model)
-    @test MOI.get(model, MOI.SolveTime()) > 0.0
+    @test MOI.get(model, MOI.SolveTimeSec()) > 0.0
 end
 
 # Model structure for test_check_derivatives_for_naninf()
@@ -212,19 +213,19 @@ function test_check_derivatives_for_naninf()
     # Failure to set check_derivatives_for_naninf="yes" may cause Ipopt to
     # segfault or return a NUMERICAL_ERROR status. Check that it is set to "yes"
     # by obtaining an INVALID_MODEL status.
-    # MOI.set(model, MOI.RawParameter("check_derivatives_for_naninf"), "no")
+    # MOI.set(model, MOI.RawOptimizerAttribute("check_derivatives_for_naninf"), "no")
     MOI.optimize!(model)
     @test MOI.get(model, MOI.TerminationStatus()) == MOI.INVALID_MODEL
 end
 
 function test_deprecation()
     model = Ipopt.Optimizer(print_level = 0)
-    @test MOI.get(model, MOI.RawParameter("print_level")) == 0
+    @test MOI.get(model, MOI.RawOptimizerAttribute("print_level")) == 0
 end
 
 function test_callback()
     model = Ipopt.Optimizer()
-    MOI.set(model, MOI.RawParameter("print_level"), 0)
+    MOI.set(model, MOI.RawOptimizerAttribute("print_level"), 0)
     x = MOI.add_variable(model)
     MOI.add_constraint(model, MOI.SingleVariable(x), MOI.GreaterThan(1.0))
     MOI.set(model, MOI.ObjectiveSense(), MOI.MIN_SENSE)
