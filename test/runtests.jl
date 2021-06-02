@@ -22,4 +22,3 @@ end
 @testset "MathProgBase" begin
     include("MPB_wrapper.jl")
 end
-

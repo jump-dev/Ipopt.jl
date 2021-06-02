@@ -12,7 +12,9 @@ MOI.set(OPTIMIZER, MOI.Silent(), true)
 # Without fixed_variable_treatment set, duals are not computed for variables
 # that have lower_bound == upper_bound.
 MOI.set(
-    OPTIMIZER, MOI.RawParameter("fixed_variable_treatment"), "make_constraint"
+    OPTIMIZER,
+    MOI.RawParameter("fixed_variable_treatment"),
+    "make_constraint",
 )
 
 # TODO(odow): add features to Ipopt so we can remove some of this caching.
@@ -54,7 +56,7 @@ function test_basicconstraint()
 end
 
 function test_unittest()
-    MOI.Test.unittest(
+    return MOI.Test.unittest(
         BRIDGED_OPTIMIZER,
         CONFIG,
         String[
@@ -74,7 +76,7 @@ function test_unittest()
             "solve_zero_one_with_bounds_1",
             "solve_zero_one_with_bounds_2",
             "solve_zero_one_with_bounds_3",
-        ]
+        ],
     )
 end
 
@@ -133,49 +135,49 @@ function test_contlinear()
             "linear12",
             # An INVALID_MODEL because it contains an empty 0 == 0 row.
             "linear15",
-        ]
+        ],
     )
     MOI.Test.linear1test(BRIDGED_OPTIMIZER, CONFIG_NO_DUAL)
     MOI.Test.linear2test(BRIDGED_OPTIMIZER, CONFIG_NO_DUAL)
     MOI.Test.linear10test(BRIDGED_OPTIMIZER, CONFIG_NO_DUAL)
-    MOI.Test.linear14test(BRIDGED_OPTIMIZER, CONFIG_NO_DUAL)
+    return MOI.Test.linear14test(BRIDGED_OPTIMIZER, CONFIG_NO_DUAL)
 end
 
 function test_qp()
-    MOI.Test.qptest(BRIDGED_OPTIMIZER, CONFIG)
+    return MOI.Test.qptest(BRIDGED_OPTIMIZER, CONFIG)
 end
 
 function test_qcp()
     MOI.empty!(BRIDGED_OPTIMIZER)
-    MOI.Test.qcptest(BRIDGED_OPTIMIZER, CONFIG_NO_DUAL)
+    return MOI.Test.qcptest(BRIDGED_OPTIMIZER, CONFIG_NO_DUAL)
 end
 
 function test_nlptest()
-    MOI.Test.nlptest(OPTIMIZER, CONFIG)
+    return MOI.Test.nlptest(OPTIMIZER, CONFIG)
 end
 
 function test_getters()
-    MOI.Test.copytest(
-        MOI.instantiate(Ipopt.Optimizer, with_bridge_type=Float64),
-        MOI.Utilities.Model{Float64}()
+    return MOI.Test.copytest(
+        MOI.instantiate(Ipopt.Optimizer, with_bridge_type = Float64),
+        MOI.Utilities.Model{Float64}(),
     )
 end
 
 function test_boundsettwice()
     MOI.Test.set_lower_bound_twice(OPTIMIZER, Float64)
-    MOI.Test.set_upper_bound_twice(OPTIMIZER, Float64)
+    return MOI.Test.set_upper_bound_twice(OPTIMIZER, Float64)
 end
 
 function test_nametest()
-    MOI.Test.nametest(BRIDGED_OPTIMIZER)
+    return MOI.Test.nametest(BRIDGED_OPTIMIZER)
 end
 
 function test_validtest()
-    MOI.Test.validtest(BRIDGED_OPTIMIZER)
+    return MOI.Test.validtest(BRIDGED_OPTIMIZER)
 end
 
 function test_emptytest()
-    MOI.Test.emptytest(BRIDGED_OPTIMIZER)
+    return MOI.Test.emptytest(BRIDGED_OPTIMIZER)
 end
 
 function test_solve_time()
@@ -193,7 +195,7 @@ MOI.features_available(d::Issue136) = [:Grad, :Jac]
 MOI.eval_objective(::Issue136, x) = x[1]
 MOI.eval_constraint(::Issue136, g, x) = (g[1] = x[1]^(1 / 3))
 MOI.eval_objective_gradient(::Issue136, grad_f, x) = (grad_f[1] = 1.0)
-MOI.jacobian_structure(::Issue136) = Tuple{Int64,Int64}[(1,1)]
+MOI.jacobian_structure(::Issue136) = Tuple{Int64,Int64}[(1, 1)]
 function MOI.eval_constraint_jacobian(::Issue136, J, x)
     J[1] = (1 / 3) * x[1]^(1 / 3 - 1)
     return
@@ -259,7 +261,7 @@ function test_empty_optimize()
     err = ErrorException(
         "IPOPT: Failed to construct problem because there are 0 variables. " *
         "If you intended to construct an empty problem, one work-around is " *
-        "to add a variable fixed to 0."
+        "to add a variable fixed to 0.",
     )
     @test_throws err MOI.optimize!(model)
 end

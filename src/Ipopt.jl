@@ -5,9 +5,14 @@ using LinearAlgebra
 
 const _DEPS_FILE = joinpath(dirname(@__DIR__), "deps", "deps.jl")
 
-if VERSION < v"1.3" || (haskey(ENV, "JULIA_IPOPT_LIBRARY_PATH") && haskey(ENV, "JULIA_IPOPT_EXECUTABLE_PATH"))
+if VERSION < v"1.3" || (
+    haskey(ENV, "JULIA_IPOPT_LIBRARY_PATH") &&
+    haskey(ENV, "JULIA_IPOPT_EXECUTABLE_PATH")
+)
     if !isfile(_DEPS_FILE)
-        error("Ipopt not properly installed. Please run import Pkg; Pkg.build(\"Ipopt\")")
+        error(
+            "Ipopt not properly installed. Please run import Pkg; Pkg.build(\"Ipopt\")",
+        )
     end
     include(_DEPS_FILE)
 
@@ -22,9 +27,13 @@ if VERSION < v"1.3" || (haskey(ENV, "JULIA_IPOPT_LIBRARY_PATH") && haskey(ENV, "
         temp_dir = abspath(dirname(Ipopt.amplexe))
         proc = run(
             pipeline(
-                Cmd(`$(Ipopt.amplexe) $arguments`,env=temp_env,dir=temp_dir),
-                stdout=stdout,
-            )
+                Cmd(
+                    `$(Ipopt.amplexe) $arguments`,
+                    env = temp_env,
+                    dir = temp_dir,
+                ),
+                stdout = stdout,
+            ),
         )
         wait(proc)
         kill(proc)
@@ -40,11 +49,11 @@ else
         # end
         temp_dir = abspath(dirname(amplexe_path))
         proc = amplexe() do amplexe_path
-            run(
+            return run(
                 pipeline(
-                    Cmd(`$amplexe_path $arguments`,dir=temp_dir),
-                    stdout=stdout,
-                )
+                    Cmd(`$amplexe_path $arguments`, dir = temp_dir),
+                    stdout = stdout,
+                ),
             )
         end
         wait(proc)
@@ -77,19 +86,25 @@ function __init__()
         global amplexe_env_val = "$(julia_libdir)$(pathsep)$(get(ENV,"LD_LIBRARY_PATH",""))"
     elseif Sys.iswindows()
         # for some reason windows sometimes needs Path instead of PATH
-        global amplexe_env_var = ["PATH","Path","path"]
+        global amplexe_env_var = ["PATH", "Path", "path"]
         global amplexe_env_val = "$(julia_bindir)$(pathsep)$(get(ENV,"PATH",""))"
     end
 
     # Still need this for AmplNLWriter to work until it uses amplexefun defined above
     # (amplexefun wraps the call to the binary and doesn't leave environment variables changed.)
     @static if Sys.isapple()
-         ENV["DYLD_LIBRARY_PATH"] = string(get(ENV, "DYLD_LIBRARY_PATH", ""), ":", julia_libdir)
+        ENV["DYLD_LIBRARY_PATH"] =
+            string(get(ENV, "DYLD_LIBRARY_PATH", ""), ":", julia_libdir)
     elseif Sys.islinux()
-         ENV["LD_LIBRARY_PATH"] = string(get(ENV, "LD_LIBRARY_PATH", ""), ":", julia_libdir, ":", ipopt_libdir)
+        ENV["LD_LIBRARY_PATH"] = string(
+            get(ENV, "LD_LIBRARY_PATH", ""),
+            ":",
+            julia_libdir,
+            ":",
+            ipopt_libdir,
+        )
     end
 end
-
 
 mutable struct IpoptProblem
     ref::Ptr{Cvoid}             # Reference to the internal data structure
@@ -108,8 +123,8 @@ mutable struct IpoptProblem
     eval_g::Function
     eval_grad_f::Function
     eval_jac_g::Function
-    eval_h::Union{Function, Nothing}
-    intermediate::Union{Function, Nothing}
+    eval_h::Union{Function,Nothing}
+    intermediate::Union{Function,Nothing}
 
     sense::Symbol               # For MathProgBase
 
@@ -129,9 +144,9 @@ mutable struct IpoptProblem
             m,
             zeros(Float64, n),
             zeros(Float64, m),
-            zeros(Float64,m),
-            zeros(Float64,n),
-            zeros(Float64,n),
+            zeros(Float64, m),
+            zeros(Float64, n),
+            zeros(Float64, n),
             0.0,
             0,
             eval_f,
@@ -149,21 +164,21 @@ end
 
 # From Ipopt/src/Interfaces/IpReturnCodes_inc.h
 const ApplicationReturnStatus = Dict(
-    0    => :Solve_Succeeded,
-    1    => :Solved_To_Acceptable_Level,
-    2    => :Infeasible_Problem_Detected,
-    3    => :Search_Direction_Becomes_Too_Small,
-    4    => :Diverging_Iterates,
-    5    => :User_Requested_Stop,
-    6    => :Feasible_Point_Found,
-    -1   => :Maximum_Iterations_Exceeded,
-    -2   => :Restoration_Failed,
-    -3   => :Error_In_Step_Computation,
-    -4   => :Maximum_CpuTime_Exceeded,
-    -10  => :Not_Enough_Degrees_Of_Freedom,
-    -11  => :Invalid_Problem_Definition,
-    -12  => :Invalid_Option,
-    -13  => :Invalid_Number_Detected,
+    0 => :Solve_Succeeded,
+    1 => :Solved_To_Acceptable_Level,
+    2 => :Infeasible_Problem_Detected,
+    3 => :Search_Direction_Becomes_Too_Small,
+    4 => :Diverging_Iterates,
+    5 => :User_Requested_Stop,
+    6 => :Feasible_Point_Found,
+    -1 => :Maximum_Iterations_Exceeded,
+    -2 => :Restoration_Failed,
+    -3 => :Error_In_Step_Computation,
+    -4 => :Maximum_CpuTime_Exceeded,
+    -10 => :Not_Enough_Degrees_Of_Freedom,
+    -11 => :Invalid_Problem_Definition,
+    -12 => :Invalid_Option,
+    -13 => :Invalid_Number_Detected,
     -100 => :Unrecoverable_Exception,
     -101 => :NonIpopt_Exception_Thrown,
     -102 => :Insufficient_Memory,
@@ -340,30 +355,69 @@ function createProblem(
     eval_jac_g_cb = @cfunction(
         eval_jac_g_wrapper,
         Cint,
-        (Cint, Ptr{Float64}, Cint, Cint, Cint, Ptr{Cint}, Ptr{Cint}, Ptr{Float64}, Ptr{Cvoid}),
+        (
+            Cint,
+            Ptr{Float64},
+            Cint,
+            Cint,
+            Cint,
+            Ptr{Cint},
+            Ptr{Cint},
+            Ptr{Float64},
+            Ptr{Cvoid},
+        ),
     )
     eval_h_cb = @cfunction(
         eval_h_wrapper,
         Cint,
-        (Cint, Ptr{Float64}, Cint, Float64, Cint, Ptr{Float64}, Cint, Cint, Ptr{Cint}, Ptr{Cint}, Ptr{Float64}, Ptr{Cvoid}),
+        (
+            Cint,
+            Ptr{Float64},
+            Cint,
+            Float64,
+            Cint,
+            Ptr{Float64},
+            Cint,
+            Cint,
+            Ptr{Cint},
+            Ptr{Cint},
+            Ptr{Float64},
+            Ptr{Cvoid},
+        ),
     )
     problem_p = ccall(
         (:CreateIpoptProblem, libipopt),
         Ptr{Cvoid},
         (
-            Cint, Ptr{Float64}, Ptr{Float64},    # Num vars, var lower and upper bounds
-            Cint, Ptr{Float64}, Ptr{Float64},    # Num constraints, con lower and upper bounds
-            Cint, Cint,                          # Num nnz in constraint Jacobian and in Hessian
+            Cint,
+            Ptr{Float64},
+            Ptr{Float64},    # Num vars, var lower and upper bounds
+            Cint,
+            Ptr{Float64},
+            Ptr{Float64},    # Num constraints, con lower and upper bounds
+            Cint,
+            Cint,                          # Num nnz in constraint Jacobian and in Hessian
             Cint,                                # 0 for C, 1 for Fortran
-            Ptr{Cvoid}, Ptr{Cvoid},              # Callbacks for eval_f, eval_g
-            Ptr{Cvoid}, Ptr{Cvoid}, Ptr{Cvoid},  # Callbacks for eval_grad_f, eval_jac_g, eval_h
+            Ptr{Cvoid},
+            Ptr{Cvoid},              # Callbacks for eval_f, eval_g
+            Ptr{Cvoid},
+            Ptr{Cvoid},
+            Ptr{Cvoid},  # Callbacks for eval_grad_f, eval_jac_g, eval_h
         ),
-        n, x_L, x_U,
-        m, g_L, g_U,
-        nele_jac, nele_hess,
+        n,
+        x_L,
+        x_U,
+        m,
+        g_L,
+        g_U,
+        nele_jac,
+        nele_hess,
         1,
-        eval_f_cb, eval_g_cb,
-        eval_grad_f_cb, eval_jac_g_cb, eval_h_cb,
+        eval_f_cb,
+        eval_g_cb,
+        eval_grad_f_cb,
+        eval_jac_g_cb,
+        eval_h_cb,
     )
 
     if problem_p == C_NULL
@@ -371,14 +425,21 @@ function createProblem(
             error(
                 "IPOPT: Failed to construct problem because there are 0 " *
                 "variables. If you intended to construct an empty problem, " *
-                "one work-around is to add a variable fixed to 0."
+                "one work-around is to add a variable fixed to 0.",
             )
         else
             error("IPOPT: Failed to construct problem for some unknown reason.")
         end
     end
     return IpoptProblem(
-        problem_p, n, m, eval_f, eval_g, eval_grad_f, eval_jac_g, eval_h,
+        problem_p,
+        n,
+        m,
+        eval_f,
+        eval_g,
+        eval_grad_f,
+        eval_jac_g,
+        eval_h,
     )
 end
 
@@ -403,7 +464,9 @@ function addOption(prob::IpoptProblem, keyword::String, value::String)
         (:AddIpoptStrOption, libipopt),
         Cint,
         (Ptr{Cvoid}, Ptr{UInt8}, Ptr{UInt8}),
-        prob.ref, keyword, value,
+        prob.ref,
+        keyword,
+        value,
     )
     if ret == 0
         error("IPOPT: Couldn't set option '$keyword' to value '$value'.")
@@ -421,7 +484,9 @@ function addOption(prob::IpoptProblem, keyword::String, value::Float64)
         (:AddIpoptNumOption, libipopt),
         Cint,
         (Ptr{Cvoid}, Ptr{UInt8}, Float64),
-        prob.ref, keyword, value,
+        prob.ref,
+        keyword,
+        value,
     )
     if ret == 0
         error("IPOPT: Couldn't set option '$keyword' to value '$value'.")
@@ -439,7 +504,9 @@ function addOption(prob::IpoptProblem, keyword::String, value::Integer)
         (:AddIpoptIntOption, libipopt),
         Cint,
         (Ptr{Cvoid}, Ptr{UInt8}, Cint),
-        prob.ref, keyword, value,
+        prob.ref,
+        keyword,
+        value,
     )
     if ret == 0
         error("IPOPT: Couldn't set option '$keyword' to value '$value'.")
@@ -458,7 +525,9 @@ function openOutputFile(prob::IpoptProblem, file_name::String, print_level::Int)
         (:OpenIpoptOutputFile, libipopt),
         Cint,
         (Ptr{Cvoid}, Ptr{UInt8}, Cint),
-        prob.ref, file_name, print_level,
+        prob.ref,
+        file_name,
+        print_level,
     )
     if ret == 0
         error("IPOPT: Couldn't open output file.")
@@ -473,8 +542,8 @@ end
 function setProblemScaling(
     prob::IpoptProblem,
     obj_scaling::Float64,
-    x_scaling::Union{Nothing, Vector{Float64}} = nothing,
-    g_scaling::Union{Nothing, Vector{Float64}} = nothing,
+    x_scaling::Union{Nothing,Vector{Float64}} = nothing,
+    g_scaling::Union{Nothing,Vector{Float64}} = nothing,
 )
     x_scale_arg = (x_scaling === nothing) ? C_NULL : x_scaling
     g_scale_arg = (g_scaling === nothing) ? C_NULL : g_scaling
@@ -482,7 +551,10 @@ function setProblemScaling(
         (:SetIpoptProblemScaling, libipopt),
         Cint,
         (Ptr{Cvoid}, Float64, Ptr{Float64}, Ptr{Float64}),
-        prob.ref, obj_scaling, x_scale_arg, g_scale_arg
+        prob.ref,
+        obj_scaling,
+        x_scale_arg,
+        g_scale_arg,
     )
     if ret == 0
         error("IPOPT: Error setting problem scaling.")
@@ -494,12 +566,27 @@ function setIntermediateCallback(prob::IpoptProblem, intermediate::Function)
     intermediate_cb = @cfunction(
         intermediate_wrapper,
         Cint,
-        (Cint, Cint, Float64, Float64, Float64, Float64, Float64, Float64, Float64, Float64, Cint, Ptr{Cvoid}),
+        (
+            Cint,
+            Cint,
+            Float64,
+            Float64,
+            Float64,
+            Float64,
+            Float64,
+            Float64,
+            Float64,
+            Float64,
+            Cint,
+            Ptr{Cvoid},
+        ),
     )
     ret = ccall(
         (:SetIntermediateCallback, libipopt),
         Cint,
-        (Ptr{Cvoid}, Ptr{Cvoid}), prob.ref, intermediate_cb,
+        (Ptr{Cvoid}, Ptr{Cvoid}),
+        prob.ref,
+        intermediate_cb,
     )
     prob.intermediate = intermediate
     if ret == 0
@@ -513,7 +600,16 @@ function solveProblem(prob::IpoptProblem)
     ret = ccall(
         (:IpoptSolve, libipopt),
         Cint,
-        (Ptr{Cvoid}, Ptr{Float64}, Ptr{Float64}, Ptr{Float64}, Ptr{Float64}, Ptr{Float64}, Ptr{Float64}, Any),
+        (
+            Ptr{Cvoid},
+            Ptr{Float64},
+            Ptr{Float64},
+            Ptr{Float64},
+            Ptr{Float64},
+            Ptr{Float64},
+            Ptr{Float64},
+            Any,
+        ),
         prob.ref,
         prob.x,
         prob.g,

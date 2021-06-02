@@ -7,7 +7,7 @@ export IpoptSolver
 struct IpoptSolver <: MPB.AbstractMathProgSolver
     options::Vector{Tuple} # list of options set in Ipopt on each MPB.optimize! call
 end
-function IpoptSolver(;kwargs...)
+function IpoptSolver(; kwargs...)
     args = Vector{Tuple}()
     for arg in kwargs
         if isa(arg, Pair)
@@ -16,7 +16,7 @@ function IpoptSolver(;kwargs...)
             push!(args, arg)
         end
     end
-    IpoptSolver(args)
+    return IpoptSolver(args)
 end
 
 mutable struct IpoptMathProgModel <: MPB.AbstractNonlinearModel
@@ -24,27 +24,37 @@ mutable struct IpoptMathProgModel <: MPB.AbstractNonlinearModel
     numvar::Int
     numconstr::Int
     warmstart::Vector{Float64}
-    options
+    options::Any
 
-    function IpoptMathProgModel(;options...)
+    function IpoptMathProgModel(; options...)
         model = new()
-        model.options   = options
-        model.numvar    = 0
+        model.options = options
+        model.numvar = 0
         model.numconstr = 0
         model.warmstart = Float64[]
-        model
+        return model
     end
 end
-MPB.NonlinearModel(s::IpoptSolver) = IpoptMathProgModel(;s.options...)
-MPB.LinearQuadraticModel(s::IpoptSolver) = MPB.NonlinearToLPQPBridge(MPB.NonlinearModel(s))
+MPB.NonlinearModel(s::IpoptSolver) = IpoptMathProgModel(; s.options...)
+function MPB.LinearQuadraticModel(s::IpoptSolver)
+    return MPB.NonlinearToLPQPBridge(MPB.NonlinearModel(s))
+end
 
 ###############################################################################
 # Begin interface implementation
 
 # generic nonlinear interface
-function MPB.loadproblem!(m::IpoptMathProgModel, numVar::Integer, numConstr::Integer,
-                          x_l, x_u, g_lb, g_ub, sense::Symbol, d::MPB.AbstractNLPEvaluator)
-
+function MPB.loadproblem!(
+    m::IpoptMathProgModel,
+    numVar::Integer,
+    numConstr::Integer,
+    x_l,
+    x_u,
+    g_lb,
+    g_ub,
+    sense::Symbol,
+    d::MPB.AbstractNLPEvaluator,
+)
     m.numvar = numVar
     features = MPB.features_available(d)
     has_hessian = (:Hess in features)
@@ -61,12 +71,12 @@ function MPB.loadproblem!(m::IpoptMathProgModel, numVar::Integer, numConstr::Int
 
     # Objective callback
     scl = (sense == :Min) ? 1.0 : -1.0
-    eval_f_cb(x) = scl * MPB.eval_f(d,x)
+    eval_f_cb(x) = scl * MPB.eval_f(d, x)
 
     # Objective gradient callback
     function eval_grad_f_cb(x, grad_f)
         MPB.eval_grad_f(d, grad_f, x)
-        rmul!(grad_f, scl)
+        return rmul!(grad_f, scl)
     end
 
     # Constraint value callback
@@ -86,8 +96,7 @@ function MPB.loadproblem!(m::IpoptMathProgModel, numVar::Integer, numConstr::Int
 
     if has_hessian
         # Hessian callback
-        function eval_h_cb(x, mode, rows, cols, obj_factor,
-            lambda, values)
+        function eval_h_cb(x, mode, rows, cols, obj_factor, lambda, values)
             if mode == :Structure
                 for i in 1:length(Ihess)
                     rows[i] = Ihess[i]
@@ -102,11 +111,21 @@ function MPB.loadproblem!(m::IpoptMathProgModel, numVar::Integer, numConstr::Int
         eval_h_cb = nothing
     end
 
-
-    m.inner = createProblem(numVar, float(x_l), float(x_u), numConstr,
-                            float(g_lb), float(g_ub), length(Ijac), length(Ihess),
-                            eval_f_cb, eval_g_cb, eval_grad_f_cb, eval_jac_g_cb,
-                            eval_h_cb)
+    m.inner = createProblem(
+        numVar,
+        float(x_l),
+        float(x_u),
+        numConstr,
+        float(g_lb),
+        float(g_ub),
+        length(Ijac),
+        length(Ihess),
+        eval_f_cb,
+        eval_g_cb,
+        eval_grad_f_cb,
+        eval_jac_g_cb,
+        eval_h_cb,
+    )
     m.inner.sense = sense
 
     # Ipopt crashes by default if NaN/Inf values are returned from the
@@ -118,7 +137,6 @@ function MPB.loadproblem!(m::IpoptMathProgModel, numVar::Integer, numConstr::Int
     if !has_hessian
         addOption(m.inner, "hessian_approximation", "limited-memory")
     end
-
 end
 
 MPB.getsense(m::IpoptMathProgModel) = m.inner.sense
@@ -131,14 +149,14 @@ MPB.numquadconstr(m::IpoptMathProgModel) = 0
 
 function MPB.optimize!(m::IpoptMathProgModel)
     copyto!(m.inner.x, m.warmstart) # set warmstart
-    for (name,value) in m.options
+    for (name, value) in m.options
         sname = string(name)
         if occursin(r"(^resto_)", sname)
             sname = replace(sname, r"(^resto_)" => "resto.")
         end
         addOption(m.inner, sname, value)
     end
-    solveProblem(m.inner)
+    return solveProblem(m.inner)
 end
 
 function MPB.status(m::IpoptMathProgModel)
@@ -146,8 +164,7 @@ function MPB.status(m::IpoptMathProgModel)
     # Ipopt.ApplicationReturnStatus, to the MPB statuses:
     # :Optimal, :Infeasible, :Unbounded, :UserLimit, and :Error
     stat_sym = ApplicationReturnStatus[m.inner.status]
-    if  stat_sym == :Solve_Succeeded ||
-        stat_sym == :Solved_To_Acceptable_Level
+    if stat_sym == :Solve_Succeeded || stat_sym == :Solved_To_Acceptable_Level
         return :Optimal
     elseif stat_sym == :Infeasible_Problem_Detected
         return :Infeasible
@@ -157,8 +174,8 @@ function MPB.status(m::IpoptMathProgModel)
         # a parameter will be treated as UserLimit, although
         # some are error-like too.
     elseif stat_sym == :User_Requested_Stop ||
-        stat_sym == :Maximum_Iterations_Exceeded ||
-        stat_sym == :Maximum_CpuTime_Exceeded
+           stat_sym == :Maximum_Iterations_Exceeded ||
+           stat_sym == :Maximum_CpuTime_Exceeded
         return :UserLimit
     else
         # Default is to not mislead user that it worked
@@ -178,9 +195,10 @@ function MPB.status(m::IpoptMathProgModel)
         @warn "Ipopt finished with status $stat_sym"
         return :Error
     end
-
 end
-MPB.getobjval(m::IpoptMathProgModel) = m.inner.obj_val * (m.inner.sense == :Max ? -1 : +1)
+function MPB.getobjval(m::IpoptMathProgModel)
+    return m.inner.obj_val * (m.inner.sense == :Max ? -1 : +1)
+end
 MPB.getsolution(m::IpoptMathProgModel) = m.inner.x
 
 function MPB.getreducedcosts(m::IpoptMathProgModel)
