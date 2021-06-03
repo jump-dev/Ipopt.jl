@@ -1214,10 +1214,7 @@ function append_to_hessian_sparsity!(
     quad::MOI.ScalarQuadraticFunction,
 )
     for term in quad.quadratic_terms
-        push!(
-            hessian_sparsity,
-            (term.variable_1.value, term.variable_2.value),
-        )
+        push!(hessian_sparsity, (term.variable_1.value, term.variable_2.value))
     end
 end
 
