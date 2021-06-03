@@ -6,26 +6,29 @@ using Test
 
 const MOI = MathOptInterface
 
-const OPTIMIZER = Ipopt.Optimizer()
-MOI.set(OPTIMIZER, MOI.Silent(), true)
+function _optimizer()
+    model = Ipopt.Optimizer()
+    MOI.set(model, MOI.Silent(), true)
+    # Without fixed_variable_treatment set, duals are not computed for variables
+    # that have lower_bound == upper_bound.
+    MOI.set(
+        model,
+        MOI.RawOptimizerAttribute("fixed_variable_treatment"),
+        "make_constraint",
+    )
+    return model
+end
 
-# Without fixed_variable_treatment set, duals are not computed for variables
-# that have lower_bound == upper_bound.
-MOI.set(
-    OPTIMIZER,
-    MOI.RawOptimizerAttribute("fixed_variable_treatment"),
-    "make_constraint",
-)
+const OPTIMIZER = _optimizer()
 
 # TODO(odow): add features to Ipopt so we can remove some of this caching.
 const BRIDGED_OPTIMIZER = MOI.Bridges.full_bridge_optimizer(
     MOI.Utilities.CachingOptimizer(
         MOI.Utilities.UniversalFallback(MOI.Utilities.Model{Float64}()),
-        Ipopt.Optimizer(),
+        _optimizer(),
     ),
     Float64,
 )
-MOI.set(BRIDGED_OPTIMIZER, MOI.Silent(), true)
 
 const CONFIG = MOI.Test.Config(
     atol = 1e-4,
