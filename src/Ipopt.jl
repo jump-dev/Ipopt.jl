@@ -3,63 +3,31 @@ module Ipopt
 using Libdl
 using LinearAlgebra
 
-const _DEPS_FILE = joinpath(dirname(@__DIR__), "deps", "deps.jl")
-
 if VERSION < v"1.3" || (
     haskey(ENV, "JULIA_IPOPT_LIBRARY_PATH") &&
     haskey(ENV, "JULIA_IPOPT_EXECUTABLE_PATH")
 )
+    const _DEPS_FILE = joinpath(dirname(@__DIR__), "deps", "deps.jl")
     if !isfile(_DEPS_FILE)
         error(
             "Ipopt not properly installed. Please run import Pkg; Pkg.build(\"Ipopt\")",
         )
     end
     include(_DEPS_FILE)
-
-    const libipopt_path = libipopt
-    const amplexe_path = amplexe
-
-    function amplexefun(arguments::String)
-        temp_env = copy(ENV)
-        for var in Ipopt.amplexe_env_var
-            temp_env[var] = Ipopt.amplexe_env_val
-        end
-        temp_dir = abspath(dirname(Ipopt.amplexe))
-        proc = run(
-            pipeline(
-                Cmd(
-                    `$(Ipopt.amplexe) $arguments`,
-                    env = temp_env,
-                    dir = temp_dir,
-                ),
-                stdout = stdout,
-            ),
-        )
-        wait(proc)
-        kill(proc)
-        return proc.exitcode
-    end
 else
-    import Ipopt_jll: libipopt, libipopt_path, amplexe, amplexe_path
+    import Ipopt_jll: libipopt
+end
 
-    function amplexefun(arguments::String)
-        # temp_env = copy(ENV)
-        # for var in Ipopt.amplexe_env_var
-        #     temp_env[var] = Ipopt.amplexe_env_val
-        # end
-        temp_dir = abspath(dirname(amplexe_path))
-        proc = amplexe() do amplexe_path
-            return run(
-                pipeline(
-                    Cmd(`$amplexe_path $arguments`, dir = temp_dir),
-                    stdout = stdout,
-                ),
-            )
-        end
-        wait(proc)
-        kill(proc)
-        return proc.exitcode
-    end
+function amplexefun(::String)
+    return error(
+        """
+  amplexefun has been removed because it caused problems with other packages.
+
+   - On Julia 1.3 or later, use `Ipopt_jll.amplexe` instead.
+   - On Julia 1.0, install Ipopt.jl version 0.6.x via `] add Ipopt@0.6`. Make
+     sure to restart Julia for the changes to take effect.
+  """,
+    )
 end
 
 export createProblem,
@@ -69,42 +37,6 @@ export createProblem,
     setIntermediateCallback,
     solveProblem,
     IpoptProblem
-
-function __init__()
-    julia_libdir = joinpath(
-        dirname(first(filter(x -> occursin("libjulia", x), Libdl.dllist()))),
-        "julia",
-    )
-    julia_bindir = Sys.BINDIR
-    ipopt_libdir = libipopt_path |> dirname
-    pathsep = Sys.iswindows() ? ';' : ':'
-    @static if Sys.isapple()
-        global amplexe_env_var = ["DYLD_LIBRARY_PATH"]
-        global amplexe_env_val = "$(julia_libdir)$(pathsep)$(get(ENV,"DYLD_LIBRARY_PATH",""))"
-    elseif Sys.islinux()
-        global amplexe_env_var = ["LD_LIBRARY_PATH"]
-        global amplexe_env_val = "$(julia_libdir)$(pathsep)$(get(ENV,"LD_LIBRARY_PATH",""))"
-    elseif Sys.iswindows()
-        # for some reason windows sometimes needs Path instead of PATH
-        global amplexe_env_var = ["PATH", "Path", "path"]
-        global amplexe_env_val = "$(julia_bindir)$(pathsep)$(get(ENV,"PATH",""))"
-    end
-
-    # Still need this for AmplNLWriter to work until it uses amplexefun defined above
-    # (amplexefun wraps the call to the binary and doesn't leave environment variables changed.)
-    @static if Sys.isapple()
-        ENV["DYLD_LIBRARY_PATH"] =
-            string(get(ENV, "DYLD_LIBRARY_PATH", ""), ":", julia_libdir)
-    elseif Sys.islinux()
-        ENV["LD_LIBRARY_PATH"] = string(
-            get(ENV, "LD_LIBRARY_PATH", ""),
-            ":",
-            julia_libdir,
-            ":",
-            ipopt_libdir,
-        )
-    end
-end
 
 mutable struct IpoptProblem
     ref::Ptr{Cvoid}             # Reference to the internal data structure
