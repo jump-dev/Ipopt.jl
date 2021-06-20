@@ -1,3 +1,11 @@
+**Ipopt.jl 0.7 contains breaking changes.**
+
+**Access to the binary via `amplexe` and `amplexefun` has been removed because
+it required an initialization that caused problems with other packages.**
+ - **On Julia 1.3 or later, use `Ipopt_jll.amplexe` instead.**
+ - **On Julia 1.0, install Ipopt.jl version 0.6.x via `] add Ipopt@0.6`. Make
+   sure to restart Julia for the changes to take effect.**
+
 # Ipopt.jl
 
 ![](https://www.coin-or.org/wordpress/wp-content/uploads/2014/08/COINOR.png)

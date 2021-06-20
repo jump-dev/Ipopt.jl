@@ -203,11 +203,6 @@ function test_hs071()
     return rm("blah.txt")
 end
 
-function test_binary()
-    # Test that the ipopt binary works
-    @test Ipopt.amplexefun("-v") == 0
-end
-
 end  # TestCWrapper
 
 runtests(TestCWrapper)
