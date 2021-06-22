@@ -562,7 +562,7 @@ function MOI.get(
     return MOI.GreaterThan{Float64}(model.variable_info[c.value].lower_bound)
 end
 
-function MOI.get(model::Optimizer, ::MOI.ObjectiveFunction)
+function MOI.get(model::Optimizer, ::MOI.ObjectiveFunction{T})::T where {T}
     return model.objective
 end
 
