@@ -563,7 +563,7 @@ function MOI.get(
 end
 
 function MOI.get(model::Optimizer, ::MOI.ObjectiveFunction{T})::T where {T}
-    return model.objective
+    return convert(T, model.objective)
 end
 
 function MOI.set(
