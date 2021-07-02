@@ -1,13 +1,30 @@
 module TestMOIWrapper
 
 using Ipopt
-using MathOptInterface
 using Test
 
-const MOI = MathOptInterface
+const MOI = Ipopt.MOI
 
-function _optimizer()
-    model = Ipopt.Optimizer()
+function runtests()
+    for name in names(@__MODULE__; all = true)
+        if !startswith("$(name)", "test_")
+            continue
+        end
+        @testset "$(name)" begin
+            getfield(@__MODULE__, name)()
+        end
+    end
+end
+
+# TODO(odow): add features to Ipopt so we can remove some of this caching.
+function test_MOI_Test()
+    model = MOI.Bridges.full_bridge_optimizer(
+        MOI.Utilities.CachingOptimizer(
+            MOI.Utilities.UniversalFallback(MOI.Utilities.Model{Float64}()),
+            Ipopt.Optimizer(),
+        ),
+        Float64,
+    )
     MOI.set(model, MOI.Silent(), true)
     # Without fixed_variable_treatment set, duals are not computed for variables
     # that have lower_bound == upper_bound.
@@ -16,72 +33,50 @@ function _optimizer()
         MOI.RawOptimizerAttribute("fixed_variable_treatment"),
         "make_constraint",
     )
-    return model
-end
+    MOI.Test.runtests(
+        model,
+        MOI.Test.Config(
+            atol = 1e-4,
+            rtol = 1e-4,
+            optimal_status = MOI.LOCALLY_SOLVED,
+            exclude = Any[
+                MOI.ConstraintBasisStatus,
+                MOI.DualObjectiveValue,
+                MOI.ObjectiveBound,
+            ]
+        );
+        exclude = String[
+            # TODO(odow): investigate these potential bugs in Ipopt
+            "test_model_LowerBoundAlreadySet",
+            "test_model_UpperBoundAlreadySet",
+            "test_model_copy_to_",
+            "test_modification_set_function_single_variable",
+            "test_nonlinear_objective_and_moi_objective_test",
 
-const OPTIMIZER = _optimizer()
+            # Upstream issue: https://github.com/jump-dev/MathOptInterface.jl/issues/1433
+            "test_constraint_ConstraintDualStart",
+            "test_constraint_ConstraintPrimalStart",
 
-# TODO(odow): add features to Ipopt so we can remove some of this caching.
-const BRIDGED_OPTIMIZER = MOI.Bridges.full_bridge_optimizer(
-    MOI.Utilities.CachingOptimizer(
-        MOI.Utilities.UniversalFallback(MOI.Utilities.Model{Float64}()),
-        _optimizer(),
-    ),
-    Float64,
-)
+            # LOCALLY_INFEASIBLE not INFEASIBLE
+            "INFEASIBLE",
+            "test_conic_linear_INFEASIBLE",
+            "test_conic_linear_INFEASIBLE_2",
+            "test_solve_DualStatus_INFEASIBILITY_CERTIFICATE_",
 
-const CONFIG = MOI.Test.Config(
-    atol = 1e-4,
-    rtol = 1e-4,
-    optimal_status = MOI.LOCALLY_SOLVED,
-    infeas_certificates = false,
-)
-
-const CONFIG_NO_DUAL = MOI.Test.Config(
-    atol = 1e-4,
-    rtol = 1e-4,
-    optimal_status = MOI.LOCALLY_SOLVED,
-    infeas_certificates = false,
-    duals = false,  # Don't check dual result!
-)
-
-function test_solvername()
-    @test MOI.get(OPTIMIZER, MOI.SolverName()) == "Ipopt"
-end
-
-function test_supports_default_copy_to()
-    @test MOI.Utilities.supports_default_copy_to(OPTIMIZER, false)
-    @test !MOI.Utilities.supports_default_copy_to(OPTIMIZER, true)
-end
-
-function test_basicconstraint()
-    # TODO(odow): these basic constraint tests are broken.
-    # MOI.Test.basic_constraint_tests(OPTIMIZER, CONFIG)
-end
-
-function test_unittest()
-    return MOI.Test.unittest(
-        BRIDGED_OPTIMIZER,
-        CONFIG,
-        String[
-            # VectorOfVariables-in-SecondOrderCone not supported
-            "delete_soc_variables",
-            # NumberOfThreads not supported
-            "number_threads",
-            # MOI.Integer not supported.
-            "solve_integer_edge_cases",
-            # ObjectiveBound not supported.
-            "solve_objbound_edge_cases",
-            # DualObjectiveValue not supported.
-            "solve_result_index",
-            # Returns NORM_LIMIT instead of DUAL_INFEASIBLE
-            "solve_unbounded_model",
-            # MOI.ZeroOne not supported.
-            "solve_zero_one_with_bounds_1",
-            "solve_zero_one_with_bounds_2",
-            "solve_zero_one_with_bounds_3",
-        ],
+            # Tests purposefully excluded:
+            #  - Ipopt does not support ObjectiveBound
+            "test_solve_ObjectiveBound_",
+            #  - Excluded because this test is optional
+            "test_model_ScalarFunctionConstantNotZero",
+            #  - Excluded because Ipopt returns NORM_LIMIT instead of
+            #    DUAL_INFEASIBLE
+            "test_solve_TerminationStatus_DUAL_INFEASIBLE",
+            #  - Excluded because Ipopt returns INVALID_MODEL instead of
+            #    LOCALLY_SOLVED
+            "test_linear_VectorAffineFunction_empty_row",
+        ]
     )
+    return
 end
 
 function test_ConstraintDualStart()
@@ -120,68 +115,6 @@ function test_ConstraintDualStart()
     @test MOI.get(model, MOI.ConstraintDualStart(), e) === nothing
     @test MOI.get(model, MOI.ConstraintDualStart(), c) === nothing
     @test MOI.get(model, MOI.NLPBlockDualStart()) === nothing
-end
-
-function test_contlinear()
-    MOI.Test.contlineartest(
-        BRIDGED_OPTIMIZER,
-        CONFIG,
-        String[
-            # Tests requiring DualObjectiveValue. Tested below.
-            "linear1",
-            "linear2",
-            "linear10",
-            "linear14",
-            # Tests requiring infeasibility certificates
-            "linear8a",
-            "linear8b",
-            "linear8c",
-            "linear12",
-            # An INVALID_MODEL because it contains an empty 0 == 0 row.
-            "linear15",
-        ],
-    )
-    MOI.Test.linear1test(BRIDGED_OPTIMIZER, CONFIG_NO_DUAL)
-    MOI.Test.linear2test(BRIDGED_OPTIMIZER, CONFIG_NO_DUAL)
-    MOI.Test.linear10test(BRIDGED_OPTIMIZER, CONFIG_NO_DUAL)
-    return MOI.Test.linear14test(BRIDGED_OPTIMIZER, CONFIG_NO_DUAL)
-end
-
-function test_qp()
-    return MOI.Test.qptest(BRIDGED_OPTIMIZER, CONFIG)
-end
-
-function test_qcp()
-    MOI.Test.qcptest(BRIDGED_OPTIMIZER, CONFIG_NO_DUAL)
-    return
-end
-
-function test_nlptest()
-    return MOI.Test.nlptest(OPTIMIZER, CONFIG)
-end
-
-function test_getters()
-    return MOI.Test.copytest(
-        MOI.instantiate(Ipopt.Optimizer, with_bridge_type = Float64),
-        MOI.Utilities.Model{Float64}(),
-    )
-end
-
-function test_boundsettwice()
-    MOI.Test.set_lower_bound_twice(OPTIMIZER, Float64)
-    return MOI.Test.set_upper_bound_twice(OPTIMIZER, Float64)
-end
-
-function test_nametest()
-    return MOI.Test.nametest(BRIDGED_OPTIMIZER)
-end
-
-function test_validtest()
-    return MOI.Test.validtest(BRIDGED_OPTIMIZER)
-end
-
-function test_emptytest()
-    return MOI.Test.emptytest(BRIDGED_OPTIMIZER)
 end
 
 function test_solve_time()
@@ -272,4 +205,4 @@ end
 
 end  # module TestMOIWrapper
 
-runtests(TestMOIWrapper)
+TestMOIWrapper.runtests()
