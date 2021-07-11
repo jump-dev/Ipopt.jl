@@ -10,7 +10,7 @@ it required an initialization that caused problems with other packages.**
 
 ![](https://www.coin-or.org/wordpress/wp-content/uploads/2014/08/COINOR.png)
 
-**Ipopt.jl** is a [Julia](http://julialang.org/) interface to the [COIN-OR](www.coin-or.org)
+**Ipopt.jl** is a [Julia](http://julialang.org/) interface to the [COIN-OR](https://www.coin-or.org)
 nonlinear solver [Ipopt](https://coin-or.github.io/Ipopt/).
 
 *Note: This wrapper is maintained by the JuMP community and is not a COIN-OR
