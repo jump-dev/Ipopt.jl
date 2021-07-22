@@ -107,6 +107,7 @@ const ApplicationReturnStatus = Dict(
     -2 => :Restoration_Failed,
     -3 => :Error_In_Step_Computation,
     -4 => :Maximum_CpuTime_Exceeded,
+    -5 => :Maximum_WallTime_Exceeded,
     -10 => :Not_Enough_Degrees_Of_Freedom,
     -11 => :Invalid_Problem_Definition,
     -12 => :Invalid_Option,
