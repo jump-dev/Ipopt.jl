@@ -1737,6 +1737,8 @@ function MOI.get(model::Optimizer, ::MOI.TerminationStatus)
         return MOI.ITERATION_LIMIT
     elseif status == :Maximum_CpuTime_Exceeded
         return MOI.TIME_LIMIT
+    elseif status == :Maximum_WallTime_Exceeded
+        return MOI.TIME_LIMIT
     elseif status == :Restoration_Failed
         return MOI.NUMERICAL_ERROR
     elseif status == :Error_In_Step_Computation
