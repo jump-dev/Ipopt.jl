@@ -50,12 +50,11 @@ function test_MOI_Test()
             "test_model_LowerBoundAlreadySet",
             "test_model_UpperBoundAlreadySet",
             "test_model_copy_to_",
+            "test_model_ModelFilter_AbstractConstraintAttribute",
             "test_modification_set_function_single_variable",
             "test_nonlinear_objective_and_moi_objective_test",
-
-            # Upstream issue: https://github.com/jump-dev/MathOptInterface.jl/issues/1433
-            "test_constraint_ConstraintDualStart",
-            "test_constraint_ConstraintPrimalStart",
+            "test_nonlinear_without_objective",
+            "test_objective_FEASIBILITY_SENSE_clears_objective",
 
             # LOCALLY_INFEASIBLE not INFEASIBLE
             "INFEASIBLE",
@@ -64,8 +63,6 @@ function test_MOI_Test()
             "test_solve_DualStatus_INFEASIBILITY_CERTIFICATE_",
 
             # Tests purposefully excluded:
-            #  - Ipopt does not support ObjectiveBound
-            "test_solve_ObjectiveBound_",
             #  - Excluded because this test is optional
             "test_model_ScalarFunctionConstantNotZero",
             #  - Excluded because Ipopt returns NORM_LIMIT instead of
@@ -115,20 +112,22 @@ function test_ConstraintDualStart()
     @test MOI.get(model, MOI.ConstraintDualStart(), e) === nothing
     @test MOI.get(model, MOI.ConstraintDualStart(), c) === nothing
     @test MOI.get(model, MOI.NLPBlockDualStart()) === nothing
+    return
 end
 
 function test_solve_time()
     model = Ipopt.Optimizer()
-    x = MOI.add_variable(model)
+    MOI.add_variable(model)
     @test isnan(MOI.get(model, MOI.SolveTimeSec()))
     MOI.optimize!(model)
     @test MOI.get(model, MOI.SolveTimeSec()) > 0.0
+    return
 end
 
 # Model structure for test_check_derivatives_for_naninf()
 struct Issue136 <: MOI.AbstractNLPEvaluator end
 MOI.initialize(::Issue136, ::Vector{Symbol}) = nothing
-MOI.features_available(d::Issue136) = [:Grad, :Jac]
+MOI.features_available(::Issue136) = [:Grad, :Jac]
 MOI.eval_objective(::Issue136, x) = x[1]
 MOI.eval_constraint(::Issue136, g, x) = (g[1] = x[1]^(1 / 3))
 MOI.eval_objective_gradient(::Issue136, grad_f, x) = (grad_f[1] = 1.0)
@@ -152,18 +151,20 @@ function test_check_derivatives_for_naninf()
     # MOI.set(model, MOI.RawOptimizerAttribute("check_derivatives_for_naninf"), "no")
     MOI.optimize!(model)
     @test MOI.get(model, MOI.TerminationStatus()) == MOI.INVALID_MODEL
+    return
 end
 
 function test_deprecation()
     model = Ipopt.Optimizer(print_level = 0)
     @test MOI.get(model, MOI.RawOptimizerAttribute("print_level")) == 0
+    return
 end
 
 function test_callback()
     model = Ipopt.Optimizer()
     MOI.set(model, MOI.RawOptimizerAttribute("print_level"), 0)
     x = MOI.add_variable(model)
-    MOI.add_constraint(model, MOI.SingleVariable(x), MOI.GreaterThan(1.0))
+    MOI.add_constraint(model, x, MOI.GreaterThan(1.0))
     MOI.set(model, MOI.ObjectiveSense(), MOI.MIN_SENSE)
     f = MOI.ScalarAffineFunction([MOI.ScalarAffineTerm(1.0, x)], 0.5)
     MOI.set(model, MOI.ObjectiveFunction{typeof(f)}(), f)
@@ -191,6 +192,7 @@ function test_callback()
     MOI.optimize!(model)
     @test MOI.get(model, MOI.TerminationStatus()) == MOI.INTERRUPTED
     @test length(x_vals) == 2
+    return
 end
 
 function test_empty_optimize()
@@ -201,6 +203,7 @@ function test_empty_optimize()
         "to add a variable fixed to 0.",
     )
     @test_throws err MOI.optimize!(model)
+    return
 end
 
 end  # module TestMOIWrapper
