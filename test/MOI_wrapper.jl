@@ -43,7 +43,7 @@ function test_MOI_Test()
                 MOI.ConstraintBasisStatus,
                 MOI.DualObjectiveValue,
                 MOI.ObjectiveBound,
-            ]
+            ],
         );
         exclude = String[
             # TODO(odow): investigate these potential bugs in Ipopt
@@ -71,7 +71,7 @@ function test_MOI_Test()
             #  - Excluded because Ipopt returns INVALID_MODEL instead of
             #    LOCALLY_SOLVED
             "test_linear_VectorAffineFunction_empty_row",
-        ]
+        ],
     )
     return
 end
