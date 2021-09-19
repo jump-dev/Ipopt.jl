@@ -7,23 +7,19 @@ const MOI = Ipopt.MOI
 
 function runtests()
     for name in names(@__MODULE__; all = true)
-        if !startswith("$(name)", "test_")
-            continue
-        end
-        @testset "$(name)" begin
-            getfield(@__MODULE__, name)()
+        if startswith("$(name)", "test_")
+            @testset "$(name)" begin
+                getfield(@__MODULE__, name)()
+            end
         end
     end
+    return
 end
 
-# TODO(odow): add features to Ipopt so we can remove some of this caching.
 function test_MOI_Test()
-    model = MOI.Bridges.full_bridge_optimizer(
-        MOI.Utilities.CachingOptimizer(
-            MOI.Utilities.UniversalFallback(MOI.Utilities.Model{Float64}()),
-            Ipopt.Optimizer(),
-        ),
-        Float64,
+    model = MOI.Utilities.CachingOptimizer(
+        MOI.Utilities.UniversalFallback(MOI.Utilities.Model{Float64}()),
+        MOI.Bridges.full_bridge_optimizer(Ipopt.Optimizer(), Float64),
     )
     MOI.set(model, MOI.Silent(), true)
     # Without fixed_variable_treatment set, duals are not computed for variables
@@ -46,23 +42,9 @@ function test_MOI_Test()
             ],
         );
         exclude = String[
-            # TODO(odow): investigate these potential bugs in Ipopt
-            "test_model_LowerBoundAlreadySet",
-            "test_model_UpperBoundAlreadySet",
-            "test_model_copy_to_",
-            "test_model_ModelFilter_AbstractConstraintAttribute",
-            "test_modification_set_function_single_variable",
-            "test_nonlinear_objective_and_moi_objective_test",
-            "test_nonlinear_without_objective",
-            "test_objective_FEASIBILITY_SENSE_clears_objective",
-
-            # LOCALLY_INFEASIBLE not INFEASIBLE
-            "INFEASIBLE",
-            "test_conic_linear_INFEASIBLE",
-            "test_conic_linear_INFEASIBLE_2",
-            "test_solve_DualStatus_INFEASIBILITY_CERTIFICATE_",
-
             # Tests purposefully excluded:
+            #  - Upstream: ZeroBridge does not support ConstraintDual
+            "test_conic_linear_VectorOfVariables_2",
             #  - Excluded because this test is optional
             "test_model_ScalarFunctionConstantNotZero",
             #  - Excluded because Ipopt returns NORM_LIMIT instead of
@@ -71,6 +53,18 @@ function test_MOI_Test()
             #  - Excluded because Ipopt returns INVALID_MODEL instead of
             #    LOCALLY_SOLVED
             "test_linear_VectorAffineFunction_empty_row",
+            #  - Excluded because Ipopt returns LOCALLY_INFEASIBLE instead of
+            #    INFEASIBLE
+            "INFEASIBLE",
+            "test_conic_linear_INFEASIBLE",
+            "test_conic_linear_INFEASIBLE_2",
+            "test_solve_DualStatus_INFEASIBILITY_CERTIFICATE_",
+            #  - Excluded due to upstream issue
+            "test_model_LowerBoundAlreadySet",
+            "test_model_UpperBoundAlreadySet",
+            #  - CachingOptimizer does not throw if optimizer not attached
+            "test_model_copy_to_UnsupportedAttribute",
+            "test_model_copy_to_UnsupportedConstraint",
         ],
     )
     return
