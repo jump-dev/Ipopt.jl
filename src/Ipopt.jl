@@ -556,7 +556,6 @@ function solveProblem(prob::IpoptProblem)
     return prob.status
 end
 
-include("MPB_wrapper.jl")
 include("MOI_wrapper.jl")
 
 end
