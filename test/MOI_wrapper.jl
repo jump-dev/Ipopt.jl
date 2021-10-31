@@ -42,6 +42,8 @@ function test_MOI_Test()
             ],
         );
         exclude = String[
+            # TODO(odow): need to implement
+            "test_attribute_SolverVersion",
             # Tests purposefully excluded:
             #  - Upstream: ZeroBridge does not support ConstraintDual
             "test_conic_linear_VectorOfVariables_2",
