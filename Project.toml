@@ -9,19 +9,15 @@ Ipopt_jll = "9cc047cb-c261-5740-88fc-0cf96f7bdcc7"
 Libdl = "8f399da3-3557-5675-b5ff-fb832c97cbdb"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 MathOptInterface = "b8f27783-ece8-5eb3-8dc8-9495eed66fee"
-MathProgBase = "fdba3010-5040-5b88-9595-932c9decdf73"
 
 [compat]
 BinaryProvider = "0.5.9"
 Ipopt_jll = "=3.13.2, =3.13.4"
 MathOptInterface = "~0.10.3"
-MathProgBase = "~0.5.0, ~0.6, ~0.7"
 julia = "1"
 
 [extras]
-Compat = "34da2185-b29b-5c13-b0c7-acf172513d20"
-SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
-test = ["Compat", "Test", "SparseArrays"]
+test = ["Test"]
