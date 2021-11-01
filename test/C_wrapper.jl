@@ -34,12 +34,11 @@ function test_hs071()
 
     function eval_jac_g(
         x::Vector{Float64},
-        mode,
         rows::Vector{Int32},
         cols::Vector{Int32},
-        values::Vector{Float64},
+        values::Union{Nothing,Vector{Float64}},
     )
-        if mode == :Structure
+        if values === nothing
             # Constraint (row) 1
             rows[1] = 1
             cols[1] = 1
@@ -70,18 +69,18 @@ function test_hs071()
             values[7] = 2 * x[3]  # 2,3
             values[8] = 2 * x[4]  # 2,4
         end
+        return
     end
 
     function eval_h(
         x::Vector{Float64},
-        mode,
         rows::Vector{Int32},
         cols::Vector{Int32},
         obj_factor::Float64,
         lambda::Vector{Float64},
-        values::Vector{Float64},
+        values::Union{Nothing,Vector{Float64}},
     )
-        if mode == :Structure
+        if values === nothing
             # Symmetric matrix, fill the lower left triangle only
             idx = 1
             for row in 1:4
@@ -119,6 +118,7 @@ function test_hs071()
             values[6] += lambda[2] * 2  # 3,3
             values[10] += lambda[2] * 2  # 4,4
         end
+        return
     end
 
     n = 4
@@ -129,7 +129,7 @@ function test_hs071()
     g_L = [25.0, 40.0]
     g_U = [2.0e19, 40.0]
 
-    prob = createProblem(
+    prob = Ipopt.CreateIpoptProblem(
         n,
         x_L,
         x_U,
@@ -146,9 +146,9 @@ function test_hs071()
     )
 
     prob.x = [1.0, 5.0, 5.0, 1.0]
-    solvestat = solveProblem(prob)
+    solvestat = Ipopt.IpoptSolve(prob)
 
-    @test Ipopt.ApplicationReturnStatus[solvestat] == :Solve_Succeeded
+    @test solvestat == 0
     @test prob.x[1] ≈ 1.0000000000000000 atol = 1e-5
     @test prob.x[2] ≈ 4.7429996418092970 atol = 1e-5
     @test prob.x[3] ≈ 3.8211499817883077 atol = 1e-5
@@ -157,8 +157,9 @@ function test_hs071()
 
     # This tests callbacks.
     function intermediate(
-        alg_mod::Int,
-        iter_count::Int,
+        prob::Ipopt.IpoptProblem,
+        alg_mod::Cint,
+        iter_count::Cint,
         obj_value::Float64,
         inf_pr::Float64,
         inf_du::Float64,
@@ -167,40 +168,46 @@ function test_hs071()
         regularization_size::Float64,
         alpha_du::Float64,
         alpha_pr::Float64,
-        ls_trials::Int,
+        ls_trials::Cint,
     )
         return iter_count < 1  # Interrupts after one iteration.
     end
 
-    setIntermediateCallback(prob, intermediate)
+    Ipopt.SetIntermediateCallback(prob, intermediate)
 
-    solvestat = solveProblem(prob)
+    solvestat = Ipopt.IpoptSolve(prob)
 
-    @test Ipopt.ApplicationReturnStatus[solvestat] == :User_Requested_Stop
+    @test solvestat == 5
 
     # Test setting some options
     # String option
     println("\nString option")
-    addOption(prob, "hessian_approximation", "exact")
-    @test_throws ErrorException addOption(
-        prob,
-        "hessian_approximation",
-        "badoption",
+    Ipopt.AddIpoptStrOption(prob, "hessian_approximation", "exact")
+    @test_throws(
+        ErrorException,
+        Ipopt.AddIpoptStrOption(prob, "hessian_approximation", "badoption"),
     )
     println("\nInt option")
     # Int option
-    addOption(prob, "file_print_level", 3) == nothing
-    @test_throws ErrorException addOption(prob, "file_print_level", -1)
+    @test Ipopt.AddIpoptIntOption(prob, "file_print_level", 3) === nothing
+    @test_throws(
+        ErrorException,
+        Ipopt.AddIpoptIntOption(prob, "file_print_level", -1),
+    )
     # Double option
     println("\nFloat option")
-    addOption(prob, "derivative_test_tol", 0.5)
-    @test_throws ErrorException addOption(prob, "derivative_test_tol", -1.0)
+    Ipopt.AddIpoptNumOption(prob, "derivative_test_tol", 0.5)
+    @test_throws(
+        ErrorException,
+        Ipopt.AddIpoptNumOption(prob, "derivative_test_tol", -1.0),
+    )
 
     # Test opening an output file
-    openOutputFile(prob, "blah.txt", 5)
-    Ipopt.freeProblem(prob) # Needed before the `rm` on Windows.
+    Ipopt.OpenIpoptOutputFile(prob, "blah.txt", 5)
+    finalize(prob) # Needed before the `rm` on Windows.
     # unlink the output file
-    return rm("blah.txt")
+    rm("blah.txt")
+    return
 end
 
 end  # TestCWrapper

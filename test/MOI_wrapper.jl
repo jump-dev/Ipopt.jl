@@ -166,7 +166,7 @@ function test_callback()
     MOI.set(model, MOI.ObjectiveFunction{typeof(f)}(), f)
     x_vals = Float64[]
     function my_callback(
-        prob::IpoptProblem,
+        prob::Ipopt.IpoptProblem,
         alg_mod::Cint,
         iter_count::Cint,
         obj_value::Float64,
