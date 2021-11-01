@@ -90,8 +90,72 @@ output contained in the logging table printed to the screen.
 
 ## C Interface Wrapper
 
-Full documentation for the Ipopt C wrapper [is available](https://github.com/jump-dev/Ipopt.jl/blob/master/doc/C_API.md).
-However, we strongly encourage you to use Ipopt with JuMP instead.
+Ipopt.jl wraps the [Ipopt C interface](https://coin-or.github.io/Ipopt/INTERFACES.html) with minimal modifications.
+
+A complete example is available in the `test/C_wrapper.jl` file.
+
+For simplicity, the five callbacks required by Ipopt are slightly different to
+the C interface. They are as follows:
+```julia
+"""
+   eval_f(x::Vector{Float64})::Float64
+
+Returns the objective value `f(x)`.
+"""
+function eval_f end
+
+"""
+   eval_grad_f(x::Vector{Float64}, grad_f::Vector{Float64})::Nothing
+
+Fills `grad_f` in-place with the gradient of the objective function evaluated at
+`x`.
+"""
+function eval_grad_f end
+
+"""
+   eval_g(x::Vector{Float64}, g::Vector{Float64})::Nothing
+
+Fills `g` in-place with the value of the constraints evaluated at `x`.
+"""
+function eval_g end
+
+"""
+   eval_jac_g(
+      x::Vector{Float64},
+      rows::Vector{Cint},
+      cols::Vector{Cint},
+      values::Union{Nothing,Vector{Float64}},
+   )::Nothing
+
+Compute the Jacobian matrix.
+
+* If `values === nothing`
+   - Fill `rows` and `cols` with the 1-indexed sparsity structure
+* Otherwise:
+   - Fill `values` with the elements of the Jacobian matrix according to the
+     sparsity structure.
+"""
+function eval_jac_g end
+
+"""
+   eval_h(
+      x::Vector{Float64},
+      rows::Vector{Cint},
+      cols::Vector{Cint},
+      obj_factor::Float64,
+      lambda::Float64,
+      values::Union{Nothing,Vector{Float64}},
+   )::Nothing
+
+Compute the Hessian-of-the-Lagrangian matrix.
+
+* If `values === nothing`
+   - Fill `rows` and `cols` with the 1-indexed sparsity structure
+* Otherwise:
+   - Fill `values` with the Hessian matrix according to the sparsity structure.
+"""
+function eval_h end
+```
 
 ## `INVALID_MODEL` error
 
