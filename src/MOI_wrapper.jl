@@ -1570,8 +1570,8 @@ function MOI.optimize!(model::Optimizer)
     eval_g_cb(x, g) = eval_constraint(model, g, x)
 
     # Jacobian callback
-    function eval_jac_g_cb(x, mode, rows, cols, values)
-        if mode == :Structure
+    function eval_jac_g_cb(x, rows, cols, values)
+        if values === nothing
             for i in 1:length(jacobian_sparsity)
                 rows[i] = jacobian_sparsity[i][1]
                 cols[i] = jacobian_sparsity[i][2]
@@ -1584,8 +1584,8 @@ function MOI.optimize!(model::Optimizer)
 
     if has_hessian
         # Hessian callback
-        function eval_h_cb(x, mode, rows, cols, obj_factor, lambda, values)
-            if mode == :Structure
+        function eval_h_cb(x, rows, cols, obj_factor, lambda, values)
+            if values === nothing
                 for i in 1:length(hessian_sparsity)
                     rows[i] = hessian_sparsity[i][1]
                     cols[i] = hessian_sparsity[i][2]
@@ -1606,7 +1606,7 @@ function MOI.optimize!(model::Optimizer)
 
     start_time = time()
 
-    model.inner = createProblem(
+    model.inner = CreateIpoptProblem(
         num_variables,
         x_l,
         x_u,
@@ -1623,9 +1623,9 @@ function MOI.optimize!(model::Optimizer)
     )
 
     if model.sense == MOI.MIN_SENSE
-        addOption(model.inner, "obj_scaling_factor", 1.0)
+        AddIpoptNumOption(model.inner, "obj_scaling_factor", 1.0)
     elseif model.sense == MOI.MAX_SENSE
-        addOption(model.inner, "obj_scaling_factor", -1.0)
+        AddIpoptNumOption(model.inner, "obj_scaling_factor", -1.0)
     end
 
     # Ipopt crashes by default if NaN/Inf values are returned from the
@@ -1633,20 +1633,24 @@ function MOI.optimize!(model::Optimizer)
     # and return Invalid_Number_Detected instead. This setting may result in a
     # minor performance loss and can be overwritten by specifying
     # check_derivatives_for_naninf="no".
-    addOption(model.inner, "check_derivatives_for_naninf", "yes")
+    AddIpoptStrOption(model.inner, "check_derivatives_for_naninf", "yes")
 
     if !has_hessian
-        addOption(model.inner, "hessian_approximation", "limited-memory")
+        AddIpoptStrOption(
+            model.inner,
+            "hessian_approximation",
+            "limited-memory",
+        )
     end
     if num_nlp_constraints == 0 && num_quadratic_constraints == 0
-        addOption(model.inner, "jac_c_constant", "yes")
-        addOption(model.inner, "jac_d_constant", "yes")
+        AddIpoptStrOption(model.inner, "jac_c_constant", "yes")
+        AddIpoptStrOption(model.inner, "jac_d_constant", "yes")
         if !model.nlp_data.has_objective
             # We turn on this option if all constraints are linear and the
             # objective is linear or quadratic. From the documentation, it's
             # unclear if it may also apply if the constraints are at most
             # quadratic.
-            addOption(model.inner, "hessian_constant", "yes")
+            AddIpoptStrOption(model.inner, "hessian_constant", "yes")
         end
     end
 
@@ -1692,28 +1696,57 @@ function MOI.optimize!(model::Optimizer)
         model.inner.mult_x_U[i] =
             _dual_start(model, v.upper_bound_dual_start, -1)
     end
-
     if model.silent
-        addOption(model.inner, "print_level", 0)
+        AddIpoptIntOption(model.inner, "print_level", 0)
     end
-
     for (name, value) in model.options
-        addOption(model.inner, name, value)
+        if value isa String
+            AddIpoptStrOption(model.inner, name, value)
+        elseif value isa Integer
+            AddIpoptIntOption(model.inner, name, value)
+        else
+            @assert value isa Float64
+            AddIpoptNumOption(model.inner, name, value)
+        end
     end
-
-    _set_intermediate_callback(model.inner, model.callback)
-
-    solveProblem(model.inner)
-
+    if model.callback === nothing
+        model.inner.intermediate = nothing
+    else
+        SetIntermediateCallback(model.inner, model.callback)
+    end
+    IpoptSolve(model.inner)
     model.solve_time = time() - start_time
     return
 end
+
+# From Ipopt/src/Interfaces/IpReturnCodes_inc.h
+const _STATUS_CODES = Dict(
+    0 => :Solve_Succeeded,
+    1 => :Solved_To_Acceptable_Level,
+    2 => :Infeasible_Problem_Detected,
+    3 => :Search_Direction_Becomes_Too_Small,
+    4 => :Diverging_Iterates,
+    5 => :User_Requested_Stop,
+    6 => :Feasible_Point_Found,
+    -1 => :Maximum_Iterations_Exceeded,
+    -2 => :Restoration_Failed,
+    -3 => :Error_In_Step_Computation,
+    -4 => :Maximum_CpuTime_Exceeded,
+    -10 => :Not_Enough_Degrees_Of_Freedom,
+    -11 => :Invalid_Problem_Definition,
+    -12 => :Invalid_Option,
+    -13 => :Invalid_Number_Detected,
+    -100 => :Unrecoverable_Exception,
+    -101 => :NonIpopt_Exception_Thrown,
+    -102 => :Insufficient_Memory,
+    -199 => :Internal_Error,
+)
 
 function MOI.get(model::Optimizer, ::MOI.TerminationStatus)
     if model.inner === nothing
         return MOI.OPTIMIZE_NOT_CALLED
     end
-    status = ApplicationReturnStatus[model.inner.status]
+    status = _STATUS_CODES[model.inner.status]
     if status == :Solve_Succeeded || status == :Feasible_Point_Found
         return MOI.LOCALLY_SOLVED
     elseif status == :Infeasible_Problem_Detected
@@ -1754,7 +1787,7 @@ function MOI.get(model::Optimizer, ::MOI.TerminationStatus)
 end
 
 function MOI.get(model::Optimizer, ::MOI.RawStatusString)
-    return string(ApplicationReturnStatus[model.inner.status])
+    return string(_STATUS_CODES[model.inner.status])
 end
 
 # Ipopt always has an iterate available.
@@ -1766,7 +1799,7 @@ function MOI.get(model::Optimizer, attr::MOI.PrimalStatus)
     if !(1 <= attr.result_index <= MOI.get(model, MOI.ResultCount()))
         return MOI.NO_SOLUTION
     end
-    status = ApplicationReturnStatus[model.inner.status]
+    status = _STATUS_CODES[model.inner.status]
     if status == :Solve_Succeeded
         return MOI.FEASIBLE_POINT
     elseif status == :Feasible_Point_Found
@@ -1786,7 +1819,7 @@ function MOI.get(model::Optimizer, attr::MOI.DualStatus)
     if !(1 <= attr.result_index <= MOI.get(model, MOI.ResultCount()))
         return MOI.NO_SOLUTION
     end
-    status = ApplicationReturnStatus[model.inner.status]
+    status = _STATUS_CODES[model.inner.status]
     if status == :Solve_Succeeded
         return MOI.FEASIBLE_POINT
     elseif status == :Feasible_Point_Found
@@ -2034,77 +2067,7 @@ call both.
 """
 struct CallbackFunction <: MOI.AbstractCallback end
 
-function _callback_function_wrapper(
-    alg_mod::Cint,
-    iter_count::Cint,
-    obj_value::Float64,
-    inf_pr::Float64,
-    inf_du::Float64,
-    mu::Float64,
-    d_norm::Float64,
-    regularization_size::Float64,
-    alpha_du::Float64,
-    alpha_pr::Float64,
-    s_trials::Cint,
-    p_problem::Ptr{Cvoid},
-)
-    prob = unsafe_pointer_to_objref(p_problem)::IpoptProblem
-    keep_going = prob.intermediate(
-        prob,
-        alg_mod,
-        iter_count,
-        obj_value,
-        inf_pr,
-        inf_du,
-        mu,
-        d_norm,
-        regularization_size,
-        alpha_du,
-        alpha_pr,
-        s_trials,
-    )
-    return keep_going ? Cint(1) : Cint(0)
-end
-
 function MOI.set(model::Optimizer, ::CallbackFunction, f::Function)
     model.callback = f
-    return
-end
-
-function _set_intermediate_callback(prob::IpoptProblem, callback::Nothing)
-    prob.intermediate = nothing
-    return
-end
-
-function _set_intermediate_callback(prob::IpoptProblem, callback::Function)
-    prob.intermediate = callback
-    ipopt_callback = @cfunction(
-        _callback_function_wrapper,
-        Cint,
-        (
-            Cint,
-            Cint,
-            Float64,
-            Float64,
-            Float64,
-            Float64,
-            Float64,
-            Float64,
-            Float64,
-            Float64,
-            Cint,
-            Ptr{Cvoid},
-        ),
-    )
-    ret = ccall(
-        (:SetIntermediateCallback, libipopt),
-        Cint,
-        (Ptr{Cvoid}, Ptr{Cvoid}),
-        prob.ref,
-        ipopt_callback,
-    )
-    if ret == 0
-        error("IPOPT: Something went wrong setting `CallbackFunction`.")
-    end
     return
 end
