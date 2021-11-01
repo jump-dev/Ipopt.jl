@@ -1,7 +1,6 @@
 module Ipopt
 
 using Libdl
-using LinearAlgebra
 
 if VERSION < v"1.3" || (
     haskey(ENV, "JULIA_IPOPT_LIBRARY_PATH") &&
