@@ -136,7 +136,6 @@ function _Intermediate_CB(
 )
     prob = unsafe_pointer_to_objref(user_data)::IpoptProblem
     ret = prob.intermediate(
-        prob,
         alg_mod,
         iter_count,
         obj_value,

@@ -3,13 +3,16 @@
 This release of Ipopt.jl contains a number of breaking changes, however, we
 anticipate that this will be the last breaking change before Ipopt v1.0.
 
- * The MathProgBase wrapper has been removed
+ * The MathProgBase wrapper has been removed.
  * The C API has been refactored in a breaking way:
    * All functions are now named the same as their C counterparts
    * `addOption` has been removed in favor of explicit calls to
       `AddIpoptStrOption`, `AddIpoptIntOption`, or `AddIpoptNumOption`
    * The jacobian and hessian callbacks no longer take a `mode::Symbol`
      argument. Instead, the `values` is `nothing` if the structure is requested.
+ * The signature of the `Ipopt.CallbackFunction` function has changed to remove
+   `prob::IpoptProblem`. Use `callback_value` instead of accessing internal
+   fields.
 
 # Ipopt.jl
 
@@ -65,7 +68,6 @@ set_silent(model)
 @objective(model, Min, x + 0.5)
 x_vals = Float64[]
 function my_callback(
-   prob::IpoptProblem,
    alg_mod::Cint,
    iter_count::Cint,
    obj_value::Float64,
@@ -78,8 +80,7 @@ function my_callback(
    alpha_pr::Float64,
    ls_trials::Cint,
 )
-   c = Ipopt.column(index(x))
-   push!(x_vals, prob.x[c])
+   push!(x_vals, callback_value(model, x))
    @test isapprox(obj_value, 1.0 * x_vals[end] + 0.5, atol = 1e-1)
    # return `true` to keep going, or `false` to terminate the optimization.
    return iter_count < 1
