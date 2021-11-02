@@ -1,10 +1,15 @@
-**Ipopt.jl 0.7 contains breaking changes.**
+**Ipopt.jl 0.9 contains breaking changes to the C API.**
 
-**Access to the binary via `amplexe` and `amplexefun` has been removed because
-it required an initialization that caused problems with other packages.**
- - **On Julia 1.3 or later, use `Ipopt_jll.amplexe` instead.**
- - **On Julia 1.0, install Ipopt.jl version 0.6.x via `] add Ipopt@0.6`. Make
-   sure to restart Julia for the changes to take effect.**
+This release of Ipopt.jl contains a number of breaking changes, however, we
+anticipate that this will be the last breaking change before Ipopt v1.0.
+
+ * The MathProgBase wrapper has been removed
+ * The C API has been refactored in a breaking way:
+   * All functions are now named the same as their C counterparts
+   * `addOption` has been removed in favor of explicit calls to
+      `AddIpoptStrOption`, `AddIpoptIntOption`, or `AddIpoptNumOption`
+   * The jacobian and hessian callbacks no longer take a `mode::Symbol`
+     argument. Instead, the `values` is `nothing` if the structure is requested.
 
 # Ipopt.jl
 
