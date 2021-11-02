@@ -166,7 +166,6 @@ function test_callback()
     MOI.set(model, MOI.ObjectiveFunction{typeof(f)}(), f)
     x_vals = Float64[]
     function my_callback(
-        prob::Ipopt.IpoptProblem,
         alg_mod::Cint,
         iter_count::Cint,
         obj_value::Float64,
@@ -179,8 +178,7 @@ function test_callback()
         alpha_pr::Float64,
         ls_trials::Cint,
     )
-        c = Ipopt.column(x)
-        push!(x_vals, prob.x[c])
+        push!(x_vals, MOI.get(model, MOI.CallbackVariablePrimal(model), x))
         @test isapprox(obj_value, 1.0 * x_vals[end] + 0.5, atol = 1e-1)
         return iter_count < 1
     end

@@ -1697,7 +1697,6 @@ A solver-dependent callback for Ipopt's IntermediateCallback.
 The callback should be a function like the following:
 ```julia
 function my_intermediate_callback(
-    prob::IpoptProblem,
     alg_mod::Cint,
     iter_count::Cint,
     obj_value::Float64,
@@ -1715,12 +1714,7 @@ function my_intermediate_callback(
 end
 ```
 
-`prob` is an `IpoptProblem`, the object defining the low-level interface. Use
-`prob.x` to obtain the current primal iterate as a vector. Use
-`column(x::MOI.VariableIndex)` to map a `MOI.VariableIndex` to the 1-based
-column index.
-
-The remainder of the arguments are defined in the Ipopt documentation:
+The arguments are defined in the Ipopt documentation:
 https://coin-or.github.io/Ipopt/OUTPUT.html
 
 Note: Calling `SetIntermediateCallback` will over-write this callback! Don't
@@ -1731,4 +1725,12 @@ struct CallbackFunction <: MOI.AbstractCallback end
 function MOI.set(model::Optimizer, ::CallbackFunction, f::Function)
     model.callback = f
     return
+end
+
+function MOI.get(
+    model::Optimizer,
+    ::MOI.CallbackVariablePrimal,
+    x::MOI.VariableIndex,
+)
+    return model.inner.x[column(x)]
 end

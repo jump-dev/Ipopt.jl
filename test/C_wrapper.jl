@@ -157,7 +157,6 @@ function test_hs071()
 
     # This tests callbacks.
     function intermediate(
-        prob::Ipopt.IpoptProblem,
         alg_mod::Cint,
         iter_count::Cint,
         obj_value::Float64,
