@@ -186,6 +186,7 @@ function test_callback()
     MOI.optimize!(model)
     @test MOI.get(model, MOI.TerminationStatus()) == MOI.INTERRUPTED
     @test length(x_vals) == 2
+    @test x_vals[1] !== x_vals[2]
     return
 end
 
