@@ -2,30 +2,6 @@ import MathOptInterface
 
 const MOI = MathOptInterface
 
-mutable struct _VariableInfo
-    lower_bound::Float64
-    has_lower_bound::Bool
-    lower_bound_dual_start::Union{Nothing,Float64}
-    upper_bound::Float64
-    has_upper_bound::Bool
-    upper_bound_dual_start::Union{Nothing,Float64}
-    is_fixed::Bool
-    start::Union{Nothing,Float64}
-end
-
-function _VariableInfo()
-    return _VariableInfo(
-        -Inf,
-        false,
-        nothing,
-        Inf,
-        false,
-        nothing,
-        false,
-        nothing,
-    )
-end
-
 mutable struct _ConstraintInfo{F,S}
     func::F
     set::S
@@ -35,7 +11,7 @@ end
 _ConstraintInfo(func, set) = _ConstraintInfo(func, set, nothing)
 
 mutable struct Optimizer <: MOI.AbstractOptimizer
-    inner::Union{IpoptProblem,Nothing}
+    inner::Union{Nothing,IpoptProblem}
     variables::MOI.Utilities.VariablesContainer{Float64}
     variable_primal_start::Vector{Union{Nothing,Float64}}
     variable_lower_start::Vector{Union{Nothing,Float64}}
@@ -43,10 +19,10 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
     nlp_data::MOI.NLPBlockData
     sense::MOI.OptimizationSense
     objective::Union{
+        Nothing,
         MOI.VariableIndex,
         MOI.ScalarAffineFunction{Float64},
         MOI.ScalarQuadraticFunction{Float64},
-        Nothing,
     }
     linear_le_constraints::Vector{
         _ConstraintInfo{
@@ -89,41 +65,16 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
 end
 
 ### _EmptyNLPEvaluator
-### This AbstractNLPEvaluator is used when the user hasn't defined one.
 
 struct _EmptyNLPEvaluator <: MOI.AbstractNLPEvaluator end
 
 MOI.features_available(::_EmptyNLPEvaluator) = [:Grad, :Jac, :Hess]
-
-MOI.initialize(::_EmptyNLPEvaluator, features) = nothing
-
-MOI.eval_objective(::_EmptyNLPEvaluator, x) = NaN
-
-function MOI.eval_constraint(::_EmptyNLPEvaluator, g, x)
-    @assert length(g) == 0
-    return
-end
-
-function MOI.eval_objective_gradient(::_EmptyNLPEvaluator, g, x)
-    fill!(g, 0.0)
-    return
-end
-
+MOI.initialize(::_EmptyNLPEvaluator, ::Any) = nothing
+MOI.eval_constraint(::_EmptyNLPEvaluator, g, x) = nothing
 MOI.jacobian_structure(::_EmptyNLPEvaluator) = Tuple{Int64,Int64}[]
-
 MOI.hessian_lagrangian_structure(::_EmptyNLPEvaluator) = Tuple{Int64,Int64}[]
-
-function MOI.eval_constraint_jacobian(::_EmptyNLPEvaluator, J, x)
-    @assert length(J) == 0
-    return
-end
-
-function MOI.eval_hessian_lagrangian(::_EmptyNLPEvaluator, H, x, σ, μ)
-    @assert length(H) == 0
-    return
-end
-
-_empty_nlp_data() = MOI.NLPBlockData([], _EmptyNLPEvaluator(), false)
+MOI.eval_constraint_jacobian(::_EmptyNLPEvaluator, J, x) = nothing
+MOI.eval_hessian_lagrangian(::_EmptyNLPEvaluator, H, x, σ, μ) = nothing
 
 function Optimizer(; kwargs...)
     if length(kwargs) > 0
@@ -140,7 +91,7 @@ function Optimizer(; kwargs...)
         Float64[],
         Float64[],
         Float64[],
-        _empty_nlp_data(),
+        MOI.NLPBlockData([], _EmptyNLPEvaluator(), false),
         MOI.FEASIBILITY_SENSE,
         nothing,
         [],
@@ -166,7 +117,7 @@ function MOI.empty!(model::Optimizer)
     empty!(model.variable_primal_start)
     empty!(model.variable_lower_start)
     empty!(model.variable_upper_start)
-    model.nlp_data = _empty_nlp_data()
+    model.nlp_data = MOI.NLPBlockData([], _EmptyNLPEvaluator(), false)
     model.sense = MOI.FEASIBILITY_SENSE
     model.objective = nothing
     empty!(model.linear_le_constraints)
@@ -555,10 +506,8 @@ function MOI.set(
     },
     S,
 }
+    MOI.throw_if_not_valid(model, ci)
     constraints = _constraints(model, F, S)
-    if !(1 <= ci.value <= length(constraints))
-        throw(MOI.InvalidIndex(ci))
-    end
     constraints[ci.value].dual_start = value
     return
 end
@@ -574,10 +523,8 @@ function MOI.get(
     },
     S,
 }
+    MOI.throw_if_not_valid(model, ci)
     constraints = _constraints(model, F, S)
-    if !(1 <= ci.value <= length(constraints))
-        throw(MOI.InvalidIndex(ci))
-    end
     return constraints[ci.value].dual_start
 end
 
@@ -746,8 +693,8 @@ function MOI.supports(
     ::MOI.ObjectiveFunction{
         <:Union{
             MOI.VariableIndex,
-            MOI.ScalarAffineFunction,
-            MOI.ScalarQuadraticFunction,
+            MOI.ScalarAffineFunction{Float64},
+            MOI.ScalarQuadraticFunction{Float64},
         },
     },
 )
@@ -761,8 +708,8 @@ function MOI.set(
 ) where {
     F<:Union{
         MOI.VariableIndex,
-        MOI.ScalarAffineFunction,
-        MOI.ScalarQuadraticFunction,
+        MOI.ScalarAffineFunction{Float64},
+        MOI.ScalarQuadraticFunction{Float64},
     },
 }
     _check_inbounds(model, func)
@@ -850,41 +797,9 @@ function _nlp_constraint_offset(model::Optimizer)
     return x + length(model.quadratic_eq_constraints)
 end
 
-_eval_function(::Nothing, x) = 0.0
+_eval_function(::Nothing, ::Any) = 0.0
 
-function _eval_function(var::MOI.VariableIndex, x)
-    return x[var.value]
-end
-
-function _eval_function(aff::MOI.ScalarAffineFunction, x)
-    function_value = aff.constant
-    for term in aff.terms
-        # Note the implicit assumtion that VariableIndex values match up with
-        # x indices. This is valid because in this wrapper ListOfVariableIndices
-        # is always [1, ..., NumberOfVariables].
-        function_value += term.coefficient * x[term.variable.value]
-    end
-    return function_value
-end
-
-function _eval_function(quad::MOI.ScalarQuadraticFunction, x)
-    function_value = quad.constant
-    for term in quad.affine_terms
-        function_value += term.coefficient * x[term.variable.value]
-    end
-    for term in quad.quadratic_terms
-        row_idx = term.variable_1
-        col_idx = term.variable_2
-        coefficient = term.coefficient
-        if row_idx == col_idx
-            function_value +=
-                0.5 * coefficient * x[row_idx.value] * x[col_idx.value]
-        else
-            function_value += coefficient * x[row_idx.value] * x[col_idx.value]
-        end
-    end
-    return function_value
-end
+_eval_function(f, x) = MOI.Utilities.eval_variables(xi -> x[xi.value], f)
 
 ### Eval_F_CB
 
@@ -1414,9 +1329,6 @@ function MOI.get(model::Optimizer, attr::MOI.DualStatus)
         # Solutions are only guaranteed to satisfy the "acceptable" convergence
         # tolerances.
         return MOI.NEARLY_FEASIBLE_POINT
-    elseif status == :Infeasible_Problem_Detected
-        # TODO: What is the interpretation of the dual in this case?
-        return MOI.UNKNOWN_RESULT_STATUS
     else
         return MOI.UNKNOWN_RESULT_STATUS
     end
@@ -1435,9 +1347,6 @@ end
 
 ### MOI.VariablePrimal
 
-# TODO: This is a bit off, because the variable primal should be available
-# only after a solve. If model.inner is initialized but we haven't solved, then
-# the primal values we return do not have the intended meaning.
 function MOI.get(
     model::Optimizer,
     attr::MOI.VariablePrimal,
