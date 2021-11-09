@@ -153,6 +153,9 @@ end
 
 MOI.get(::Optimizer, ::MOI.SolverName) = "Ipopt"
 
+# TODO(odow): can this be fixed?
+MOI.get(::Optimizer, ::MOI.SolverVersion) = "unknown"
+
 function MOI.supports_constraint(
     ::Optimizer,
     ::Type{
