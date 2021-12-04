@@ -1223,6 +1223,7 @@ const _STATUS_CODES = Dict(
     -2 => :Restoration_Failed,
     -3 => :Error_In_Step_Computation,
     -4 => :Maximum_CpuTime_Exceeded,
+    -5 => :Maximum_WallTime_Exceeded,
     -10 => :Not_Enough_Degrees_Of_Freedom,
     -11 => :Invalid_Problem_Definition,
     -12 => :Invalid_Option,
@@ -1262,6 +1263,8 @@ function MOI.get(model::Optimizer, ::MOI.TerminationStatus)
     elseif status == :Maximum_Iterations_Exceeded
         return MOI.ITERATION_LIMIT
     elseif status == :Maximum_CpuTime_Exceeded
+        return MOI.TIME_LIMIT
+    elseif status == :Maximum_WallTime_Exceeded
         return MOI.TIME_LIMIT
     elseif status == :Restoration_Failed
         return MOI.NUMERICAL_ERROR
