@@ -233,6 +233,15 @@ To improve performance, Ipopt supports a number of linear solvers. Installing
 these can be tricky, however, the following instructions should work. If they
 don't, or are not explicit enough, please open an issue.
 
+### Julia 1.7
+
+Depending on your system, you may encounter the error:
+`Error: no BLAS/LAPACK library loaded!`. If you do, run:
+```julia
+import LinearAlgebra, OpenBLAS32_jll
+LinearAlgebra.BLAS.lbt_forward(OpenBLAS32_jll.libopenblas_path)
+```
+
 ### Pardiso (Pardiso Project)
 
 #### Linux
