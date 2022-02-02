@@ -142,7 +142,7 @@ Compute the Jacobian matrix.
      sparsity structure.
      
 !!! warning
-    If `values === nothing` `x` is an undefined object. Accessing any elements
+    If `values === nothing`, `x` is an undefined object. Accessing any elements
     in it will cause Julia to segfault.
 """
 function eval_jac_g end
@@ -165,7 +165,7 @@ Compute the Hessian-of-the-Lagrangian matrix.
    - Fill `values` with the Hessian matrix according to the sparsity structure.
 
 !!! warning
-    If `values === nothing` `x` is an undefined object. Accessing any elements
+    If `values === nothing`, `x` is an undefined object. Accessing any elements
     in it will cause Julia to segfault.
 """
 function eval_h end
