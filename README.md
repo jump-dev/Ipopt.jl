@@ -1,19 +1,3 @@
-**Ipopt.jl 0.9 contains breaking changes to the C API.**
-
-This release of Ipopt.jl contains a number of breaking changes, however, we
-anticipate that this will be the last breaking change before Ipopt v1.0.
-
- * The MathProgBase wrapper has been removed.
- * The C API has been refactored in a breaking way:
-   * All functions are now named the same as their C counterparts
-   * `addOption` has been removed in favor of explicit calls to
-      `AddIpoptStrOption`, `AddIpoptIntOption`, or `AddIpoptNumOption`
-   * The jacobian and hessian callbacks no longer take a `mode::Symbol`
-     argument. Instead, the `values` is `nothing` if the structure is requested.
- * The signature of the `Ipopt.CallbackFunction` function has changed to remove
-   `prob::IpoptProblem`. Use `callback_value` instead of accessing internal
-   fields.
-
 # Ipopt.jl
 
 ![](https://www.coin-or.org/wordpress/wp-content/uploads/2014/08/COINOR.png)
