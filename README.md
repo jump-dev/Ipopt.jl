@@ -1,19 +1,3 @@
-**Ipopt.jl 0.9 contains breaking changes to the C API.**
-
-This release of Ipopt.jl contains a number of breaking changes, however, we
-anticipate that this will be the last breaking change before Ipopt v1.0.
-
- * The MathProgBase wrapper has been removed.
- * The C API has been refactored in a breaking way:
-   * All functions are now named the same as their C counterparts
-   * `addOption` has been removed in favor of explicit calls to
-      `AddIpoptStrOption`, `AddIpoptIntOption`, or `AddIpoptNumOption`
-   * The jacobian and hessian callbacks no longer take a `mode::Symbol`
-     argument. Instead, the `values` is `nothing` if the structure is requested.
- * The signature of the `Ipopt.CallbackFunction` function has changed to remove
-   `prob::IpoptProblem`. Use `callback_value` instead of accessing internal
-   fields.
-
 # Ipopt.jl
 
 ![](https://www.coin-or.org/wordpress/wp-content/uploads/2014/08/COINOR.png)
@@ -36,8 +20,6 @@ import Pkg; Pkg.add("Ipopt")
 
 In addition to installing the `Ipopt.jl` package, this will also download and
 install the Ipopt binaries. You do _not_ need to install Ipopt separately.
-
-If you require a custom build of Ipopt, see the instructions below.
 
 For details on using a different linear solver, see the `Linear Solvers` section
 below.
@@ -140,7 +122,7 @@ Compute the Jacobian matrix.
 * Otherwise:
    - Fill `values` with the elements of the Jacobian matrix according to the
      sparsity structure.
-     
+
 !!! warning
     If `values === nothing`, `x` is an undefined object. Accessing any elements
     in it will cause Julia to segfault.
@@ -189,50 +171,6 @@ do
 model = Model(Ipopt.Optimizer)
 @variable(model, x >= 0.0001)
 @NLobjective(model, 1 / x)
-```
-
-## Custom Installation
-
-**Note: it is not necessary to compile a custom version of Ipopt to use a
-different linear solver. See the Linear Solvers section below.**
-
-To install custom built Ipopt binaries, you must compile the shared library (
-e.g., `libipopt.dylib`, `libipopt.so`, or `libipopt.dll`) _and_ the AMPL
-executable (e.g., `ipopt` or `ipopt.exe`).
-
-If you cannot compile the AMPL executable, you can [download an appropriate
-version from AMPL](https://ampl.com/products/solvers/open-source/#ipopt).
-
-Next, set the environmental variables `JULIA_IPOPT_LIBRARY_PATH` and
-`JULIA_IPOPT_EXECUTABLE_PATH` to point the the shared library and AMPL
-executable repspectively. Then call `import Pkg; Pkg.build("Ipopt")`.
-
-For instance, given `/Users/oscar/lib/libipopt.dylib` and
-`/Users/oscar/bin/ipopt`, run:
-```julia
-ENV["JULIA_IPOPT_LIBRARY_PATH"] = "/Users/oscar/lib"
-ENV["JULIA_IPOPT_EXECUTABLE_PATH"] = "/Users/oscar/bin"
-import Pkg
-Pkg.build("Ipopt")
-```
-
-**Very important note: you must set these environment variables before
-calling `using Ipopt` in every Julia session.**
-
-For example:
-```julia
-ENV["JULIA_IPOPT_LIBRARY_PATH"] = "/Users/oscar/lib"
-ENV["JULIA_IPOPT_EXECUTABLE_PATH"] = "/Users/oscar/bin"
-using Ipopt
-```
-Alternatively, you can set these permanently through your operating system.
-
-To switch back to the default binaries, run
-```julia
-delete!(ENV, "JULIA_IPOPT_LIBRARY_PATH")
-delete!(ENV, "JULIA_IPOPT_EXECUTABLE_PATH")
-import Pkg
-Pkg.build("Ipopt")
 ```
 
 ## Linear Solvers
