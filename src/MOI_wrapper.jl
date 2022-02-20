@@ -13,6 +13,7 @@ Create a new Ipopt optimizer.
 """
 mutable struct Optimizer <: MOI.AbstractOptimizer
     inner::Union{Nothing,IpoptProblem}
+    invalid_model::Bool
     variables::MOI.Utilities.VariablesContainer{Float64}
     variable_primal_start::Vector{Union{Nothing,Float64}}
     variable_lower_start::Vector{Union{Nothing,Float64}}
@@ -67,6 +68,7 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
     function Optimizer()
         return new(
             nothing,
+            false,
             MOI.Utilities.VariablesContainer{Float64}(),
             Union{Nothing,Float64}[],
             Union{Nothing,Float64}[],
@@ -123,6 +125,7 @@ MOI.eval_hessian_lagrangian(::_EmptyNLPEvaluator, H, x, σ, μ) = nothing
 
 function MOI.empty!(model::Optimizer)
     model.inner = nothing
+    model.invalid_model = false
     MOI.empty!(model.variables)
     empty!(model.variable_primal_start)
     empty!(model.variable_lower_start)
@@ -1119,6 +1122,11 @@ function MOI.optimize!(model::Optimizer)
         push!(g_U, bound.upper)
     end
     start_time = time()
+    if length(model.variables.lower) == 0
+        # Don't attempt to create a problem because Ipopt will error.
+        model.invalid_model = true
+        return
+    end
     model.inner = CreateIpoptProblem(
         length(model.variables.lower),
         model.variables.lower,
@@ -1254,7 +1262,9 @@ end
 ### MOI.TerminationStatus
 
 function MOI.get(model::Optimizer, ::MOI.TerminationStatus)
-    if model.inner === nothing
+    if model.invalid_model
+        return MOI.INVALID_MODEL
+    elseif model.inner === nothing
         return MOI.OPTIMIZE_NOT_CALLED
     end
     status = _STATUS_CODES[model.inner.status]
@@ -1292,10 +1302,9 @@ function MOI.get(model::Optimizer, ::MOI.TerminationStatus)
         return MOI.OTHER_ERROR
     elseif status == :NonIpopt_Exception_Thrown
         return MOI.OTHER_ERROR
-    elseif status == :Insufficient_Memory
-        return MOI.MEMORY_LIMIT
     else
-        error("Unrecognized Ipopt status $status")
+        @assert status == :Insufficient_Memory
+        return MOI.MEMORY_LIMIT
     end
 end
 
