@@ -74,12 +74,30 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
             MOI.NLPBlockData([], _EmptyNLPEvaluator(), false),
             MOI.FEASIBILITY_SENSE,
             nothing,
-            [],
-            [],
-            [],
-            [],
-            [],
-            [],
+            _ConstraintInfo{
+                MOI.ScalarAffineFunction{Float64},
+                MOI.LessThan{Float64},
+            }[],
+            _ConstraintInfo{
+                MOI.ScalarAffineFunction{Float64},
+                MOI.GreaterThan{Float64},
+            }[],
+            _ConstraintInfo{
+                MOI.ScalarAffineFunction{Float64},
+                MOI.EqualTo{Float64},
+            }[],
+            _ConstraintInfo{
+                MOI.ScalarQuadraticFunction{Float64},
+                MOI.LessThan{Float64},
+            }[],
+            _ConstraintInfo{
+                MOI.ScalarQuadraticFunction{Float64},
+                MOI.GreaterThan{Float64},
+            }[],
+            _ConstraintInfo{
+                MOI.ScalarQuadraticFunction{Float64},
+                MOI.EqualTo{Float64},
+            }[],
             nothing,
             false,
             Dict{String,Any}(),
