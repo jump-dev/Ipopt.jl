@@ -42,8 +42,6 @@ function test_MOI_Test()
             ],
         );
         exclude = String[
-            # TODO(odow): need to implement
-            "test_attribute_SolverVersion",
             # Tests purposefully excluded:
             #  - Upstream: ZeroBridge does not support ConstraintDual
             "test_conic_linear_VectorOfVariables_2",
@@ -147,12 +145,6 @@ function test_check_derivatives_for_naninf()
     # MOI.set(model, MOI.RawOptimizerAttribute("check_derivatives_for_naninf"), "no")
     MOI.optimize!(model)
     @test MOI.get(model, MOI.TerminationStatus()) == MOI.INVALID_MODEL
-    return
-end
-
-function test_deprecation()
-    model = Ipopt.Optimizer(print_level = 0)
-    @test MOI.get(model, MOI.RawOptimizerAttribute("print_level")) == 0
     return
 end
 

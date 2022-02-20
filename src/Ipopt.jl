@@ -1,6 +1,9 @@
 module Ipopt
 
 import Ipopt_jll
+import MathOptInterface
+
+const MOI = MathOptInterface
 
 function __init__()
     global libipopt = Ipopt_jll.libipopt
@@ -14,8 +17,8 @@ export IpoptProblem,
     CreateIpoptProblem,
     FreeIpoptProblem,
     AddIpoptStrOption,
-    AddIpoptIntOption,
     AddIpoptNumOption,
+    AddIpoptIntOption,
     OpenIpoptOutputFile,
     SetIpoptProblemScaling,
     SetIntermediateCallback,
