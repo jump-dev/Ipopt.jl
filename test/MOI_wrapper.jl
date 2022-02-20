@@ -184,12 +184,10 @@ end
 
 function test_empty_optimize()
     model = Ipopt.Optimizer()
-    err = ErrorException(
-        "IPOPT: Failed to construct problem because there are 0 variables. " *
-        "If you intended to construct an empty problem, one work-around is " *
-        "to add a variable fixed to 0.",
-    )
-    @test_throws err MOI.optimize!(model)
+    MOI.optimize!(model)
+    @test MOI.get(model, MOI.TerminationStatus()) == MOI.INVALID_MODEL
+    @test MOI.get(model, MOI.DualStatus()) == MOI.NO_SOLUTION
+    @test MOI.get(model, MOI.PrimalStatus()) == MOI.NO_SOLUTION
     return
 end
 
