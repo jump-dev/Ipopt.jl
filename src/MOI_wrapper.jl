@@ -65,12 +65,12 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
     callback::Union{Nothing,Function}
 
     function Optimizer()
-        return Optimizer(
+        return new(
             nothing,
             MOI.Utilities.VariablesContainer{Float64}(),
-            Float64[],
-            Float64[],
-            Float64[],
+            Union{Nothing,Float64}[],
+            Union{Nothing,Float64}[],
+            Union{Nothing,Float64}[],
             MOI.NLPBlockData([], _EmptyNLPEvaluator(), false),
             MOI.FEASIBILITY_SENSE,
             nothing,
@@ -106,6 +106,8 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
         )
     end
 end
+
+MOI.get(::Optimizer, ::MOI.SolverVersion) = "3.14.4"
 
 ### _EmptyNLPEvaluator
 
