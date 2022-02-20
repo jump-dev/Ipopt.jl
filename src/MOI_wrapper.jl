@@ -1,7 +1,3 @@
-import MathOptInterface
-
-const MOI = MathOptInterface
-
 mutable struct _ConstraintInfo{F,S}
     func::F
     set::S
@@ -10,6 +6,11 @@ end
 
 _ConstraintInfo(func, set) = _ConstraintInfo(func, set, nothing)
 
+"""
+    Optimizer()
+
+Create a new Ipopt optimizer.
+"""
 mutable struct Optimizer <: MOI.AbstractOptimizer
     inner::Union{Nothing,IpoptProblem}
     variables::MOI.Utilities.VariablesContainer{Float64}
@@ -62,6 +63,30 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
     options::Dict{String,Any}
     solve_time::Float64
     callback::Union{Nothing,Function}
+
+    function Optimizer()
+        return Optimizer(
+            nothing,
+            MOI.Utilities.VariablesContainer{Float64}(),
+            Float64[],
+            Float64[],
+            Float64[],
+            MOI.NLPBlockData([], _EmptyNLPEvaluator(), false),
+            MOI.FEASIBILITY_SENSE,
+            nothing,
+            [],
+            [],
+            [],
+            [],
+            [],
+            [],
+            nothing,
+            false,
+            Dict{String,Any}(),
+            NaN,
+            nothing,
+        )
+    end
 end
 
 ### _EmptyNLPEvaluator
@@ -75,41 +100,6 @@ MOI.jacobian_structure(::_EmptyNLPEvaluator) = Tuple{Int64,Int64}[]
 MOI.hessian_lagrangian_structure(::_EmptyNLPEvaluator) = Tuple{Int64,Int64}[]
 MOI.eval_constraint_jacobian(::_EmptyNLPEvaluator, J, x) = nothing
 MOI.eval_hessian_lagrangian(::_EmptyNLPEvaluator, H, x, σ, μ) = nothing
-
-function Optimizer(; kwargs...)
-    if length(kwargs) > 0
-        @warn("""Passing optimizer attributes as keyword arguments to
-        `Ipopt.Optimizer` is deprecated. Use
-            MOI.set(model, MOI.RawOptimizerAttribute("key"), value)
-        or
-            JuMP.set_optimizer_attribute(model, "key", value)
-        instead.""")
-    end
-    return Optimizer(
-        nothing,
-        MOI.Utilities.VariablesContainer{Float64}(),
-        Float64[],
-        Float64[],
-        Float64[],
-        MOI.NLPBlockData([], _EmptyNLPEvaluator(), false),
-        MOI.FEASIBILITY_SENSE,
-        nothing,
-        [],
-        [],
-        [],
-        [],
-        [],
-        [],
-        nothing,
-        false,
-        Dict{String,Any}(
-            # Remove when `kwargs...` support is dropped.
-            string(key) => value for (key, value) in kwargs
-        ),
-        NaN,
-        nothing,
-    )
-end
 
 function MOI.empty!(model::Optimizer)
     model.inner = nothing
