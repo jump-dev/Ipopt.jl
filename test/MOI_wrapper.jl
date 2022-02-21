@@ -184,10 +184,12 @@ end
 
 function test_empty_optimize()
     model = Ipopt.Optimizer()
+    @test MOI.get(model, MOI.RawStatusString()) == "Optimize not called"
     MOI.optimize!(model)
     @test MOI.get(model, MOI.TerminationStatus()) == MOI.INVALID_MODEL
     @test MOI.get(model, MOI.DualStatus()) == MOI.NO_SOLUTION
     @test MOI.get(model, MOI.PrimalStatus()) == MOI.NO_SOLUTION
+    @test MOI.get(model, MOI.RawStatusString()) == "The model has no variable"
     return
 end
 

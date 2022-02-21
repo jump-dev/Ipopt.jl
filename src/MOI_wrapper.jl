@@ -1311,7 +1311,13 @@ end
 ### MOI.RawStatusString
 
 function MOI.get(model::Optimizer, ::MOI.RawStatusString)
-    return string(_STATUS_CODES[model.inner.status])
+    if model.invalid_model
+        return "The model has no variable"
+    elseif model.inner === nothing
+        return "Optimize not called"
+    else
+        return string(_STATUS_CODES[model.inner.status])
+    end
 end
 
 ### MOI.PrimalStatus
