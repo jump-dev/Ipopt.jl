@@ -247,10 +247,11 @@ Currently untested. If you have instructions that work, please open an issue.
 
 _Tested on a clean install of Ubuntu 20.04._
 
-1. Install Fortran compiler if necessary
+1. Install dependencies if necessary:
    ```
-   sudo apt install gfortran
+   sudo apt install gfortran libblas-dev libmetis-dev
    ```
+   Note: on Windows Subsystem for Linux, you may also need `sudo apt install make`.
 2. Download the appropriate version of HSL.
    - MA27: [HSL for IPOPT from HSL](http://www.hsl.rl.ac.uk/ipopt/)
    - MA86: [HSL_MA86 from HSL](http://www.hsl.rl.ac.uk/download/HSL_MA86/1.6.0/)
