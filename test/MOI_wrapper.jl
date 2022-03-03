@@ -182,6 +182,41 @@ function test_callback()
     return
 end
 
+function test_callback_2()
+    model = Ipopt.Optimizer()
+    MOI.set(model, MOI.RawOptimizerAttribute("print_level"), 0)
+    x = MOI.add_variable(model)
+    MOI.add_constraint(model, x, MOI.GreaterThan(1.0))
+    f = MOI.ScalarAffineFunction([MOI.ScalarAffineTerm(1.0, x)], 0.5)
+    MOI.add_constraint(model, f, MOI.LessThan(2.0))
+    MOI.set(model, MOI.ObjectiveSense(), MOI.MIN_SENSE)
+    MOI.set(model, MOI.ObjectiveFunction{typeof(f)}(), f)
+    x_vals = Float64[]
+    function my_callback(
+        alg_mod::Cint,
+        iter_count::Cint,
+        obj_value::Float64,
+        inf_pr::Float64,
+        inf_du::Float64,
+        mu::Float64,
+        d_norm::Float64,
+        regularization_size::Float64,
+        alpha_du::Float64,
+        alpha_pr::Float64,
+        ls_trials::Cint,
+    )
+        push!(x_vals, MOI.get(model, MOI.CallbackVariablePrimal(model), x))
+        @test isapprox(obj_value, 1.0 * x_vals[end] + 0.5, atol = 1e-1)
+        return iter_count < 1
+    end
+    MOI.set(model, Ipopt.CallbackFunction(), my_callback)
+    MOI.optimize!(model)
+    @test MOI.get(model, MOI.TerminationStatus()) == MOI.INTERRUPTED
+    @test length(x_vals) == 2
+    @test x_vals[1] !== x_vals[2]
+    return
+end
+
 function test_empty_optimize()
     model = Ipopt.Optimizer()
     @test MOI.get(model, MOI.RawStatusString()) == "Optimize not called"
