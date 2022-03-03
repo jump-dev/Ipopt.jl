@@ -53,8 +53,7 @@ end
 function _Eval_G_CB(
     n::Cint,
     x_ptr::Ptr{Float64},
-    # A Bool indicating if `x` is a new point. We don't make use of this.
-    ::Cint,
+    x_new::Cint,
     m::Cint,
     g_ptr::Ptr{Float64},
     user_data::Ptr{Cvoid},
@@ -62,6 +61,9 @@ function _Eval_G_CB(
     prob = unsafe_pointer_to_objref(user_data)::IpoptProblem
     new_g = unsafe_wrap(Array, g_ptr, Int(m))
     x = unsafe_wrap(Array, x_ptr, Int(n))
+    if x_new == Cint(1)
+        prob.x .= x
+    end
     prob.eval_g(x, new_g)
     return Cint(1)
 end
