@@ -1018,23 +1018,34 @@ function _fill_hessian_lagrangian(H, offset, λ, f::MOI.ScalarQuadraticFunction)
     return length(f.quadratic_terms)
 end
 
+function _eval_hessian_lagrangian(
+    ::Type{S},
+    model::Optimizer,
+    H,
+    μ,
+    offset,
+) where {S}
+    F = MOI.ScalarQuadraticFunction{Float64}
+    offset_start = _offset(model, F, S)
+    for (i, info) in enumerate(_constraints(model, F, S))
+        offset +=
+            _fill_hessian_lagrangian(H, offset, μ[offset_start+i], info.func)
+    end
+    return offset
+end
+
 function _eval_hessian_lagrangian(model::Optimizer, H, x, σ, μ)
     offset = 0
     if !model.nlp_data.has_objective
         offset += _fill_hessian_lagrangian(H, 0, σ, model.objective)
     end
-    F = MOI.ScalarQuadraticFunction{Float64}
-    for S in
-        (MOI.LessThan{Float64}, MOI.GreaterThan{Float64}, MOI.EqualTo{Float64})
-        for (i, info) in enumerate(_constraints(model, F, S))
-            offset += _fill_hessian_lagrangian(
-                H,
-                offset,
-                μ[i+_offset(model, F, S)],
-                info.func,
-            )
-        end
-    end
+    # Handles any quadratic constraints that are present. The order matters.
+    offset =
+        _eval_hessian_lagrangian(MOI.LessThan{Float64}, model, H, μ, offset)
+    offset =
+        _eval_hessian_lagrangian(MOI.GreaterThan{Float64}, model, H, μ, offset)
+    offset = _eval_hessian_lagrangian(MOI.EqualTo{Float64}, model, H, μ, offset)
+    # Handles the Hessian in the nonlinear block
     MOI.eval_hessian_lagrangian(
         model.nlp_data.evaluator,
         view(H, 1+offset:length(H)),
