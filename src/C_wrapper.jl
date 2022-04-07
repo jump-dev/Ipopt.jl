@@ -30,7 +30,13 @@ function _Eval_F_CB(
     if x_new == Cint(1)
         prob.x .= x
     end
-    new_obj = convert(Float64, prob.eval_f(x))::Float64
+    new_x = convert(Bool, x_new)    
+    new_obj = nothing
+    try
+        new_obj = convert(Float64, prob.eval_f(x, new_x))::Float64
+    catch
+        new_obj = convert(Float64, prob.eval_f(x))::Float64
+    end
     unsafe_store!(obj_value, new_obj)
     return Cint(1)
 end
@@ -38,15 +44,19 @@ end
 function _Eval_Grad_F_CB(
     n::Cint,
     x_ptr::Ptr{Float64},
-    # A Bool indicating if `x` is a new point. We don't make use of this.
-    ::Cint,
+    x_new::Cint,
     grad_f::Ptr{Float64},
     user_data::Ptr{Cvoid},
 )
     prob = unsafe_pointer_to_objref(user_data)::IpoptProblem
     new_grad_f = unsafe_wrap(Array, grad_f, Int(n))
     x = unsafe_wrap(Array, x_ptr, Int(n))
-    prob.eval_grad_f(x, new_grad_f)
+    new_x = convert(Bool, x_new)
+    try        
+        prob.eval_grad_f(x, new_x, new_grad_f)
+    catch
+        prob.eval_grad_f(x, new_grad_f)
+    end
     return Cint(1)
 end
 
@@ -64,15 +74,20 @@ function _Eval_G_CB(
     if x_new == Cint(1)
         prob.x .= x
     end
-    prob.eval_g(x, new_g)
+    new_x = convert(Bool, x_new)
+    try        
+        prob.eval_g(x, new_x, new_g)
+    catch
+        prob.eval_g(x, new_g)
+    end
     return Cint(1)
 end
 
 function _Eval_Jac_G_CB(
     n::Cint,
     x_ptr::Ptr{Float64},
-    ::Cint,
-    ::Cint,
+    x_new::Cint,
+    m::Cint,
     nele_jac::Cint,
     iRow::Ptr{Cint},
     jCol::Ptr{Cint},
@@ -83,11 +98,20 @@ function _Eval_Jac_G_CB(
     x = unsafe_wrap(Array, x_ptr, Int(n))
     rows = unsafe_wrap(Array, iRow, Int(nele_jac))
     cols = unsafe_wrap(Array, jCol, Int(nele_jac))
+    new_x = convert(Bool, x_new)
     if values_ptr == C_NULL
-        prob.eval_jac_g(x, rows, cols, nothing)
+        try
+            prob.eval_jac_g(x, new_x, rows, cols, nothing)
+        catch    
+            prob.eval_jac_g(x, rows, cols, nothing)
+        end
     else
         values = unsafe_wrap(Array, values_ptr, Int(nele_jac))
-        prob.eval_jac_g(x, rows, cols, values)
+        try
+            prob.eval_jac_g(x, new_x, rows, cols, values)
+        catch    
+            prob.eval_jac_g(x, rows, cols, values)
+        end
     end
     return Cint(1)
 end
@@ -95,11 +119,11 @@ end
 function _Eval_H_CB(
     n::Cint,
     x_ptr::Ptr{Float64},
-    ::Cint,
+    x_new::Cint,
     obj_factor::Float64,
     m::Cint,
     lambda_ptr::Ptr{Float64},
-    ::Cint,
+    new_lambda::Cint,
     nele_hess::Cint,
     iRow::Ptr{Cint},
     jCol::Ptr{Cint},
@@ -115,11 +139,20 @@ function _Eval_H_CB(
     lambda = unsafe_wrap(Array, lambda_ptr, Int(m))
     rows = unsafe_wrap(Array, iRow, Int(nele_hess))
     cols = unsafe_wrap(Array, jCol, Int(nele_hess))
+    new_x = convert(Bool, x_new)
     if values_ptr == C_NULL
-        prob.eval_h(x, rows, cols, obj_factor, lambda, nothing)
+        try
+            prob.eval_h(x, new_x, rows, cols, obj_factor, lambda, nothing)
+        catch    
+            prob.eval_h(x, rows, cols, obj_factor, lambda, nothing)
+        end
     else
         values = unsafe_wrap(Array, values_ptr, Int(nele_hess))
-        prob.eval_h(x, rows, cols, obj_factor, lambda, values)
+        try
+            prob.eval_h(x, new_x, rows, cols, obj_factor, lambda, values)
+        catch    
+            prob.eval_h(x, rows, cols, obj_factor, lambda, values)
+        end
     end
     return Cint(1)  # Return TRUE for success.
 end
