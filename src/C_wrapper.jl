@@ -16,6 +16,7 @@ mutable struct IpoptProblem
     eval_jac_g::Function
     eval_h::Union{Function,Nothing}
     intermediate::Union{Function,Nothing}
+    expose_xnew::Bool
 end
 
 function _Eval_F_CB(
@@ -32,9 +33,9 @@ function _Eval_F_CB(
     end
     new_x = convert(Bool, x_new)    
     new_obj = nothing
-    try
+    if prob.expose_xnew
         new_obj = convert(Float64, prob.eval_f(x, new_x))::Float64
-    catch
+    else
         new_obj = convert(Float64, prob.eval_f(x))::Float64
     end
     unsafe_store!(obj_value, new_obj)
@@ -52,9 +53,9 @@ function _Eval_Grad_F_CB(
     new_grad_f = unsafe_wrap(Array, grad_f, Int(n))
     x = unsafe_wrap(Array, x_ptr, Int(n))
     new_x = convert(Bool, x_new)
-    try        
+    if prob.expose_xnew
         prob.eval_grad_f(x, new_x, new_grad_f)
-    catch
+    else
         prob.eval_grad_f(x, new_grad_f)
     end
     return Cint(1)
@@ -75,9 +76,9 @@ function _Eval_G_CB(
         prob.x .= x
     end
     new_x = convert(Bool, x_new)
-    try        
+    if prob.expose_xnew
         prob.eval_g(x, new_x, new_g)
-    catch
+    else
         prob.eval_g(x, new_g)
     end
     return Cint(1)
@@ -100,16 +101,16 @@ function _Eval_Jac_G_CB(
     cols = unsafe_wrap(Array, jCol, Int(nele_jac))
     new_x = convert(Bool, x_new)
     if values_ptr == C_NULL
-        try
+        if prob.expose_xnew
             prob.eval_jac_g(x, new_x, rows, cols, nothing)
-        catch    
+        else
             prob.eval_jac_g(x, rows, cols, nothing)
         end
     else
         values = unsafe_wrap(Array, values_ptr, Int(nele_jac))
-        try
+        if prob.expose_xnew
             prob.eval_jac_g(x, new_x, rows, cols, values)
-        catch    
+        else
             prob.eval_jac_g(x, rows, cols, values)
         end
     end
@@ -141,16 +142,16 @@ function _Eval_H_CB(
     cols = unsafe_wrap(Array, jCol, Int(nele_hess))
     new_x = convert(Bool, x_new)
     if values_ptr == C_NULL
-        try
+        if prob.expose_xnew
             prob.eval_h(x, new_x, rows, cols, obj_factor, lambda, nothing)
-        catch    
+        else
             prob.eval_h(x, rows, cols, obj_factor, lambda, nothing)
         end
     else
         values = unsafe_wrap(Array, values_ptr, Int(nele_hess))
-        try
+        if prob.expose_xnew
             prob.eval_h(x, new_x, rows, cols, obj_factor, lambda, values)
-        catch    
+        else
             prob.eval_h(x, rows, cols, obj_factor, lambda, values)
         end
     end
@@ -202,7 +203,8 @@ function CreateIpoptProblem(
     eval_g,
     eval_grad_f,
     eval_jac_g,
-    eval_h,
+    eval_h;
+    expose_xnew::Bool=false
 )
     @assert n == length(x_L) == length(x_U)
     @assert m == length(g_L) == length(g_U)
@@ -316,6 +318,7 @@ function CreateIpoptProblem(
         eval_jac_g,
         eval_h,
         nothing,
+        expose_xnew,
     )
     finalizer(FreeIpoptProblem, prob)
     return prob
