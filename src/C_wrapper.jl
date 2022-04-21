@@ -31,7 +31,7 @@ function _Eval_F_CB(
     if x_new == Cint(1)
         prob.x .= x
     end
-    new_x = convert(Bool, x_new)    
+    new_x = convert(Bool, x_new)
     new_obj = nothing
     if prob.expose_xnew
         new_obj = convert(Float64, prob.eval_f(x, new_x))::Float64
@@ -204,7 +204,7 @@ function CreateIpoptProblem(
     eval_grad_f,
     eval_jac_g,
     eval_h;
-    expose_xnew::Bool=false
+    expose_xnew::Bool = false,
 )
     @assert n == length(x_L) == length(x_U)
     @assert m == length(g_L) == length(g_U)
