@@ -1,3 +1,8 @@
+# Copyright (c) 2013: Iain Dunning, Miles Lubin, and contributors
+#
+# Use of this source code is governed by an MIT-style license that can be found
+# in the LICENSE.md file or at https://opensource.org/licenses/MIT.
+
 module Ipopt
 
 import Ipopt_jll
