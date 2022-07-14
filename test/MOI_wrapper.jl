@@ -77,6 +77,7 @@ end
 
 function test_Name()
     model = Ipopt.Optimizer()
+    @test MOI.supports(model, MOI.Name())
     @test MOI.get(model, MOI.Name()) == ""
     MOI.set(model, MOI.Name(), "Model")
     @test MOI.get(model, MOI.Name()) == "Model"
