@@ -18,6 +18,7 @@ Create a new Ipopt optimizer.
 """
 mutable struct Optimizer <: MOI.AbstractOptimizer
     inner::Union{Nothing,IpoptProblem}
+    name::String
     invalid_model::Bool
     variables::MOI.Utilities.VariablesContainer{Float64}
     variable_primal_start::Vector{Union{Nothing,Float64}}
@@ -73,6 +74,7 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
     function Optimizer()
         return new(
             nothing,
+            "",
             false,
             MOI.Utilities.VariablesContainer{Float64}(),
             Union{Nothing,Float64}[],
@@ -210,6 +212,17 @@ function MOI.get(model::Optimizer, ::MOI.ListOfConstraintTypesPresent)
     end
     return append!(ret, collect(constraints))
 end
+
+### MOI.Name
+
+MOI.supports(::Optimizer, ::MOI.Name) = true
+
+function MOI.set(model::Optimizer, ::MOI.Name, value::String)
+    model.name = value
+    return
+end
+
+MOI.get(model::Optimizer, ::MOI.Name) = model.name
 
 ### MOI.Silent
 
