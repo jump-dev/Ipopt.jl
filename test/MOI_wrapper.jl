@@ -75,6 +75,14 @@ function test_MOI_Test()
     return
 end
 
+function test_Name()
+    model = Ipopt.Optimizer()
+    @test MOI.get(model, MOI.Name()) == ""
+    MOI.set(model, MOI.Name(), "Model")
+    @test MOI.get(model, MOI.Name()) == "Model"
+    return
+end
+
 function test_ConstraintDualStart()
     model = Ipopt.Optimizer()
     x = MOI.add_variables(model, 2)
