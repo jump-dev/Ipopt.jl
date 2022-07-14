@@ -25,6 +25,7 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
     variable_lower_start::Vector{Union{Nothing,Float64}}
     variable_upper_start::Vector{Union{Nothing,Float64}}
     nlp_data::MOI.NLPBlockData
+    nlp_data_needs_initialize::Bool
     sense::MOI.OptimizationSense
     objective::Union{
         Nothing,
@@ -81,6 +82,7 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
             Union{Nothing,Float64}[],
             Union{Nothing,Float64}[],
             MOI.NLPBlockData([], _EmptyNLPEvaluator(), false),
+            true,
             MOI.FEASIBILITY_SENSE,
             nothing,
             _ConstraintInfo{
@@ -693,6 +695,7 @@ MOI.supports(::Optimizer, ::MOI.NLPBlock) = true
 
 function MOI.set(model::Optimizer, ::MOI.NLPBlock, nlp_data::MOI.NLPBlockData)
     model.nlp_data = nlp_data
+    model.nlp_data_needs_initialize = true
     return
 end
 
@@ -1095,7 +1098,10 @@ function MOI.optimize!(model::Optimizer)
     if num_nlp_constraints > 0
         push!(init_feat, :Jac)
     end
-    MOI.initialize(model.nlp_data.evaluator, init_feat)
+    if model.nlp_data_needs_initialize
+        MOI.initialize(model.nlp_data.evaluator, init_feat)
+        model.nlp_data_needs_initialize = false
+    end
     jacobian_sparsity = _jacobian_structure(model)
     hessian_sparsity = Tuple{Int,Int}[]
     if has_hessian
