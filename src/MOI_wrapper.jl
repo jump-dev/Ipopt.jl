@@ -194,6 +194,7 @@ function MOI.add_variable(model::Optimizer)
     push!(model.variable_primal_start, nothing)
     push!(model.mult_x_L, nothing)
     push!(model.mult_x_U, nothing)
+    model.nlp_data_needs_initialize = true
     return MOI.add_variable(model.variables)
 end
 
@@ -234,6 +235,7 @@ function MOI.get(
 end
 
 function MOI.add_constraint(model::Optimizer, x::MOI.VariableIndex, set::_SETS)
+    model.nlp_data_needs_initialize = true
     return MOI.add_constraint(model.variables, x, set)
 end
 
@@ -243,6 +245,7 @@ function MOI.set(
     ci::MOI.ConstraintIndex{MOI.VariableIndex,S},
     set::S,
 ) where {S<:_SETS}
+    model.nlp_data_needs_initialize = true
     MOI.set(model.variables, MOI.ConstraintSet(), ci, set)
     return
 end
@@ -251,6 +254,7 @@ function MOI.delete(
     model::Optimizer,
     ci::MOI.ConstraintIndex{MOI.VariableIndex,<:_SETS},
 )
+    model.nlp_data_needs_initialize = true
     MOI.delete(model.variables, ci)
     return
 end
@@ -265,6 +269,7 @@ function MOI.is_valid(
 end
 
 function MOI.add_constraint(model::Optimizer, func::_FUNCTIONS, set::_SETS)
+    model.nlp_data_needs_initialize = true
     return MOI.add_constraint(model.linear, func, set)
 end
 
@@ -449,6 +454,7 @@ function MOI.set(
     sense::MOI.OptimizationSense,
 )
     model.sense = sense
+    model.nlp_data_needs_initialize = true
     return
 end
 
@@ -476,6 +482,7 @@ function MOI.set(
     func::F,
 ) where {F<:Union{MOI.VariableIndex,<:_FUNCTIONS}}
     MOI.set(model.linear, attr, func)
+    model.nlp_data_needs_initialize = true
     return
 end
 
@@ -552,7 +559,7 @@ end
 
 ### MOI.optimize!
 
-function MOI.optimize!(model::Optimizer)
+function _setup_model(model::Optimizer)
     num_quadratic_constraints = length(model.linear.hessian_structure) > 0
     num_nlp_constraints = length(model.nlp_data.constraint_bounds)
     has_hessian = :Hess in MOI.features_available(model.nlp_data.evaluator)
@@ -563,17 +570,13 @@ function MOI.optimize!(model::Optimizer)
     if num_nlp_constraints > 0
         push!(init_feat, :Jac)
     end
-    if model.nlp_data_needs_initialize
-        MOI.initialize(model.nlp_data.evaluator, init_feat)
-        model.nlp_data_needs_initialize = false
-    end
+    MOI.initialize(model.nlp_data.evaluator, init_feat)
     jacobian_sparsity = MOI.jacobian_structure(model)
     hessian_sparsity = if has_hessian
         MOI.hessian_lagrangian_structure(model)
     else
         Tuple{Int,Int}[]
     end
-
     eval_f_cb(x) = MOI.eval_objective(model, x)
     eval_grad_f_cb(x, grad_f) = MOI.eval_objective_gradient(model, grad_f, x)
     eval_g_cb(x, g) = MOI.eval_constraint(model, g, x)
@@ -602,7 +605,6 @@ function MOI.optimize!(model::Optimizer)
         push!(g_L, bound.lower)
         push!(g_U, bound.upper)
     end
-    start_time = time()
     if length(model.variables.lower) == 0
         # Don't attempt to create a problem because Ipopt will error.
         model.invalid_model = true
@@ -652,6 +654,18 @@ function MOI.optimize!(model::Optimizer)
             AddIpoptStrOption(model.inner, "hessian_constant", "yes")
         end
     end
+    model.nlp_data_needs_initialize = false
+    return
+end
+
+function MOI.optimize!(model::Optimizer)
+    start_time = time()
+    if model.nlp_data_needs_initialize
+        _setup_model(model)
+    end
+    if model.invalid_model
+        return
+    end
     if model.silent
         AddIpoptIntOption(model.inner, "print_level", 0)
     end
@@ -677,7 +691,8 @@ function MOI.optimize!(model::Optimizer)
     end
     if model.nlp_dual_start === nothing
         # Initialize the dual start to 0.0 if NLPBlockDualStart is not provided.
-        model.nlp_dual_start = zeros(Float64, num_nlp_constraints)
+        model.nlp_dual_start =
+            zeros(Float64, length(model.nlp_data.constraint_bounds))
     end
     row = 0
     for start in model.linear.mult_g
