@@ -652,51 +652,49 @@ function MOI.optimize!(model::Optimizer)
     if model.invalid_model
         return
     end
+    inner = model.inner::IpoptProblem
     if model.silent
-        AddIpoptIntOption(model.inner, "print_level", 0)
+        AddIpoptIntOption(inner, "print_level", 0)
     end
     # Other misc options that over-ride the ones set above.
     for (name, value) in model.options
         if value isa String
-            AddIpoptStrOption(model.inner, name, value)
+            AddIpoptStrOption(inner, name, value)
         elseif value isa Integer
-            AddIpoptIntOption(model.inner, name, value)
+            AddIpoptIntOption(inner, name, value)
         else
             @assert value isa Float64
-            AddIpoptNumOption(model.inner, name, value)
+            AddIpoptNumOption(inner, name, value)
         end
     end
     # Initialize the starting point, projecting variables from 0 onto their
     # bounds if VariablePrimalStart  is not provided.
     for i in 1:length(model.variable_primal_start)
-        model.inner.x[i] = if model.variable_primal_start[i] !== nothing
+        inner.x[i] = if model.variable_primal_start[i] !== nothing
             model.variable_primal_start[i]
         else
             clamp(0.0, model.variables.lower[i], model.variables.upper[i])
         end
     end
+    for (i, start) in enumerate(model.qp_data.mult_g)
+        inner.mult_g[i] = _dual_start(model, start, -1)
+    end
+    offset = length(model.qp_data.mult_g)
     if model.nlp_dual_start === nothing
-        # Initialize the dual start to 0.0 if NLPBlockDualStart is not provided.
-        model.nlp_dual_start =
-            zeros(Float64, length(model.nlp_data.constraint_bounds))
+        inner.mult_g[(offset+1):end] .= 0.0
+    else
+        for (i, start) in enumerate(model.nlp_dual_start::Vector{Float64})
+            inner.mult_g[offset+i] = _dual_start(model, start, -1)
+        end
     end
-    row = 0
-    for start in model.qp_data.mult_g
-        row += 1
-        model.inner.mult_g[row] = _dual_start(model, start, -1)
-    end
-    for start in model.nlp_dual_start
-        row += 1
-        model.inner.mult_g[row] = _dual_start(model, start, -1)
-    end
-    for i in 1:length(model.inner.n)
-        model.inner.mult_x_L[i] = _dual_start(model, model.mult_x_L[i])
-        model.inner.mult_x_U[i] = _dual_start(model, model.mult_x_U[i], -1)
+    for i in 1:inner.n
+        inner.mult_x_L[i] = _dual_start(model, model.mult_x_L[i])
+        inner.mult_x_U[i] = _dual_start(model, model.mult_x_U[i], -1)
     end
     if model.callback !== nothing
-        SetIntermediateCallback(model.inner, model.callback)
+        SetIntermediateCallback(inner, model.callback)
     end
-    IpoptSolve(model.inner)
+    IpoptSolve(inner)
     model.solve_time = time() - start_time
     return
 end
