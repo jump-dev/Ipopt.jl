@@ -25,10 +25,9 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
     mult_x_U::Vector{Union{Nothing,Float64}}
 
     nlp_data::MOI.NLPBlockData
-    nlp_data_needs_initialize::Bool
     nlp_dual_start::Union{Nothing,Vector{Float64}}
 
-    linear::LinearQuadraticConstraintBlock{Float64}
+    qp_data::QPBlockData{Float64}
 
     callback::Union{Nothing,Function}
 
@@ -46,9 +45,8 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
             Union{Nothing,Float64}[],
             Union{Nothing,Float64}[],
             MOI.NLPBlockData([], _EmptyNLPEvaluator(), false),
-            true,
             nothing,
-            LinearQuadraticConstraintBlock{Float64}(),
+            QPBlockData{Float64}(),
             nothing,
         )
     end
@@ -85,9 +83,8 @@ function MOI.empty!(model::Optimizer)
     empty!(model.mult_x_L)
     empty!(model.mult_x_U)
     model.nlp_data = MOI.NLPBlockData([], _EmptyNLPEvaluator(), false)
-    model.nlp_data_needs_initialize = true
     model.nlp_dual_start = nothing
-    model.linear = LinearQuadraticConstraintBlock{Float64}()
+    model.qp_data = QPBlockData{Float64}()
     model.callback = nothing
     return
 end
@@ -121,7 +118,7 @@ end
 
 function MOI.get(model::Optimizer, attr::MOI.ListOfConstraintTypesPresent)
     ret = MOI.get(model.variables, attr)
-    append!(MOI.get(model.linear, attr))
+    append!(MOI.get(model.qp_data, attr))
     return ret
 end
 
@@ -194,7 +191,6 @@ function MOI.add_variable(model::Optimizer)
     push!(model.variable_primal_start, nothing)
     push!(model.mult_x_L, nothing)
     push!(model.mult_x_U, nothing)
-    model.nlp_data_needs_initialize = true
     return MOI.add_variable(model.variables)
 end
 
@@ -235,7 +231,6 @@ function MOI.get(
 end
 
 function MOI.add_constraint(model::Optimizer, x::MOI.VariableIndex, set::_SETS)
-    model.nlp_data_needs_initialize = true
     return MOI.add_constraint(model.variables, x, set)
 end
 
@@ -245,7 +240,6 @@ function MOI.set(
     ci::MOI.ConstraintIndex{MOI.VariableIndex,S},
     set::S,
 ) where {S<:_SETS}
-    model.nlp_data_needs_initialize = true
     MOI.set(model.variables, MOI.ConstraintSet(), ci, set)
     return
 end
@@ -254,7 +248,6 @@ function MOI.delete(
     model::Optimizer,
     ci::MOI.ConstraintIndex{MOI.VariableIndex,<:_SETS},
 )
-    model.nlp_data_needs_initialize = true
     MOI.delete(model.variables, ci)
     return
 end
@@ -265,19 +258,18 @@ function MOI.is_valid(
     model::Optimizer,
     ci::MOI.ConstraintIndex{<:_FUNCTIONS,<:_SETS},
 )
-    return MOI.is_valid(model.linear, ci)
+    return MOI.is_valid(model.qp_data, ci)
 end
 
 function MOI.add_constraint(model::Optimizer, func::_FUNCTIONS, set::_SETS)
-    model.nlp_data_needs_initialize = true
-    return MOI.add_constraint(model.linear, func, set)
+    return MOI.add_constraint(model.qp_data, func, set)
 end
 
 function MOI.get(
     model::Optimizer,
     attr::Union{MOI.NumberOfConstraints{F,S},MOI.ListOfConstraintIndices{F,S}},
 ) where {F<:_FUNCTIONS,S<:_SETS}
-    return MOI.get(model.linear, attr)
+    return MOI.get(model.qp_data, attr)
 end
 
 function MOI.get(
@@ -289,7 +281,7 @@ function MOI.get(
     },
     c::MOI.ConstraintIndex{F,S},
 ) where {F<:_FUNCTIONS,S<:_SETS}
-    return MOI.get(model.linear, attr, c)
+    return MOI.get(model.qp_data, attr, c)
 end
 
 function MOI.supports(
@@ -307,7 +299,7 @@ function MOI.set(
     value::Union{Real,Nothing},
 ) where {F<:_FUNCTIONS,S<:_SETS}
     MOI.throw_if_not_valid(model, ci)
-    MOI.set(model.linear, attr, ci, value)
+    MOI.set(model.qp_data, attr, ci, value)
     return
 end
 
@@ -440,7 +432,6 @@ MOI.supports(::Optimizer, ::MOI.NLPBlock) = true
 
 function MOI.set(model::Optimizer, ::MOI.NLPBlock, nlp_data::MOI.NLPBlockData)
     model.nlp_data = nlp_data
-    model.nlp_data_needs_initialize = true
     return
 end
 
@@ -454,7 +445,6 @@ function MOI.set(
     sense::MOI.OptimizationSense,
 )
     model.sense = sense
-    model.nlp_data_needs_initialize = true
     return
 end
 
@@ -466,7 +456,7 @@ function MOI.get(
     model::Optimizer,
     attr::Union{MOI.ObjectiveFunctionType,MOI.ObjectiveFunction},
 )
-    return MOI.get(model.linear, attr)
+    return MOI.get(model.qp_data, attr)
 end
 
 function MOI.supports(
@@ -481,8 +471,7 @@ function MOI.set(
     attr::MOI.ObjectiveFunction{F},
     func::F,
 ) where {F<:Union{MOI.VariableIndex,<:_FUNCTIONS}}
-    MOI.set(model.linear, attr, func)
-    model.nlp_data_needs_initialize = true
+    MOI.set(model.qp_data, attr, func)
     return
 end
 
@@ -496,7 +485,7 @@ function MOI.eval_objective(model::Optimizer, x)
     elseif model.nlp_data.has_objective
         return MOI.eval_objective(model.nlp_data.evaluator, x)
     end
-    return MOI.eval_objective(model.linear, x)
+    return MOI.eval_objective(model.qp_data, x)
 end
 
 ### Eval_Grad_F_CB
@@ -507,7 +496,7 @@ function MOI.eval_objective_gradient(model::Optimizer, grad, x)
     elseif model.nlp_data.has_objective
         MOI.eval_objective_gradient(model.nlp_data.evaluator, grad, x)
     else
-        MOI.eval_objective_gradient(model.linear, grad, x)
+        MOI.eval_objective_gradient(model.qp_data, grad, x)
     end
     return
 end
@@ -515,8 +504,8 @@ end
 ### Eval_G_CB
 
 function MOI.eval_constraint(model::Optimizer, g, x)
-    MOI.eval_constraint(model.linear, g, x)
-    g_nlp = view(g, (length(model.linear)+1):length(g))
+    MOI.eval_constraint(model.qp_data, g, x)
+    g_nlp = view(g, (length(model.qp_data)+1):length(g))
     MOI.eval_constraint(model.nlp_data.evaluator, g_nlp, x)
     return
 end
@@ -524,8 +513,8 @@ end
 ### Eval_Jac_G_CB
 
 function MOI.jacobian_structure(model::Optimizer)
-    J = MOI.jacobian_structure(model.linear)
-    offset = length(model.linear)
+    J = MOI.jacobian_structure(model.qp_data)
+    offset = length(model.qp_data)
     if length(model.nlp_data.constraint_bounds) > 0
         for (row, col) in MOI.jacobian_structure(model.nlp_data.evaluator)
             push!(J, (row + offset, col))
@@ -535,7 +524,7 @@ function MOI.jacobian_structure(model::Optimizer)
 end
 
 function MOI.eval_constraint_jacobian(model::Optimizer, values, x)
-    offset = MOI.eval_constraint_jacobian(model.linear, values, x)
+    offset = MOI.eval_constraint_jacobian(model.qp_data, values, x)
     nlp_values = view(values, (offset+1):length(values))
     MOI.eval_constraint_jacobian(model.nlp_data.evaluator, nlp_values, x)
     return
@@ -544,15 +533,15 @@ end
 ### Eval_H_CB
 
 function MOI.hessian_lagrangian_structure(model::Optimizer)
-    H = MOI.hessian_lagrangian_structure(model.linear)
+    H = MOI.hessian_lagrangian_structure(model.qp_data)
     append!(H, MOI.hessian_lagrangian_structure(model.nlp_data.evaluator))
     return H
 end
 
 function MOI.eval_hessian_lagrangian(model::Optimizer, H, x, σ, μ)
-    offset = MOI.eval_hessian_lagrangian(model.linear, H, x, σ, μ)
+    offset = MOI.eval_hessian_lagrangian(model.qp_data, H, x, σ, μ)
     H_nlp = view(H, (offset+1):length(H))
-    μ_nlp = view(μ, (length(model.linear)+1):length(μ))
+    μ_nlp = view(μ, (length(model.qp_data)+1):length(μ))
     MOI.eval_hessian_lagrangian(model.nlp_data.evaluator, H_nlp, x, σ, μ_nlp)
     return
 end
@@ -560,7 +549,7 @@ end
 ### MOI.optimize!
 
 function _setup_model(model::Optimizer)
-    num_quadratic_constraints = length(model.linear.hessian_structure) > 0
+    num_quadratic_constraints = length(model.qp_data.hessian_structure) > 0
     num_nlp_constraints = length(model.nlp_data.constraint_bounds)
     has_hessian = :Hess in MOI.features_available(model.nlp_data.evaluator)
     init_feat = [:Grad]
@@ -600,7 +589,7 @@ function _setup_model(model::Optimizer)
         end
         return
     end
-    g_L, g_U = copy(model.linear.g_L), copy(model.linear.g_U)
+    g_L, g_U = copy(model.qp_data.g_L), copy(model.qp_data.g_U)
     for bound in model.nlp_data.constraint_bounds
         push!(g_L, bound.lower)
         push!(g_U, bound.upper)
@@ -654,15 +643,12 @@ function _setup_model(model::Optimizer)
             AddIpoptStrOption(model.inner, "hessian_constant", "yes")
         end
     end
-    model.nlp_data_needs_initialize = false
     return
 end
 
 function MOI.optimize!(model::Optimizer)
     start_time = time()
-    if model.nlp_data_needs_initialize
-        _setup_model(model)
-    end
+    _setup_model(model)
     if model.invalid_model
         return
     end
@@ -695,7 +681,7 @@ function MOI.optimize!(model::Optimizer)
             zeros(Float64, length(model.nlp_data.constraint_bounds))
     end
     row = 0
-    for start in model.linear.mult_g
+    for start in model.qp_data.mult_g
         row += 1
         model.inner.mult_g[row] = _dual_start(model, start, -1)
     end
@@ -947,7 +933,7 @@ end
 function MOI.get(model::Optimizer, attr::MOI.NLPBlockDual)
     MOI.check_result_index_bounds(model, attr)
     s = -_dual_multiplier(model)
-    return s .* model.inner.mult_g[(length(model.linear)+1):end]
+    return s .* model.inner.mult_g[(length(model.qp_data)+1):end]
 end
 
 ### Ipopt.CallbackFunction

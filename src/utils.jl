@@ -4,16 +4,21 @@
 # in the LICENSE.md file or at https://opensource.org/licenses/MIT.
 
 @enum(
-    FunctionType,
-    kFunctionTypeVariableIndex,
-    kFunctionTypeScalarAffine,
-    kFunctionTypeScalarQuadratic,
+    _FunctionType,
+    _kFunctionTypeVariableIndex,
+    _kFunctionTypeScalarAffine,
+    _kFunctionTypeScalarQuadratic,
 )
 
-@enum(BoundType, kBoundTypeLessThan, kBoundTypeGreaterThan, kBoundTypeEqualTo,)
+@enum(
+    _BoundType,
+    _kBoundTypeLessThan,
+    _kBoundTypeGreaterThan,
+    _kBoundTypeEqualTo,
+)
 
-mutable struct LinearQuadraticConstraintBlock{T}
-    objective_type::FunctionType
+mutable struct QPBlockData{T}
+    objective_type::_FunctionType
     objective_constant::T
     objective_linear_columns::Vector{Int}
     objective_linear_coefficients::Vector{T}
@@ -31,13 +36,13 @@ mutable struct LinearQuadraticConstraintBlock{T}
     g_L::Vector{T}
     g_U::Vector{T}
     mult_g::Vector{Union{Nothing,T}}
-    function_type::Vector{FunctionType}
-    bound_type::Vector{BoundType}
+    function_type::Vector{_FunctionType}
+    bound_type::Vector{_BoundType}
 
-    function LinearQuadraticConstraintBlock{T}() where {T}
+    function QPBlockData{T}() where {T}
         return new(
             # Objective coefficients
-            kFunctionTypeScalarAffine,
+            _kFunctionTypeScalarAffine,
             zero(T),
             Int[],
             T[],
@@ -54,26 +59,23 @@ mutable struct LinearQuadraticConstraintBlock{T}
             # Bounds
             T[],
             T[],
-            T[],
-            FunctionType[],
-            BoundType[],
+            Union{Nothing,T}[],
+            _FunctionType[],
+            _BoundType[],
         )
     end
 end
 
-Base.length(block::LinearQuadraticConstraintBlock) = length(block.bound_type)
+Base.length(block::QPBlockData) = length(block.bound_type)
 
-function _set_objective(
-    block::LinearQuadraticConstraintBlock{T},
-    f::MOI.VariableIndex,
-) where {T}
+function _set_objective(block::QPBlockData{T}, f::MOI.VariableIndex) where {T}
     push!(block.objective_linear_columns, f.value)
     push!(block.objective_linear_coefficients, one(T))
     return zero(T)
 end
 
 function _set_objective(
-    block::LinearQuadraticConstraintBlock{T},
+    block::QPBlockData{T},
     f::MOI.ScalarAffineFunction{T},
 ) where {T}
     _set_objective(block, f.terms)
@@ -81,7 +83,7 @@ function _set_objective(
 end
 
 function _set_objective(
-    block::LinearQuadraticConstraintBlock{T},
+    block::QPBlockData{T},
     f::MOI.ScalarQuadraticFunction{T},
 ) where {T}
     _set_objective(block, f.affine_terms)
@@ -94,7 +96,7 @@ function _set_objective(
 end
 
 function _set_objective(
-    block::LinearQuadraticConstraintBlock{T},
+    block::QPBlockData{T},
     terms::Vector{MOI.ScalarAffineTerm{T}},
 ) where {T}
     for term in terms
@@ -105,7 +107,7 @@ function _set_objective(
 end
 
 function MOI.set(
-    block::LinearQuadraticConstraintBlock{T},
+    block::QPBlockData{T},
     ::MOI.ObjectiveFunction{F},
     func::F,
 ) where {
@@ -125,17 +127,11 @@ function MOI.set(
     return
 end
 
-function MOI.get(
-    block::LinearQuadraticConstraintBlock{T},
-    ::MOI.ObjectiveFunctionType,
-) where {T}
+function MOI.get(block::QPBlockData{T}, ::MOI.ObjectiveFunctionType) where {T}
     return _function_type_to_set(T, block.objective_type)
 end
 
-function MOI.get(
-    block::LinearQuadraticConstraintBlock{T},
-    ::MOI.ObjectiveFunction{F},
-) where {T,F}
+function MOI.get(block::QPBlockData{T}, ::MOI.ObjectiveFunction{F}) where {T,F}
     affine_terms = MOI.ScalarAffineTerm{T}[
         MOI.ScalarAffineTerm(
             block.objective_linear_coefficients[i],
@@ -163,7 +159,7 @@ function MOI.get(
 end
 
 function MOI.get(
-    block::LinearQuadraticConstraintBlock{T},
+    block::QPBlockData{T},
     ::MOI.ListOfConstraintTypesPresent,
 ) where {T}
     constraints = Set{Tuple{Type,Type}}()
@@ -176,7 +172,7 @@ function MOI.get(
 end
 
 function MOI.is_valid(
-    block::LinearQuadraticConstraintBlock{T},
+    block::QPBlockData{T},
     ci::MOI.ConstraintIndex{F,S},
 ) where {
     T,
@@ -187,7 +183,7 @@ function MOI.is_valid(
 end
 
 function MOI.get(
-    block::LinearQuadraticConstraintBlock{T},
+    block::QPBlockData{T},
     ::MOI.ListOfConstraintIndices{F,S},
 ) where {
     T,
@@ -207,7 +203,7 @@ function MOI.get(
 end
 
 function MOI.get(
-    block::LinearQuadraticConstraintBlock{T},
+    block::QPBlockData{T},
     ::MOI.NumberOfConstraints{F,S},
 ) where {
     T,
@@ -217,48 +213,48 @@ function MOI.get(
     return length(MOI.get(block, MOI.ListOfConstraintIndices{F,S}()))
 end
 
-function _bound_type_to_set(::Type{T}, k::BoundType) where {T}
-    if k == kBoundTypeEqualTo
+function _bound_type_to_set(::Type{T}, k::_BoundType) where {T}
+    if k == _kBoundTypeEqualTo
         return MOI.EqualTo{T}
-    elseif k == kBoundTypeLessThan
+    elseif k == _kBoundTypeLessThan
         return MOI.LessThan{T}
     else
-        @assert k == kBoundTypeGreaterThan
+        @assert k == _kBoundTypeGreaterThan
         return MOI.GreaterThan{T}
     end
 end
 
-function _function_type_to_set(::Type{T}, k::FunctionType) where {T}
-    if k == kFunctionTypeVariableIndex
+function _function_type_to_set(::Type{T}, k::_FunctionType) where {T}
+    if k == _kFunctionTypeVariableIndex
         return MOI.VariableIndex
-    elseif k == kFunctionTypeScalarAffine
+    elseif k == _kFunctionTypeScalarAffine
         return MOI.ScalarAffineFunction{T}
     else
-        @assert k == kFunctionTypeScalarQuadratic
+        @assert k == _kFunctionTypeScalarQuadratic
         return MOI.ScalarQuadraticFunction{T}
     end
 end
 
-_function_info(::MOI.VariableIndex) = kFunctionTypeVariableIndex
-_function_info(::MOI.ScalarAffineFunction) = kFunctionTypeScalarAffine
-_function_info(::MOI.ScalarQuadraticFunction) = kFunctionTypeScalarQuadratic
+_function_info(::MOI.VariableIndex) = _kFunctionTypeVariableIndex
+_function_info(::MOI.ScalarAffineFunction) = _kFunctionTypeScalarAffine
+_function_info(::MOI.ScalarQuadraticFunction) = _kFunctionTypeScalarQuadratic
 
-_set_info(s::MOI.LessThan) = kBoundTypeLessThan, -Inf, s.upper
-_set_info(s::MOI.GreaterThan) = kBoundTypeGreaterThan, s.lower, Inf
-_set_info(s::MOI.EqualTo) = kBoundTypeEqualTo, s.value, s.value
-_set_info(s::MOI.Interval) = kBoundTypeInterval, s.lower, s.upper
+_set_info(s::MOI.LessThan) = _kBoundTypeLessThan, -Inf, s.upper
+_set_info(s::MOI.GreaterThan) = _kBoundTypeGreaterThan, s.lower, Inf
+_set_info(s::MOI.EqualTo) = _kBoundTypeEqualTo, s.value, s.value
+_set_info(s::MOI.Interval) = _kBoundTypeInterval, s.lower, s.upper
 
 function _add_function(
-    block::LinearQuadraticConstraintBlock{T},
+    block::QPBlockData{T},
     f::MOI.ScalarAffineFunction{T},
 ) where {T}
     _add_function(block, f.terms)
     push!(block.quadratic_row_ends, length(block.quadratic_coefficients))
-    return kFunctionTypeScalarAffine, f.constant
+    return _kFunctionTypeScalarAffine, f.constant
 end
 
 function _add_function(
-    block::LinearQuadraticConstraintBlock{T},
+    block::QPBlockData{T},
     f::MOI.ScalarQuadraticFunction{T},
 ) where {T}
     _add_function(block, f.affine_terms)
@@ -268,11 +264,11 @@ function _add_function(
         push!(block.quadratic_coefficients, term.coefficient)
     end
     push!(block.quadratic_row_ends, length(block.quadratic_coefficients))
-    return kFunctionTypeScalarQuadratic, f.constant
+    return _kFunctionTypeScalarQuadratic, f.constant
 end
 
 function _add_function(
-    block::LinearQuadraticConstraintBlock{T},
+    block::QPBlockData{T},
     terms::Vector{MOI.ScalarAffineTerm{T}},
 ) where {T}
     row = length(block) + 1
@@ -285,7 +281,7 @@ function _add_function(
 end
 
 function MOI.add_constraint(
-    block::LinearQuadraticConstraintBlock{T},
+    block::QPBlockData{T},
     f::Union{MOI.ScalarAffineFunction{T},MOI.ScalarQuadraticFunction{T}},
     set::Union{MOI.LessThan{T},MOI.GreaterThan{T},MOI.EqualTo{T}},
 ) where {T}
@@ -300,7 +296,7 @@ function MOI.add_constraint(
 end
 
 function MOI.get(
-    block::LinearQuadraticConstraintBlock{T},
+    block::QPBlockData{T},
     ::MOI.ConstraintFunction,
     c::MOI.ConstraintIndex{F,S},
 ) where {T,F,S}
@@ -331,23 +327,23 @@ function MOI.get(
 end
 
 function MOI.get(
-    block::LinearQuadraticConstraintBlock{T},
+    block::QPBlockData{T},
     ::MOI.ConstraintSet,
     c::MOI.ConstraintIndex{F,S},
 ) where {T,F,S}
     row = c.value
-    if block.bound_type[row] == kBoundTypeEqualTo
+    if block.bound_type[row] == _kBoundTypeEqualTo
         return MOI.EqualTo(block.g_L[row])
-    elseif block.bound_type[row] == kBoundTypeLessThan
+    elseif block.bound_type[row] == _kBoundTypeLessThan
         return MOI.LessThan(block.g_U[row])
     else
-        @assert block.bound_type[row] == kBoundTypeGreaterThan
+        @assert block.bound_type[row] == _kBoundTypeGreaterThan
         return MOI.GreaterThan(block.g_L[row])
     end
 end
 
 function MOI.get(
-    block::LinearQuadraticConstraintBlock{T},
+    block::QPBlockData{T},
     ::MOI.ConstraintDualStart,
     c::MOI.ConstraintIndex{F,S},
 ) where {T,F,S}
@@ -355,7 +351,7 @@ function MOI.get(
 end
 
 function MOI.set(
-    block::LinearQuadraticConstraintBlock{T},
+    block::QPBlockData{T},
     ::MOI.ConstraintDualStart,
     c::MOI.ConstraintIndex{F,S},
     value,
@@ -365,7 +361,7 @@ function MOI.set(
 end
 
 function MOI.eval_objective(
-    block::LinearQuadraticConstraintBlock{T},
+    block::QPBlockData{T},
     x::AbstractVector{T},
 ) where {T}
     y = block.objective_constant
@@ -383,7 +379,7 @@ function MOI.eval_objective(
 end
 
 function MOI.eval_objective_gradient(
-    block::LinearQuadraticConstraintBlock{T},
+    block::QPBlockData{T},
     g::AbstractVector{T},
     x::AbstractVector{T},
 ) where {T}
@@ -401,7 +397,7 @@ function MOI.eval_objective_gradient(
 end
 
 function MOI.eval_constraint(
-    block::LinearQuadraticConstraintBlock{T},
+    block::QPBlockData{T},
     g::AbstractVector{T},
     x::AbstractVector{T},
 ) where {T}
@@ -426,7 +422,7 @@ function MOI.eval_constraint(
     return
 end
 
-function MOI.jacobian_structure(block::LinearQuadraticConstraintBlock)
+function MOI.jacobian_structure(block::QPBlockData)
     J = copy(block.linear_jacobian_structure)
     i = 0
     for row in 1:length(block.quadratic_row_ends)
@@ -443,7 +439,7 @@ function MOI.jacobian_structure(block::LinearQuadraticConstraintBlock)
 end
 
 function MOI.eval_constraint_jacobian(
-    block::LinearQuadraticConstraintBlock{T},
+    block::QPBlockData{T},
     J::AbstractVector{T},
     x::AbstractVector{T},
 ) where {T}
@@ -468,12 +464,12 @@ function MOI.eval_constraint_jacobian(
     return nterms
 end
 
-function MOI.hessian_lagrangian_structure(block::LinearQuadraticConstraintBlock)
+function MOI.hessian_lagrangian_structure(block::QPBlockData)
     return vcat(block.objective_hessian_structure, block.hessian_structure)
 end
 
 function MOI.eval_hessian_lagrangian(
-    block::LinearQuadraticConstraintBlock{T},
+    block::QPBlockData{T},
     H::AbstractVector{T},
     ::AbstractVector{T},
     σ::T,
