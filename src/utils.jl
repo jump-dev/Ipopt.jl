@@ -242,7 +242,6 @@ _function_info(::MOI.ScalarQuadraticFunction) = _kFunctionTypeScalarQuadratic
 _set_info(s::MOI.LessThan) = _kBoundTypeLessThan, -Inf, s.upper
 _set_info(s::MOI.GreaterThan) = _kBoundTypeGreaterThan, s.lower, Inf
 _set_info(s::MOI.EqualTo) = _kBoundTypeEqualTo, s.value, s.value
-_set_info(s::MOI.Interval) = _kBoundTypeInterval, s.lower, s.upper
 
 function _add_function(
     block::QPBlockData{T},

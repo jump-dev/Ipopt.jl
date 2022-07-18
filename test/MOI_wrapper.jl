@@ -277,7 +277,7 @@ function test_get_model()
         f_model = MOI.get(model, MOI.ConstraintFunction(), cis[1])
         s_model = MOI.get(model, MOI.ConstraintSet(), cis[1])
         cis = MOI.get(ipopt, MOI.ListOfConstraintIndices{F,S}())
-        @test length(cis) == 1
+        @test length(cis) == MOI.get(ipopt, MOI.NumberOfConstraints{F,S}()) == 1
         f_ipopt = MOI.get(ipopt, MOI.ConstraintFunction(), cis[1])
         s_ipopt = MOI.get(ipopt, MOI.ConstraintSet(), cis[1])
         @test s_model == s_ipopt
