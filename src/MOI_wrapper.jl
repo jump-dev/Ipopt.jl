@@ -118,7 +118,7 @@ end
 
 function MOI.get(model::Optimizer, attr::MOI.ListOfConstraintTypesPresent)
     ret = MOI.get(model.variables, attr)
-    append!(MOI.get(model.qp_data, attr))
+    append!(ret, MOI.get(model.qp_data, attr))
     return ret
 end
 

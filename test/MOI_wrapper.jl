@@ -242,6 +242,66 @@ function test_empty_optimize()
     return
 end
 
+"""
+    test_get_model()
+
+Test various getters for ConstraintFunction etc. We need this test because the
+normal MOI ones require the solver to support VariableName and ConstraintName.
+"""
+function test_get_model()
+    model = MOI.Utilities.Model{Float64}()
+    MOI.Utilities.loadfromstring!(
+        model,
+        """
+        variables: x, y, z
+        minobjective: 1.0 * x * x + 2.0 * y + 3.0
+        x >= 1.0
+        y <= 2.0
+        z == 3.0
+        1.0 * x >= 1.0
+        2.0 * y <= 4.0
+        3.0 * z == 9.0
+        1.0 * x * x + x >= 1.0
+        2.0 * y * y + y <= 8.0
+        3.0 * z * z + z == 27.0
+        """,
+    )
+    ipopt = Ipopt.Optimizer()
+    index_map = MOI.copy_to(ipopt, model)
+    attr = MOI.ListOfConstraintTypesPresent()
+    @test sort(MOI.get(model, attr); by = string) ==
+          sort(MOI.get(ipopt, attr); by = string)
+    for (F, S) in MOI.get(model, MOI.ListOfConstraintTypesPresent())
+        cis = MOI.get(model, MOI.ListOfConstraintIndices{F,S}())
+        @test length(cis) == 1
+        f_model = MOI.get(model, MOI.ConstraintFunction(), cis[1])
+        s_model = MOI.get(model, MOI.ConstraintSet(), cis[1])
+        cis = MOI.get(ipopt, MOI.ListOfConstraintIndices{F,S}())
+        @test length(cis) == 1
+        f_ipopt = MOI.get(ipopt, MOI.ConstraintFunction(), cis[1])
+        s_ipopt = MOI.get(ipopt, MOI.ConstraintSet(), cis[1])
+        @test s_model == s_ipopt
+        if F == MOI.VariableIndex
+            @test index_map[f_model] == f_ipopt
+        else
+            @test ≈(
+                MOI.Utilities.substitute_variables(x -> index_map[x], f_model),
+                f_ipopt,
+            )
+        end
+    end
+    F_model = MOI.get(model, MOI.ObjectiveFunctionType())
+    F_ipopt = MOI.get(ipopt, MOI.ObjectiveFunctionType())
+    @test F_model == F_ipopt
+    obj_model = MOI.get(model, MOI.ObjectiveFunction{F_model}())
+    obj_ipopt = MOI.get(ipopt, MOI.ObjectiveFunction{F_ipopt}())
+    @test ≈(
+        MOI.Utilities.substitute_variables(x -> index_map[x], obj_model),
+        obj_ipopt,
+    )
+    return
+end
+
 end  # module TestMOIWrapper
 
 TestMOIWrapper.runtests()

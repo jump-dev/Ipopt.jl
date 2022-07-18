@@ -300,7 +300,8 @@ function MOI.get(
     ::MOI.ConstraintFunction,
     c::MOI.ConstraintIndex{F,S},
 ) where {T,F,S}
-    offset = row == 1 ? 1 : block.linear_row_ends[row-1]
+    row = c.value
+    offset = row == 1 ? 1 : (block.linear_row_ends[row-1] + 1)
     affine_terms = MOI.ScalarAffineTerm{T}[
         MOI.ScalarAffineTerm(
             block.linear_coefficients[i],
@@ -308,7 +309,7 @@ function MOI.get(
         ) for i in offset:block.linear_row_ends[row]
     ]
     quadratic_terms = MOI.ScalarQuadraticTerm{T}[]
-    offset = row == 1 ? 1 : block.linear_row_ends[row-1]
+    offset = row == 1 ? 1 : (block.quadratic_row_ends[row-1] + 1)
     for i in offset:block.quadratic_row_ends[row]
         r, c = block.hessian_structure[i]
         push!(
