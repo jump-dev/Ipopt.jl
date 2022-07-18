@@ -21,6 +21,7 @@ mutable struct IpoptProblem
     eval_jac_g::Function
     eval_h::Union{Function,Nothing}
     intermediate::Union{Function,Nothing}
+    expose_xnew::Bool
 end
 
 function _Eval_F_CB(
@@ -35,7 +36,11 @@ function _Eval_F_CB(
     if x_new == Cint(1)
         prob.x .= x
     end
-    new_obj = convert(Float64, prob.eval_f(x))::Float64
+    new_obj = if prob.expose_xnew
+        convert(Float64, prob.eval_f(x, x_new))::Float64
+    else
+        convert(Float64, prob.eval_f(x))::Float64
+    end
     unsafe_store!(obj_value, new_obj)
     return Cint(1)
 end
@@ -43,15 +48,18 @@ end
 function _Eval_Grad_F_CB(
     n::Cint,
     x_ptr::Ptr{Float64},
-    # A Bool indicating if `x` is a new point. We don't make use of this.
-    ::Cint,
+    x_new::Cint,
     grad_f::Ptr{Float64},
     user_data::Ptr{Cvoid},
 )
     prob = unsafe_pointer_to_objref(user_data)::IpoptProblem
     new_grad_f = unsafe_wrap(Array, grad_f, Int(n))
     x = unsafe_wrap(Array, x_ptr, Int(n))
-    prob.eval_grad_f(x, new_grad_f)
+    if prob.expose_xnew
+        prob.eval_grad_f(x, x_new, new_grad_f)
+    else
+        prob.eval_grad_f(x, new_grad_f)
+    end
     return Cint(1)
 end
 
@@ -69,15 +77,19 @@ function _Eval_G_CB(
     if x_new == Cint(1)
         prob.x .= x
     end
-    prob.eval_g(x, new_g)
+    if prob.expose_xnew
+        prob.eval_g(x, x_new, new_g)
+    else
+        prob.eval_g(x, new_g)
+    end
     return Cint(1)
 end
 
 function _Eval_Jac_G_CB(
     n::Cint,
     x_ptr::Ptr{Float64},
-    ::Cint,
-    ::Cint,
+    x_new::Cint,
+    m::Cint,
     nele_jac::Cint,
     iRow::Ptr{Cint},
     jCol::Ptr{Cint},
@@ -88,11 +100,20 @@ function _Eval_Jac_G_CB(
     x = unsafe_wrap(Array, x_ptr, Int(n))
     rows = unsafe_wrap(Array, iRow, Int(nele_jac))
     cols = unsafe_wrap(Array, jCol, Int(nele_jac))
-    if values_ptr == C_NULL
-        prob.eval_jac_g(x, rows, cols, nothing)
+    if prob.expose_xnew
+        if values_ptr == C_NULL
+            prob.eval_jac_g(x, x_new, rows, cols, nothing)
+        else
+            values = unsafe_wrap(Array, values_ptr, Int(nele_jac))
+            prob.eval_jac_g(x, x_new, rows, cols, values)
+        end
     else
-        values = unsafe_wrap(Array, values_ptr, Int(nele_jac))
-        prob.eval_jac_g(x, rows, cols, values)
+        if values_ptr == C_NULL
+            prob.eval_jac_g(x, rows, cols, nothing)
+        else
+            values = unsafe_wrap(Array, values_ptr, Int(nele_jac))
+            prob.eval_jac_g(x, rows, cols, values)
+        end
     end
     return Cint(1)
 end
@@ -100,11 +121,11 @@ end
 function _Eval_H_CB(
     n::Cint,
     x_ptr::Ptr{Float64},
-    ::Cint,
+    x_new::Cint,
     obj_factor::Float64,
     m::Cint,
     lambda_ptr::Ptr{Float64},
-    ::Cint,
+    lambda_new::Cint,
     nele_hess::Cint,
     iRow::Ptr{Cint},
     jCol::Ptr{Cint},
@@ -120,11 +141,38 @@ function _Eval_H_CB(
     lambda = unsafe_wrap(Array, lambda_ptr, Int(m))
     rows = unsafe_wrap(Array, iRow, Int(nele_hess))
     cols = unsafe_wrap(Array, jCol, Int(nele_hess))
-    if values_ptr == C_NULL
-        prob.eval_h(x, rows, cols, obj_factor, lambda, nothing)
+    if prob.expose_xnew
+        if values_ptr == C_NULL
+            prob.eval_h(
+                x,
+                x_new,
+                rows,
+                cols,
+                obj_factor,
+                lambda,
+                lambda_new,
+                nothing,
+            )
+        else
+            values = unsafe_wrap(Array, values_ptr, Int(nele_hess))
+            prob.eval_h(
+                x,
+                x_new,
+                rows,
+                cols,
+                obj_factor,
+                lambda,
+                lambda_new,
+                values,
+            )
+        end
     else
-        values = unsafe_wrap(Array, values_ptr, Int(nele_hess))
-        prob.eval_h(x, rows, cols, obj_factor, lambda, values)
+        if values_ptr == C_NULL
+            prob.eval_h(x, rows, cols, obj_factor, lambda, nothing)
+        else
+            values = unsafe_wrap(Array, values_ptr, Int(nele_hess))
+            prob.eval_h(x, rows, cols, obj_factor, lambda, values)
+        end
     end
     return Cint(1)  # Return TRUE for success.
 end
@@ -174,7 +222,8 @@ function CreateIpoptProblem(
     eval_g,
     eval_grad_f,
     eval_jac_g,
-    eval_h,
+    eval_h;
+    expose_xnew::Bool = false,
 )
     @assert n == length(x_L) == length(x_U)
     @assert m == length(g_L) == length(g_U)
@@ -288,6 +337,7 @@ function CreateIpoptProblem(
         eval_jac_g,
         eval_h,
         nothing,
+        expose_xnew,
     )
     finalizer(FreeIpoptProblem, prob)
     return prob

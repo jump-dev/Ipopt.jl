@@ -17,18 +17,23 @@ function test_hs071()
     # Start at (1,5,5,1)
     # End at (1.000..., 4.743..., 3.821..., 1.379...)
 
-    function eval_f(x::Vector{Float64})
+    function eval_f(x::Vector{Float64}, x_new::Cint)
         return x[1] * x[4] * (x[1] + x[2] + x[3]) + x[3]
     end
 
-    function eval_g(x::Vector{Float64}, g::Vector{Float64})
+    function eval_g(x::Vector{Float64}, x_new::Cint, g::Vector{Float64})
         # Bad: g    = zeros(2)  # Allocates new array
         # OK:  g[:] = zeros(2)  # Modifies 'in place'
         g[1] = x[1] * x[2] * x[3] * x[4]
-        return g[2] = x[1]^2 + x[2]^2 + x[3]^2 + x[4]^2
+        g[2] = x[1]^2 + x[2]^2 + x[3]^2 + x[4]^2
+        return
     end
 
-    function eval_grad_f(x::Vector{Float64}, grad_f::Vector{Float64})
+    function eval_grad_f(
+        x::Vector{Float64},
+        x_new::Cint,
+        grad_f::Vector{Float64},
+    )
         # Bad: grad_f    = zeros(4)  # Allocates new array
         # OK:  grad_f[:] = zeros(4)  # Modifies 'in place'
         grad_f[1] = x[1] * x[4] + x[4] * (x[1] + x[2] + x[3])
@@ -39,6 +44,7 @@ function test_hs071()
 
     function eval_jac_g(
         x::Vector{Float64},
+        x_new::Cint,
         rows::Vector{Int32},
         cols::Vector{Int32},
         values::Union{Nothing,Vector{Float64}},
@@ -79,10 +85,12 @@ function test_hs071()
 
     function eval_h(
         x::Vector{Float64},
+        x_new::Cint,
         rows::Vector{Int32},
         cols::Vector{Int32},
         obj_factor::Float64,
         lambda::Vector{Float64},
+        lambda_new::Cint,
         values::Union{Nothing,Vector{Float64}},
     )
         if values === nothing
@@ -147,7 +155,8 @@ function test_hs071()
         eval_g,
         eval_grad_f,
         eval_jac_g,
-        eval_h,
+        eval_h;
+        expose_xnew = true,
     )
 
     prob.x = [1.0, 5.0, 5.0, 1.0]
