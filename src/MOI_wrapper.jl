@@ -234,7 +234,6 @@ end
 
 function MOI.add_constraint(model::Optimizer, x::MOI.VariableIndex, set::_SETS)
     index = MOI.add_constraint(model.variables, x, set)
-    # TODO(odow): we could update model.inner in-place here.
     model.inner = nothing
     return index
 end
@@ -246,7 +245,6 @@ function MOI.set(
     set::S,
 ) where {S<:_SETS}
     MOI.set(model.variables, MOI.ConstraintSet(), ci, set)
-    # TODO(odow): we could update model.inner in-place here.
     model.inner = nothing
     return
 end
@@ -462,7 +460,6 @@ function MOI.set(
     sense::MOI.OptimizationSense,
 )
     model.sense = sense
-    # TODO(odow): we could update model.inner in-place here.
     model.inner = nothing
     return
 end
