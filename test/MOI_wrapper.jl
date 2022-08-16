@@ -128,7 +128,7 @@ function test_solve_time()
     MOI.add_variable(model)
     @test isnan(MOI.get(model, MOI.SolveTimeSec()))
     MOI.optimize!(model)
-    @test MOI.get(model, MOI.SolveTimeSec()) > 0.0
+    @test MOI.get(model, MOI.SolveTimeSec()) >= 0.0
     return
 end
 
