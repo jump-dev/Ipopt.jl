@@ -48,6 +48,8 @@ function test_MOI_Test()
         );
         exclude = String[
             # Tests purposefully excluded:
+            #  - NORM_LIMIT when run on macOS-M1. See #315
+            "test_linear_transform",
             #  - Upstream: ZeroBridge does not support ConstraintDual
             "test_conic_linear_VectorOfVariables_2",
             #  - Excluded because this test is optional
