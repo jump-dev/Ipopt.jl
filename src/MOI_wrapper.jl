@@ -235,6 +235,7 @@ end
 function MOI.add_constraint(model::Optimizer, x::MOI.VariableIndex, set::_SETS)
     index = MOI.add_constraint(model.variables, x, set)
     model.inner = nothing
+    return index
 end
 
 function MOI.set(
