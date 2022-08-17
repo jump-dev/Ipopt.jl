@@ -352,7 +352,11 @@ function AddIpoptIntOption(prob::IpoptProblem, keyword::String, value::Integer)
         value,
     )
     if ret == 0
-        error("IPOPT: Couldn't set option '$keyword' to value '$value'.")
+        error(
+            "IPOPT: Couldn't set option '$keyword' to value '$value'::Int32. " *
+            "Note that `Num` options need to be explictly passed as " *
+            "`Float64($value)` instead of their integer equivalents.",
+        )
     end
     return
 end

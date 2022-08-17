@@ -48,6 +48,8 @@ function test_MOI_Test()
         );
         exclude = String[
             # Tests purposefully excluded:
+            #  - NORM_LIMIT when run on macOS-M1. See #315
+            "test_linear_transform",
             #  - Upstream: ZeroBridge does not support ConstraintDual
             "test_conic_linear_VectorOfVariables_2",
             #  - Excluded because this test is optional
@@ -128,7 +130,7 @@ function test_solve_time()
     MOI.add_variable(model)
     @test isnan(MOI.get(model, MOI.SolveTimeSec()))
     MOI.optimize!(model)
-    @test MOI.get(model, MOI.SolveTimeSec()) > 0.0
+    @test MOI.get(model, MOI.SolveTimeSec()) >= 0.0
     return
 end
 
