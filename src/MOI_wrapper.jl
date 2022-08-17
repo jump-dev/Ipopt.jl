@@ -168,6 +168,7 @@ MOI.supports(::Optimizer, ::MOI.RawOptimizerAttribute) = true
 
 function MOI.set(model::Optimizer, p::MOI.RawOptimizerAttribute, value)
     model.options[p.name] = value
+    # No need to reset model.inner because this gets handled in optimize!.
     return
 end
 
@@ -191,6 +192,7 @@ function MOI.add_variable(model::Optimizer)
     push!(model.variable_primal_start, nothing)
     push!(model.mult_x_L, nothing)
     push!(model.mult_x_U, nothing)
+    model.inner = nothing
     return MOI.add_variable(model.variables)
 end
 
@@ -231,7 +233,9 @@ function MOI.get(
 end
 
 function MOI.add_constraint(model::Optimizer, x::MOI.VariableIndex, set::_SETS)
-    return MOI.add_constraint(model.variables, x, set)
+    index = MOI.add_constraint(model.variables, x, set)
+    model.inner = nothing
+    return index
 end
 
 function MOI.set(
@@ -241,6 +245,7 @@ function MOI.set(
     set::S,
 ) where {S<:_SETS}
     MOI.set(model.variables, MOI.ConstraintSet(), ci, set)
+    model.inner = nothing
     return
 end
 
@@ -249,6 +254,7 @@ function MOI.delete(
     ci::MOI.ConstraintIndex{MOI.VariableIndex,<:_SETS},
 )
     MOI.delete(model.variables, ci)
+    model.inner = nothing
     return
 end
 
@@ -262,7 +268,9 @@ function MOI.is_valid(
 end
 
 function MOI.add_constraint(model::Optimizer, func::_FUNCTIONS, set::_SETS)
-    return MOI.add_constraint(model.qp_data, func, set)
+    index = MOI.add_constraint(model.qp_data, func, set)
+    model.inner = nothing
+    return index
 end
 
 function MOI.get(
@@ -300,6 +308,7 @@ function MOI.set(
 ) where {F<:_FUNCTIONS,S<:_SETS}
     MOI.throw_if_not_valid(model, ci)
     MOI.set(model.qp_data, attr, ci, value)
+    # No need to reset model.inner, because this gets handled in optimize!.
     return
 end
 
@@ -321,6 +330,7 @@ function MOI.set(
 )
     MOI.throw_if_not_valid(model, vi)
     model.variable_primal_start[column(vi)] = value
+    # No need to reset model.inner, because this gets handled in optimize!.
     return
 end
 
@@ -348,6 +358,7 @@ function MOI.set(
 )
     MOI.throw_if_not_valid(model, ci)
     model.mult_x_L[ci.value] = value
+    # No need to reset model.inner, because this gets handled in optimize!.
     return
 end
 
@@ -368,6 +379,7 @@ function MOI.set(
 )
     MOI.throw_if_not_valid(model, ci)
     model.mult_x_U[ci.value] = value
+    # No need to reset model.inner, because this gets handled in optimize!.
     return
 end
 
@@ -397,6 +409,7 @@ function MOI.set(
         model.mult_x_L[ci.value] = 0.0
         model.mult_x_U[ci.value] = value
     end
+    # No need to reset model.inner, because this gets handled in optimize!.
     return
 end
 
@@ -421,6 +434,7 @@ function MOI.set(
     values::Union{Nothing,Vector},
 )
     model.nlp_dual_start = values
+    # No need to reset model.inner, because this gets handled in optimize!.
     return
 end
 
@@ -432,6 +446,7 @@ MOI.supports(::Optimizer, ::MOI.NLPBlock) = true
 
 function MOI.set(model::Optimizer, ::MOI.NLPBlock, nlp_data::MOI.NLPBlockData)
     model.nlp_data = nlp_data
+    model.inner = nothing
     return
 end
 
@@ -445,6 +460,7 @@ function MOI.set(
     sense::MOI.OptimizationSense,
 )
     model.sense = sense
+    model.inner = nothing
     return
 end
 
@@ -472,6 +488,7 @@ function MOI.set(
     func::F,
 ) where {F<:Union{MOI.VariableIndex,<:_FUNCTIONS}}
     MOI.set(model.qp_data, attr, func)
+    model.inner = nothing
     return
 end
 
@@ -648,7 +665,9 @@ end
 
 function MOI.optimize!(model::Optimizer)
     start_time = time()
-    _setup_model(model)
+    if model.inner === nothing
+        _setup_model(model)
+    end
     if model.invalid_model
         return
     end
