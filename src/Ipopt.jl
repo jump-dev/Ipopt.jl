@@ -6,11 +6,14 @@
 module Ipopt
 
 import Ipopt_jll
+import OpenBLAS32_jll
 import MathOptInterface
+import LinearAlgebra
 
 const MOI = MathOptInterface
 
 function __init__()
+    (VERSION ≥ v"1.8") && LinearAlgebra.BLAS.lbt_forward(OpenBLAS32_jll.libopenblas_path)
     global libipopt = Ipopt_jll.libipopt
     return
 end
