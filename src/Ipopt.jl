@@ -14,7 +14,10 @@ const MOI = MathOptInterface
 
 function __init__()
     if VERSION >= v"1.8"
-        LinearAlgebra.BLAS.lbt_forward(OpenBLAS32_jll.libopenblas_path; verbose = true)
+        LinearAlgebra.BLAS.lbt_forward(
+            OpenBLAS32_jll.libopenblas_path;
+            verbose = true,
+        )
     end
     global libipopt = Ipopt_jll.libipopt
     return
