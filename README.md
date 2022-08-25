@@ -15,7 +15,8 @@ project.*
 
 Install `Ipopt.jl` using the Julia package manager:
 ```julia
-import Pkg; Pkg.add("Ipopt")
+import Pkg
+Pkg.add("Ipopt")
 ```
 
 In addition to installing the `Ipopt.jl` package, this will also download and
