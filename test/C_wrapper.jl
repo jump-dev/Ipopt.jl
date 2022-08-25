@@ -3,12 +3,12 @@
 # Use of this source code is governed by an MIT-style license that can be found
 # in the LICENSE.md file or at https://opensource.org/licenses/MIT.
 
-module TestCWrapper
+# module TestCWrapper
 
 using Ipopt
 using Test
 
-function test_hs071()
+# function test_hs071()
     # hs071
     # min x1 * x4 * (x1 + x2 + x3) + x3
     # st  x1 * x2 * x3 * x4 >= 25
@@ -211,9 +211,9 @@ function test_hs071()
     finalize(prob) # Needed before the `rm` on Windows.
     # unlink the output file
     rm("blah.txt")
-    return
-end
+#    return
+# end
 
-end  # TestCWrapper
+# end  # TestCWrapper
 
-runtests(TestCWrapper)
+# runtests(TestCWrapper)
