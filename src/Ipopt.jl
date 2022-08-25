@@ -13,12 +13,13 @@ import OpenBLAS32_jll
 const MOI = MathOptInterface
 
 function __init__()
-    if false # VERSION >= v"1.8"
+    if VERSION >= v"1.8"
         config = LinearAlgebra.BLAS.lbt_get_config()
         if !any(lib -> lib.interface == :lp64, config.loaded_libs)
             LinearAlgebra.BLAS.lbt_forward(
                 OpenBLAS32_jll.libopenblas_path;
                 verbose = true,
+                clear = false,
             )
         end
     end
