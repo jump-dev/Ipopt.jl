@@ -21,8 +21,11 @@ import Pkg; Pkg.add("Ipopt")
 In addition to installing the `Ipopt.jl` package, this will also download and
 install the Ipopt binaries. You do _not_ need to install Ipopt separately.
 
+To use a custom binary, read the [Custom solver binaries](https://jump.dev/JuMP.jl/stable/developers/custom_solver_binaries/)
+section of the JuMP documentation.
+
 For details on using a different linear solver, see the `Linear Solvers` section
-below.
+below. You do not need a custom binary to change the linear solver.
 
 ## JuMP and MathOptInterface
 
