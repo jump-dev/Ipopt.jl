@@ -57,6 +57,8 @@ function test_MOI_Test()
             "test_model_ScalarFunctionConstantNotZero",
             #  - Excluded because Ipopt returns NORM_LIMIT instead of
             #    DUAL_INFEASIBLE
+            "test_linear_DUAL_INFEASIBLE",
+            "test_linear_DUAL_INFEASIBLE_2",
             "test_solve_TerminationStatus_DUAL_INFEASIBLE",
             #  - Excluded because Ipopt returns INVALID_MODEL instead of
             #    LOCALLY_SOLVED
