@@ -293,6 +293,22 @@ function test_get_model()
     return
 end
 
+function test_supports_ConstraintDualStart_VariableIndex()
+    model = Ipopt.Optimizer()
+    for S in (
+        MOI.LessThan{Float64},
+        MOI.GreaterThan{Float64},
+        MOI.EqualTo{Float64},
+    )
+        @test MOI.supports(
+            model,
+            MOI.ConstraintDualStart(),
+            MOI.ConstraintIndex{MOI.VariableIndex,S},
+        )
+    end
+    return
+end
+
 end  # module TestMOIWrapper
 
 TestMOIWrapper.runtests()
