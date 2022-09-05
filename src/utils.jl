@@ -3,6 +3,13 @@
 # Use of this source code is governed by an MIT-style license that can be found
 # in the LICENSE.md file or at https://opensource.org/licenses/MIT.
 
+# !!! warning
+#
+#     The contents of this file are experimental.
+#
+#     Until this message is removed, breaking changes to the functions and types,
+#     including their deletion, may be introduced in any minor or patch release of Ipopt.
+
 @enum(
     _FunctionType,
     _kFunctionTypeVariableIndex,
