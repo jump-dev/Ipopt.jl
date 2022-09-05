@@ -296,10 +296,11 @@ function test_get_model()
 end
 
 function test_supports_ConstraintDualStart_VariableIndex()
-    model = Ipopt.Optimizer()
+    ipopt = Ipopt.Optimizer()
+    bridged = MOI.Bridges.full_bridge_optimizer(Ipopt.Optimizer(), Float64)
     sets =
         (MOI.LessThan{Float64}, MOI.GreaterThan{Float64}, MOI.EqualTo{Float64})
-    for S in sets
+    for model in (ipopt, bridged), S in sets
         @test MOI.supports(
             model,
             MOI.ConstraintDualStart(),
