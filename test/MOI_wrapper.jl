@@ -295,11 +295,9 @@ end
 
 function test_supports_ConstraintDualStart_VariableIndex()
     model = Ipopt.Optimizer()
-    for S in (
-        MOI.LessThan{Float64},
-        MOI.GreaterThan{Float64},
-        MOI.EqualTo{Float64},
-    )
+    sets =
+        (MOI.LessThan{Float64}, MOI.GreaterThan{Float64}, MOI.EqualTo{Float64})
+    for S in sets
         @test MOI.supports(
             model,
             MOI.ConstraintDualStart(),
