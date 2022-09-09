@@ -357,7 +357,7 @@ function MOI.set(
 ) where {T,F}
     row = c.value
     block.g_U[row] = set.upper
-    return nothing
+    return
 end
 
 function MOI.set(
@@ -368,7 +368,7 @@ function MOI.set(
 ) where {T,F}
     row = c.value
     block.g_L[row] = set.lower
-    return nothing
+    return
 end
 
 function MOI.set(
@@ -380,7 +380,7 @@ function MOI.set(
     row = c.value
     block.g_L[row] = set.value
     block.g_U[row] = set.value
-    return nothing
+    return
 end
 
 function MOI.get(
