@@ -292,6 +292,17 @@ function MOI.get(
     return MOI.get(model.qp_data, attr, c)
 end
 
+function MOI.set(
+    model::Optimizer,
+    ::MOI.ConstraintSet,
+    ci::MOI.ConstraintIndex{F,S},
+    set::S,
+) where {F<:_FUNCTIONS,S<:_SETS}
+    MOI.set(model.qp_data, MOI.ConstraintSet(), ci, set)
+    model.inner = nothing
+    return
+end
+
 function MOI.supports(
     ::Optimizer,
     ::MOI.ConstraintDualStart,

@@ -349,6 +349,40 @@ function MOI.get(
     end
 end
 
+function MOI.set(
+    block::QPBlockData{T},
+    ::MOI.ConstraintSet,
+    c::MOI.ConstraintIndex{F,MOI.LessThan{T}},
+    set::MOI.LessThan{T},
+) where {T,F}
+    row = c.value
+    block.g_U[row] = set.upper
+    return
+end
+
+function MOI.set(
+    block::QPBlockData{T},
+    ::MOI.ConstraintSet,
+    c::MOI.ConstraintIndex{F,MOI.GreaterThan{T}},
+    set::MOI.GreaterThan{T},
+) where {T,F}
+    row = c.value
+    block.g_L[row] = set.lower
+    return
+end
+
+function MOI.set(
+    block::QPBlockData{T},
+    ::MOI.ConstraintSet,
+    c::MOI.ConstraintIndex{F,MOI.EqualTo{T}},
+    set::MOI.EqualTo{T},
+) where {T,F}
+    row = c.value
+    block.g_L[row] = set.value
+    block.g_U[row] = set.value
+    return
+end
+
 function MOI.get(
     block::QPBlockData{T},
     ::MOI.ConstraintDualStart,
