@@ -356,8 +356,8 @@ end
 function MOI.supports(
     ::Optimizer,
     ::MOI.ConstraintDualStart,
-    ::Type{MOI.ConstraintIndex{MOI.VariableIndex,<:_SETS}},
-)
+    ::Type{MOI.ConstraintIndex{MOI.VariableIndex,S}},
+) where {S<:_SETS}
     return true
 end
 
