@@ -48,8 +48,6 @@ function test_MOI_Test()
             ],
         );
         exclude = String[
-            # TODO(odow): this failure is unexpected.
-            "test_model_ModelFilter_AbstractConstraintAttribute",
             # Tests purposefully excluded:
             #  - NORM_LIMIT when run on macOS-M1. See #315
             "test_linear_transform",
