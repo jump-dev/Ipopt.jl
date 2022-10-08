@@ -211,7 +211,7 @@ function test_hs071()
     finalize(prob) # Needed before the `rm` on Windows.
     # unlink the output file
     rm("blah.txt")
-   return
+    return
 end
 
 end  # TestCWrapper
