@@ -282,7 +282,7 @@ _Tested on a clean install of Ubuntu 20.04._
 
 #### Mac
 
-_Tested on a MacBook Pro, 10.15.7._
+_Tested on a MacBook Pro, 10.15.7, 12.6, 13.0_
 
 1. Download the appropriate version of HSL.
    - MA27: [HSL for IPOPT from HSL](http://www.hsl.rl.ac.uk/ipopt/)
