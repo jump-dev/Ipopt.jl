@@ -300,6 +300,7 @@ _Tested on a MacBook Pro, 10.15.7._
    - For `ma86`, the file is `/full/path/somewhere/lib/libhsl_ma86.dylib`
 4. Place the `libhsl.dylib` library somewhere on your load path.
    - Alternatively, start Julia with `export DL_LOAD_PATH=/full/path/somewhere/lib; julia`
+     - If this doesn’t work try `set_optimizer_attribute(model, "hsllib","full/path/somewhere/lib/libhsl.dylib")`
 5. Set the option `linear_solver` to `ma27` or `ma86` as appropriate:
    ```julia
    using JuMP, Ipopt
