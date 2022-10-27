@@ -248,7 +248,7 @@ Currently untested. If you have instructions that work, please open an issue.
 
 #### Linux
 
-_Tested on a clean install of Ubuntu 20.04._
+_Tested on a clean install of Ubuntu 20.04 and WSL Ubuntu 20.04_
 
 1. Install dependencies if necessary:
    ```
@@ -312,7 +312,7 @@ _Tested on a MacBook Pro, 10.15.7, 12.6, 13.0_
 
 #### Windows
 
-Currently untested. If you have instructions that work, please open an issue.
+Currently untested. If you have instructions that work, please open an issue. Alternatively you can use [Windows Subsystem for Linux](https://learn.microsoft.com/en-us/windows/wsl/install) and follow the linux instructions.
 
 ### Pardiso (MKL)
 
