@@ -248,7 +248,7 @@ Currently untested. If you have instructions that work, please open an issue.
 
 #### Linux
 
-_Tested on a clean install of Ubuntu 20.04._
+_Tested on a clean install of Ubuntu 20.04 and WSL Ubuntu 20.04_
 
 1. Install dependencies if necessary:
    ```
@@ -282,7 +282,7 @@ _Tested on a clean install of Ubuntu 20.04._
 
 #### Mac
 
-_Tested on a MacBook Pro, 10.15.7._
+_Tested on a MacBook Pro, 10.15.7, 12.6, 13.0_
 
 1. Download the appropriate version of HSL.
    - MA27: [HSL for IPOPT from HSL](http://www.hsl.rl.ac.uk/ipopt/)
@@ -298,8 +298,11 @@ _Tested on a MacBook Pro, 10.15.7._
 3. Rename the resutling HSL library to `/full/path/somewhere/lib/libhsl.dylib`.
    - For `ma27`, the file is `/full/path/somewhere/lib/libcoinhsl.dylib`
    - For `ma86`, the file is `/full/path/somewhere/lib/libhsl_ma86.dylib`
-4. Place the `libhsl.dylib` library somewhere on your load path.
-   - Alternatively, start Julia with `export DL_LOAD_PATH=/full/path/somewhere/lib; julia`
+4. Now we need to ensure Ipopt can find `libhsl.dylib` this can be achieved by either
+
+   - Setting an environment variable `export DL_LOAD_PATH=/full/path/somewhere/lib`
+   - Setting `hsllib` with `set_optimizer_attribute(model, "hsllib","full/path/somewhere/lib/libhsl.dylib")`
+
 5. Set the option `linear_solver` to `ma27` or `ma86` as appropriate:
    ```julia
    using JuMP, Ipopt
@@ -311,7 +314,7 @@ _Tested on a MacBook Pro, 10.15.7._
 
 #### Windows
 
-Currently untested. If you have instructions that work, please open an issue.
+Currently untested. If you have instructions that work, please open an issue. Alternatively you can use [Windows Subsystem for Linux](https://learn.microsoft.com/en-us/windows/wsl/install) and follow the linux instructions.
 
 ### Pardiso (MKL)
 
