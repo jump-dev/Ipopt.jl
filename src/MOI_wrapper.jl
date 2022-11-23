@@ -149,17 +149,17 @@ MOI.get(model::Optimizer, ::MOI.Silent) = model.silent
 MOI.supports(::Optimizer, ::MOI.TimeLimitSec) = true
 
 function MOI.set(model::Optimizer, ::MOI.TimeLimitSec, value::Real)
-    MOI.set(model, MOI.RawOptimizerAttribute("max_cpu_time"), Float64(value))
+    MOI.set(model, MOI.RawOptimizerAttribute("max_wall_time"), Float64(value))
     return
 end
 
 function MOI.set(model::Optimizer, ::MOI.TimeLimitSec, ::Nothing)
-    delete!(model.options, "max_cpu_time")
+    delete!(model.options, "max_wall_time")
     return
 end
 
 function MOI.get(model::Optimizer, ::MOI.TimeLimitSec)
-    return get(model.options, "max_cpu_time", nothing)
+    return get(model.options, "max_wall_time", nothing)
 end
 
 ### MOI.RawOptimizerAttribute
