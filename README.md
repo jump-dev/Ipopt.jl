@@ -182,6 +182,24 @@ To improve performance, Ipopt supports a number of linear solvers. Installing
 these can be tricky, however, the following instructions should work. If they
 don't, or are not explicit enough, please open an issue.
 
+### General Remarks
+During the procedures below, you may encounter errors similar to the following one:
+```
+Exception of type: DYNAMIC_LIBRARY_FAILURE in file "Common/IpLibraryLoader.cpp" at line 67:
+ Exception message: <path/to/somewhere.so>: undefined symbol: some_symbol
+```
+One known workaround to these errors is to `dlopen()` the library related to 
+`some_symbol` with `RTLD_GLOBAL` before usage.
+For example, if the undefined symbol is `dtrmm_`, using the following snippet 
+(prior to calling Ipopt) may help:
+```julia
+using Libdl
+Libdl.dlopen("path/to/liblapack.so.3", RTLD_GLOBAL)
+```
+If the library is on your load path, you may omit the path specification.
+Note: You may have to call `dlopen()` for more than one library (e.g. Metis or OpenMP), 
+check the respective error messages. The general procedure however remains unchanged. 
+
 ### Julia 1.7
 
 Depending on your system, you may encounter the error:
