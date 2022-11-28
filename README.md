@@ -183,6 +183,7 @@ these can be tricky, however, the following instructions should work. If they
 don't, or are not explicit enough, please open an issue.
 
 ### General Remarks
+
 During the procedures below, you may encounter errors similar to the following one:
 ```
 Exception of type: DYNAMIC_LIBRARY_FAILURE in file "Common/IpLibraryLoader.cpp" at line 67:
