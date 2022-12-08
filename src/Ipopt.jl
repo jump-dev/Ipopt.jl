@@ -7,10 +7,8 @@ module Ipopt
 
 import Ipopt_jll
 import LinearAlgebra
-import MathOptInterface
+import MathOptInterface as MOI
 import OpenBLAS32_jll
-
-const MOI = MathOptInterface
 
 function __init__()
     if VERSION >= v"1.8"
