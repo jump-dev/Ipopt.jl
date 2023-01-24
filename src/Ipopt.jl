@@ -90,6 +90,16 @@ SnoopPrecompile.@precompile_setup begin
             MOI.get(model, MOI.PrimalStatus())
             MOI.get(model, MOI.DualStatus())
             MOI.get(model, MOI.VariablePrimal(), x)
+            # We put these after `optimize!` so that the error is thrown on add,
+            # not on optimize!
+            try
+                MOI.add_constraint(model, x[1], MOI.ZeroOne())
+            catch
+            end
+            try
+                MOI.add_constraint(model, x[1], MOI.Integer())
+            catch
+            end
         end
     end
 end
