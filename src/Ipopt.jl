@@ -63,6 +63,9 @@ SnoopPrecompile.@precompile_setup begin
                 MOI.supports_constraint(model, F, MOI.GreaterThan{Float64})
                 MOI.supports_constraint(model, F, MOI.LessThan{Float64})
                 MOI.supports_constraint(model, F, MOI.EqualTo{Float64})
+                # These return false, but it doesn't matter
+                MOI.supports_constraint(model, F, MOI.ZeroOne)
+                MOI.supports_constraint(model, F, MOI.Integer)
             end
             MOI.add_constraint(model, x[1], MOI.GreaterThan(0.0))
             MOI.add_constraint(model, x[2], MOI.LessThan(0.0))
