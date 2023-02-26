@@ -465,3 +465,91 @@ function IpoptSolve(prob::IpoptProblem)
     prob.status = ret
     return prob.status
 end
+
+function GetIpoptCurrentIterate(
+    prob::IpoptProblem,
+    scaled::Bool,
+    n::Integer,
+    x::Union{Ptr{Cvoid},Vector{Float64}},
+    z_L::Union{Ptr{Cvoid},Vector{Float64}},
+    z_U::Union{Ptr{Cvoid},Vector{Float64}},
+    m::Integer,
+    g::Union{Ptr{Cvoid},Vector{Float64}},
+    lambda::Union{Ptr{Cvoid},Vector{Float64}},
+)
+    ret = ccall(
+        (:GetIpoptCurrentIterate, libipopt),
+        Cint,
+        (
+            Ptr{Cvoid},
+            Cint,
+            Cint,
+            Ptr{Float64},
+            Ptr{Float64},
+            Ptr{Float64},
+            Cint,
+            Ptr{Float64},
+            Ptr{Float64},
+        ),
+        prob.ipopt_problem,
+        scaled,
+        n,
+        x,
+        z_L,
+        z_U,
+        m,
+        g,
+        lambda,
+    )
+    if ret == 0
+        error("IPOPT: Something went wrong getting the current iterate.")
+    end
+    return
+end
+
+function GetIpoptCurrentViolations(
+    prob::IpoptProblem,
+    scaled::Bool,
+    n::Integer,
+    x_L_violation::Union{Ptr{Cvoid},Vector{Float64}},
+    x_U_violation::Union{Ptr{Cvoid},Vector{Float64}},
+    compl_x_L::Union{Ptr{Cvoid},Vector{Float64}},
+    compl_x_U::Union{Ptr{Cvoid},Vector{Float64}},
+    grad_lag_x::Union{Ptr{Cvoid},Vector{Float64}},
+    m::Integer,
+    nlp_constraint_violation::Union{Ptr{Cvoid},Vector{Float64}},
+    compl_g::Union{Ptr{Cvoid},Vector{Float64}},
+)
+    ret = ccall(
+        (:GetIpoptCurrentViolations, libipopt),
+        Cint,
+        (
+            Ptr{Cvoid},
+            Cint,
+            Cint,
+            Ptr{Float64},
+            Ptr{Float64},
+            Ptr{Float64},
+            Ptr{Float64},
+            Ptr{Float64},
+            Cint,
+            Ptr{Float64},
+            Ptr{Float64},
+        ),
+        prob.ipopt_problem,
+        scaled,
+        n,
+        x_L_violation,
+        x_U_violation,
+        compl_x_L,
+        compl_x_U,
+        grad_lag_x,
+        m,
+        nlp_constraint_violation,
+        compl_g,
+    )
+    if ret == 0
+        error("IPOPT: Something went wrong getting the current violations.")
+    end
+    return
+end

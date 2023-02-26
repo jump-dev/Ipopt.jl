@@ -174,6 +174,30 @@ function test_hs071()
         alpha_pr::Float64,
         ls_trials::Cint,
     )
+        m, n = 2, 4
+        x, z_L, z_U = zeros(n), zeros(n), zeros(n)
+        g, lambda = zeros(m), zeros(m)
+        scaled = false
+        Ipopt.GetIpoptCurrentIterate(prob, scaled, n, x, z_L, z_U, m, g, lambda)
+        x_L_violation, x_U_violation = zeros(n), zeros(n)
+        compl_x_L, compl_x_U, grad_lag_x = zeros(n), zeros(n), zeros(n)
+        nlp_constraint_violation, compl_g = zeros(m), zeros(m)
+        Ipopt.GetIpoptCurrentViolations(
+            prob,
+            scaled,
+            n,
+            x_L_violation,
+            x_U_violation,
+            compl_x_L,
+            compl_x_U,
+            grad_lag_x,
+            m,
+            nlp_constraint_violation,
+            compl_g,
+        )
+        @test x .+ x_L_violation >= x_L
+        @test x .- x_U_violation <= x_U
+        @test g_L <= g .- nlp_constraint_violation <= g_U
         return iter_count < 1  # Interrupts after one iteration.
     end
 
