@@ -79,6 +79,11 @@ See the [Ipopt documentation](https://coin-or.github.io/Ipopt/OUTPUT.html) for
 an explanation of the arguments to the callback. They are identical to the
 output contained in the logging table printed to the screen.
 
+To access the current solution and primal, dual, and complementarity violations
+of each iteration, use `Ipopt.GetIpoptCurrentViolations` and
+`Ipopt.GetIpoptCurrentIterate`. The two functions are identical to the ones in
+the [Ipopt C interface](https://coin-or.github.io/Ipopt/INTERFACES.html).
+
 ## C Interface Wrapper
 
 Ipopt.jl wraps the [Ipopt C interface](https://coin-or.github.io/Ipopt/INTERFACES.html) with minimal modifications.
