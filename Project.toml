@@ -14,6 +14,7 @@ SnoopPrecompile = "66db9d55-30c0-4569-8b51-7e840670fc0c"
 Ipopt_jll = "=300.1400.400, =300.1400.403"
 MathOptInterface = "1"
 OpenBLAS32_jll = "0.3.10"
+SnoopPrecompile = "1"
 julia = "1.6"
 
 [extras]
