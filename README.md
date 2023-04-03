@@ -207,9 +207,9 @@ function eval_h end
 ## `INVALID_MODEL` error
 
 If you get a termination status `MOI.INVALID_MODEL`, it is probably because you
-have some undefined value in your model, e.g., a division by zero. Fix this by
-removing the division, or by imposing variable bounds so that you cut off the
-undefined region.
+have some undefined value in your model, for example, a division by zero. Fix
+this by removing the division, or by imposing variable bounds so that you cut
+off the undefined region.
 
 Instead of
 ```julia
@@ -304,7 +304,7 @@ _Tested on a clean install of Ubuntu 20.04 and WSL Ubuntu 20.04_
    ```
    Note: on Windows Subsystem for Linux, you may also need `sudo apt install make`.
 2. Download the appropriate version of HSL.
-   - MA27: [HSL for IPOPT from HSL](http://www.hsl.rl.ac.uk/ipopt/)
+   - MA27: [HSL for Ipopt from HSL](http://www.hsl.rl.ac.uk/ipopt/)
    - MA86: [HSL_MA86 from HSL](http://www.hsl.rl.ac.uk/download/HSL_MA86/1.6.0/)
    - Other: http://www.hsl.rl.ac.uk/catalogue/
 3. Unzip the download, `cd` to the directory, and run the following:
@@ -314,7 +314,7 @@ _Tested on a clean install of Ubuntu 20.04 and WSL Ubuntu 20.04_
    make install
    ```
    where `</full/path/somewhere>` is replaced as appropriate.
-4. Rename the resutling HSL library to `/full/path/somewhere/lib/libhsl.so`.
+4. Rename the resulting HSL library to `/full/path/somewhere/lib/libhsl.so`.
    - For `ma27`, the file is `/full/path/somewhere/lib/libcoinhsl.so`
    - For `ma86`, the file is `/full/path/somewhere/lib/libhsl_ma86.so`
 5. Place the `libhsl.so` library somewhere on your load path.
@@ -333,7 +333,7 @@ _Tested on a clean install of Ubuntu 20.04 and WSL Ubuntu 20.04_
 _Tested on a MacBook Pro, 10.15.7, 12.6, 13.0_
 
 1. Download the appropriate version of HSL.
-   - MA27: [HSL for IPOPT from HSL](http://www.hsl.rl.ac.uk/ipopt/)
+   - MA27: [HSL for Ipopt from HSL](http://www.hsl.rl.ac.uk/ipopt/)
    - MA86: [HSL_MA86 from HSL](http://www.hsl.rl.ac.uk/download/HSL_MA86/1.6.0/)
    - Other: http://www.hsl.rl.ac.uk/catalogue/
 2. Unzip the download, `cd` to the directory, and run the following:
@@ -343,7 +343,7 @@ _Tested on a MacBook Pro, 10.15.7, 12.6, 13.0_
    make install
    ```
    where `</full/path/somewhere>` is replaced as appropriate.
-3. Rename the resutling HSL library to `/full/path/somewhere/lib/libhsl.dylib`.
+3. Rename the resulting HSL library to `/full/path/somewhere/lib/libhsl.dylib`.
    - For `ma27`, the file is `/full/path/somewhere/lib/libcoinhsl.dylib`
    - For `ma86`, the file is `/full/path/somewhere/lib/libhsl_ma86.dylib`
 4. Now we need to ensure Ipopt can find `libhsl.dylib` this can be achieved by either
