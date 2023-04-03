@@ -1,15 +1,23 @@
-# Ipopt.jl
-
 ![](https://www.coin-or.org/wordpress/wp-content/uploads/2014/08/COINOR.png)
 
-**Ipopt.jl** is a [Julia](http://julialang.org/) interface to the [COIN-OR](https://www.coin-or.org)
-nonlinear solver [Ipopt](https://coin-or.github.io/Ipopt/).
-
-*Note: This wrapper is maintained by the JuMP community and is not a COIN-OR
-project.*
+# Ipopt.jl
 
 [![Build Status](https://github.com/jump-dev/Ipopt.jl/workflows/CI/badge.svg?branch=master)](https://github.com/jump-dev/Ipopt.jl/actions?query=workflow%3ACI)
 [![codecov](https://codecov.io/gh/jump-dev/Ipopt.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/jump-dev/Ipopt.jl)
+
+[Ipopt.jl](https://github.com/jump-dev/Ipopt.jl) is a wrapper for the
+[Ipopt](https://github.com/coin-or/ipopt) solver.
+
+## Affiliation
+
+This wrapper is maintained by the JuMP community and is not a COIN-OR project.
+
+## License
+
+`Ipopt.jl` is licensed under the [MIT License](https://github.com/jump-dev/Ipopt.jl/blob/master/LICENSE.md).
+
+The underlying solver, [coin-or/Ipopt](https://github.com/coin-or/Ipopt), is
+licensed under the [Eclipse public license](https://github.com/coin-or/Ipopt/blob/master/LICENSE).
 
 ## Installation
 
@@ -27,19 +35,54 @@ section of the JuMP documentation.
 For details on using a different linear solver, see the `Linear Solvers` section
 below. You do not need a custom binary to change the linear solver.
 
-## JuMP and MathOptInterface
+## Use with JuMP
 
 You can use Ipopt with JuMP as follows:
 ```julia
 using JuMP, Ipopt
 model = Model(Ipopt.Optimizer)
-set_optimizer_attribute(model, "max_cpu_time", 60.0)
-set_optimizer_attribute(model, "print_level", 0)
+set_attribute(model, "max_cpu_time", 60.0)
+set_attribute(model, "print_level", 0)
 ```
+
+## MathOptInterface API
+
+The Ipopt optimizer supports the following constraints and attributes.
+
+List of supported objective functions:
+
+ * [`MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}`](@ref)
+ * [`MOI.ObjectiveFunction{MOI.ScalarQuadraticFunction{Float64}}`](@ref)
+ * [`MOI.ObjectiveFunction{MOI.VariableIndex}`](@ref)
+
+List of supported variable types:
+
+ * [`MOI.Reals`](@ref)
+
+List of supported constraint types:
+
+ * [`MOI.ScalarAffineFunction{Float64}`](@ref) in [`MOI.EqualTo{Float64}`](@ref)
+ * [`MOI.ScalarAffineFunction{Float64}`](@ref) in [`MOI.GreaterThan{Float64}`](@ref)
+ * [`MOI.ScalarAffineFunction{Float64}`](@ref) in [`MOI.LessThan{Float64}`](@ref)
+ * [`MOI.ScalarQuadraticFunction{Float64}`](@ref) in [`MOI.EqualTo{Float64}`](@ref)
+ * [`MOI.ScalarQuadraticFunction{Float64}`](@ref) in [`MOI.GreaterThan{Float64}`](@ref)
+ * [`MOI.ScalarQuadraticFunction{Float64}`](@ref) in [`MOI.LessThan{Float64}`](@ref)
+ * [`MOI.VariableIndex`](@ref) in [`MOI.EqualTo{Float64}`](@ref)
+ * [`MOI.VariableIndex`](@ref) in [`MOI.GreaterThan{Float64}`](@ref)
+ * [`MOI.VariableIndex`](@ref) in [`MOI.LessThan{Float64}`](@ref)
+
+List of supported model attributes:
+
+ * [`MOI.NLPBlock()`](@ref)
+ * [`MOI.NLPBlockDualStart()`](@ref)
+ * [`MOI.Name()`](@ref)
+ * [`MOI.ObjectiveSense()`](@ref)
+
+## Options
 
 Supported options are listed in the [Ipopt documentation](https://coin-or.github.io/Ipopt/OPTIONS.html#OPTIONS_REF).
 
-### Solver-specific callback
+## Solver-specific callbacks
 
 Ipopt provides a callback that can be used to log the status of the optimization
 during a solve. It can also be used to terminate the optimization by returning
