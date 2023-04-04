@@ -23,11 +23,12 @@ licensed under the [Eclipse public license](https://github.com/coin-or/Ipopt/blo
 
 Install `Ipopt.jl` using the Julia package manager:
 ```julia
-import Pkg; Pkg.add("Ipopt")
+import Pkg
+Pkg.add("Ipopt")
 ```
 
 In addition to installing the `Ipopt.jl` package, this will also download and
-install the Ipopt binaries. You do _not_ need to install Ipopt separately.
+install the Ipopt binaries. You do not need to install Ipopt separately.
 
 To use a custom binary, read the [Custom solver binaries](https://jump.dev/JuMP.jl/stable/developers/custom_solver_binaries/)
 section of the JuMP documentation.
@@ -127,9 +128,10 @@ of each iteration, use `Ipopt.GetIpoptCurrentViolations` and
 `Ipopt.GetIpoptCurrentIterate`. The two functions are identical to the ones in
 the [Ipopt C interface](https://coin-or.github.io/Ipopt/INTERFACES.html).
 
-## C Interface Wrapper
+## C API
 
-Ipopt.jl wraps the [Ipopt C interface](https://coin-or.github.io/Ipopt/INTERFACES.html) with minimal modifications.
+Ipopt.jl wraps the [Ipopt C interface](https://coin-or.github.io/Ipopt/INTERFACES.html)
+with minimal modifications.
 
 A complete example is available in the `test/C_wrapper.jl` file.
 
@@ -245,7 +247,7 @@ LinearAlgebra.BLAS.lbt_forward(OpenBLAS32_jll.libopenblas_path)
 
 _Tested on a clean install of Ubuntu 20.04._
 
-1. Install lapack and libomp:
+1. Install `lapack` and `libomp`:
    ```
    sudo apt install liblapack3 libomp-dev
    ```
@@ -335,7 +337,7 @@ _Tested on a MacBook Pro, 10.15.7, 12.6, 13.0_
 1. Download the appropriate version of HSL.
    - MA27: [HSL for Ipopt from HSL](http://www.hsl.rl.ac.uk/ipopt/)
    - MA86: [HSL_MA86 from HSL](http://www.hsl.rl.ac.uk/download/HSL_MA86/1.6.0/)
-   - Other: http://www.hsl.rl.ac.uk/catalogue/
+   - Other: [http://www.hsl.rl.ac.uk/catalogue/](http://www.hsl.rl.ac.uk/catalogue/)
 2. Unzip the download, `cd` to the directory, and run the following:
    ```
    ./configure --prefix=</full/path/somewhere>
@@ -362,7 +364,9 @@ _Tested on a MacBook Pro, 10.15.7, 12.6, 13.0_
 
 #### Windows
 
-Currently untested. If you have instructions that work, please open an issue. Alternatively you can use [Windows Subsystem for Linux](https://learn.microsoft.com/en-us/windows/wsl/install) and follow the linux instructions.
+Currently untested. If you have instructions that work, please open an issue.
+Alternatively you can use [Windows Subsystem for Linux](https://learn.microsoft.com/en-us/windows/wsl/install)
+and follow the Linux instructions.
 
 ### Pardiso (MKL)
 
