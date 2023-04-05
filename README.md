@@ -1,25 +1,34 @@
-# Ipopt.jl
-
 ![](https://www.coin-or.org/wordpress/wp-content/uploads/2014/08/COINOR.png)
 
-**Ipopt.jl** is a [Julia](http://julialang.org/) interface to the [COIN-OR](https://www.coin-or.org)
-nonlinear solver [Ipopt](https://coin-or.github.io/Ipopt/).
-
-*Note: This wrapper is maintained by the JuMP community and is not a COIN-OR
-project.*
+# Ipopt.jl
 
 [![Build Status](https://github.com/jump-dev/Ipopt.jl/workflows/CI/badge.svg?branch=master)](https://github.com/jump-dev/Ipopt.jl/actions?query=workflow%3ACI)
 [![codecov](https://codecov.io/gh/jump-dev/Ipopt.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/jump-dev/Ipopt.jl)
+
+[Ipopt.jl](https://github.com/jump-dev/Ipopt.jl) is a wrapper for the
+[Ipopt](https://github.com/coin-or/ipopt) solver.
+
+## Affiliation
+
+This wrapper is maintained by the JuMP community and is not a COIN-OR project.
+
+## License
+
+`Ipopt.jl` is licensed under the [MIT License](https://github.com/jump-dev/Ipopt.jl/blob/master/LICENSE.md).
+
+The underlying solver, [coin-or/Ipopt](https://github.com/coin-or/Ipopt), is
+licensed under the [Eclipse public license](https://github.com/coin-or/Ipopt/blob/master/LICENSE).
 
 ## Installation
 
 Install `Ipopt.jl` using the Julia package manager:
 ```julia
-import Pkg; Pkg.add("Ipopt")
+import Pkg
+Pkg.add("Ipopt")
 ```
 
 In addition to installing the `Ipopt.jl` package, this will also download and
-install the Ipopt binaries. You do _not_ need to install Ipopt separately.
+install the Ipopt binaries. You do not need to install Ipopt separately.
 
 To use a custom binary, read the [Custom solver binaries](https://jump.dev/JuMP.jl/stable/developers/custom_solver_binaries/)
 section of the JuMP documentation.
@@ -27,19 +36,54 @@ section of the JuMP documentation.
 For details on using a different linear solver, see the `Linear Solvers` section
 below. You do not need a custom binary to change the linear solver.
 
-## JuMP and MathOptInterface
+## Use with JuMP
 
 You can use Ipopt with JuMP as follows:
 ```julia
 using JuMP, Ipopt
 model = Model(Ipopt.Optimizer)
-set_optimizer_attribute(model, "max_cpu_time", 60.0)
-set_optimizer_attribute(model, "print_level", 0)
+set_attribute(model, "max_cpu_time", 60.0)
+set_attribute(model, "print_level", 0)
 ```
+
+## MathOptInterface API
+
+The Ipopt optimizer supports the following constraints and attributes.
+
+List of supported objective functions:
+
+ * [`MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}`](@ref)
+ * [`MOI.ObjectiveFunction{MOI.ScalarQuadraticFunction{Float64}}`](@ref)
+ * [`MOI.ObjectiveFunction{MOI.VariableIndex}`](@ref)
+
+List of supported variable types:
+
+ * [`MOI.Reals`](@ref)
+
+List of supported constraint types:
+
+ * [`MOI.ScalarAffineFunction{Float64}`](@ref) in [`MOI.EqualTo{Float64}`](@ref)
+ * [`MOI.ScalarAffineFunction{Float64}`](@ref) in [`MOI.GreaterThan{Float64}`](@ref)
+ * [`MOI.ScalarAffineFunction{Float64}`](@ref) in [`MOI.LessThan{Float64}`](@ref)
+ * [`MOI.ScalarQuadraticFunction{Float64}`](@ref) in [`MOI.EqualTo{Float64}`](@ref)
+ * [`MOI.ScalarQuadraticFunction{Float64}`](@ref) in [`MOI.GreaterThan{Float64}`](@ref)
+ * [`MOI.ScalarQuadraticFunction{Float64}`](@ref) in [`MOI.LessThan{Float64}`](@ref)
+ * [`MOI.VariableIndex`](@ref) in [`MOI.EqualTo{Float64}`](@ref)
+ * [`MOI.VariableIndex`](@ref) in [`MOI.GreaterThan{Float64}`](@ref)
+ * [`MOI.VariableIndex`](@ref) in [`MOI.LessThan{Float64}`](@ref)
+
+List of supported model attributes:
+
+ * [`MOI.NLPBlock()`](@ref)
+ * [`MOI.NLPBlockDualStart()`](@ref)
+ * [`MOI.Name()`](@ref)
+ * [`MOI.ObjectiveSense()`](@ref)
+
+## Options
 
 Supported options are listed in the [Ipopt documentation](https://coin-or.github.io/Ipopt/OPTIONS.html#OPTIONS_REF).
 
-### Solver-specific callback
+## Solver-specific callbacks
 
 Ipopt provides a callback that can be used to log the status of the optimization
 during a solve. It can also be used to terminate the optimization by returning
@@ -84,9 +128,10 @@ of each iteration, use `Ipopt.GetIpoptCurrentViolations` and
 `Ipopt.GetIpoptCurrentIterate`. The two functions are identical to the ones in
 the [Ipopt C interface](https://coin-or.github.io/Ipopt/INTERFACES.html).
 
-## C Interface Wrapper
+## C API
 
-Ipopt.jl wraps the [Ipopt C interface](https://coin-or.github.io/Ipopt/INTERFACES.html) with minimal modifications.
+Ipopt.jl wraps the [Ipopt C interface](https://coin-or.github.io/Ipopt/INTERFACES.html)
+with minimal modifications.
 
 A complete example is available in the `test/C_wrapper.jl` file.
 
@@ -164,9 +209,9 @@ function eval_h end
 ## `INVALID_MODEL` error
 
 If you get a termination status `MOI.INVALID_MODEL`, it is probably because you
-have some undefined value in your model, e.g., a division by zero. Fix this by
-removing the division, or by imposing variable bounds so that you cut off the
-undefined region.
+have some undefined value in your model, for example, a division by zero. Fix
+this by removing the division, or by imposing variable bounds so that you cut
+off the undefined region.
 
 Instead of
 ```julia
@@ -202,7 +247,7 @@ LinearAlgebra.BLAS.lbt_forward(OpenBLAS32_jll.libopenblas_path)
 
 _Tested on a clean install of Ubuntu 20.04._
 
-1. Install lapack and libomp:
+1. Install `lapack` and `libomp`:
    ```
    sudo apt install liblapack3 libomp-dev
    ```
@@ -261,7 +306,7 @@ _Tested on a clean install of Ubuntu 20.04 and WSL Ubuntu 20.04_
    ```
    Note: on Windows Subsystem for Linux, you may also need `sudo apt install make`.
 2. Download the appropriate version of HSL.
-   - MA27: [HSL for IPOPT from HSL](http://www.hsl.rl.ac.uk/ipopt/)
+   - MA27: [HSL for Ipopt from HSL](http://www.hsl.rl.ac.uk/ipopt/)
    - MA86: [HSL_MA86 from HSL](http://www.hsl.rl.ac.uk/download/HSL_MA86/1.6.0/)
    - Other: http://www.hsl.rl.ac.uk/catalogue/
 3. Unzip the download, `cd` to the directory, and run the following:
@@ -271,7 +316,7 @@ _Tested on a clean install of Ubuntu 20.04 and WSL Ubuntu 20.04_
    make install
    ```
    where `</full/path/somewhere>` is replaced as appropriate.
-4. Rename the resutling HSL library to `/full/path/somewhere/lib/libhsl.so`.
+4. Rename the resulting HSL library to `/full/path/somewhere/lib/libhsl.so`.
    - For `ma27`, the file is `/full/path/somewhere/lib/libcoinhsl.so`
    - For `ma86`, the file is `/full/path/somewhere/lib/libhsl_ma86.so`
 5. Place the `libhsl.so` library somewhere on your load path.
@@ -290,9 +335,9 @@ _Tested on a clean install of Ubuntu 20.04 and WSL Ubuntu 20.04_
 _Tested on a MacBook Pro, 10.15.7, 12.6, 13.0_
 
 1. Download the appropriate version of HSL.
-   - MA27: [HSL for IPOPT from HSL](http://www.hsl.rl.ac.uk/ipopt/)
+   - MA27: [HSL for Ipopt from HSL](http://www.hsl.rl.ac.uk/ipopt/)
    - MA86: [HSL_MA86 from HSL](http://www.hsl.rl.ac.uk/download/HSL_MA86/1.6.0/)
-   - Other: http://www.hsl.rl.ac.uk/catalogue/
+   - Other: [http://www.hsl.rl.ac.uk/catalogue/](http://www.hsl.rl.ac.uk/catalogue/)
 2. Unzip the download, `cd` to the directory, and run the following:
    ```
    ./configure --prefix=</full/path/somewhere>
@@ -300,7 +345,7 @@ _Tested on a MacBook Pro, 10.15.7, 12.6, 13.0_
    make install
    ```
    where `</full/path/somewhere>` is replaced as appropriate.
-3. Rename the resutling HSL library to `/full/path/somewhere/lib/libhsl.dylib`.
+3. Rename the resulting HSL library to `/full/path/somewhere/lib/libhsl.dylib`.
    - For `ma27`, the file is `/full/path/somewhere/lib/libcoinhsl.dylib`
    - For `ma86`, the file is `/full/path/somewhere/lib/libhsl_ma86.dylib`
 4. Now we need to ensure Ipopt can find `libhsl.dylib` this can be achieved by either
@@ -319,7 +364,9 @@ _Tested on a MacBook Pro, 10.15.7, 12.6, 13.0_
 
 #### Windows
 
-Currently untested. If you have instructions that work, please open an issue. Alternatively you can use [Windows Subsystem for Linux](https://learn.microsoft.com/en-us/windows/wsl/install) and follow the linux instructions.
+Currently untested. If you have instructions that work, please open an issue.
+Alternatively you can use [Windows Subsystem for Linux](https://learn.microsoft.com/en-us/windows/wsl/install)
+and follow the Linux instructions.
 
 ### Pardiso (MKL)
 
