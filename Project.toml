@@ -8,13 +8,13 @@ Ipopt_jll = "9cc047cb-c261-5740-88fc-0cf96f7bdcc7"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 MathOptInterface = "b8f27783-ece8-5eb3-8dc8-9495eed66fee"
 OpenBLAS32_jll = "656ef2d0-ae68-5445-9ca0-591084a874a2"
-SnoopPrecompile = "66db9d55-30c0-4569-8b51-7e840670fc0c"
+PrecompileTools = "aea7be01-6a6a-4083-8856-8a6e6704d82a"
 
 [compat]
 Ipopt_jll = "=300.1400.400, =300.1400.403, =300.1400.1000"
 MathOptInterface = "1"
 OpenBLAS32_jll = "0.3.10"
-SnoopPrecompile = "1"
+PrecompileTools = "1"
 julia = "1.6"
 
 [extras]

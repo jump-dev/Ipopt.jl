@@ -41,11 +41,11 @@ export IpoptProblem,
     SetIntermediateCallback,
     IpoptSolve
 
-import SnoopPrecompile
+import PrecompileTools
 
-SnoopPrecompile.@precompile_setup begin
+PrecompileTools.@setup_workload begin
     __init__()
-    SnoopPrecompile.@precompile_all_calls begin
+    PrecompileTools.@compile_workload begin
         let
             model = MOI.Utilities.CachingOptimizer(
                 MOI.Utilities.UniversalFallback(MOI.Utilities.Model{Float64}()),
