@@ -1096,7 +1096,7 @@ function MOI.get(
 )
     MOI.check_result_index_bounds(model, attr)
     MOI.throw_if_not_valid(model, ci)
-    return model.inner.g[row(ci)]
+    return model.inner.g[row(model, ci)]
 end
 
 function MOI.get(
@@ -1121,7 +1121,7 @@ function MOI.get(
     MOI.check_result_index_bounds(model, attr)
     MOI.throw_if_not_valid(model, ci)
     s = -_dual_multiplier(model)
-    return s * model.inner.mult_g[row(ci)]
+    return s * model.inner.mult_g[row(model, ci)]
 end
 
 function MOI.get(
