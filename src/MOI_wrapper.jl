@@ -1080,6 +1080,15 @@ end
 
 ### MOI.ConstraintPrimal
 
+row(model::Optimizer, ci::MOI.ConstraintIndex{<:_FUNCTIONS}) = ci.value
+
+function row(
+    model::Optimizer,
+    ci::MOI.ConstraintIndex{MOI.ScalarNonlinearFunction},
+)
+    return length(model.qp_data) + ci.value
+end
+
 function MOI.get(
     model::Optimizer,
     attr::MOI.ConstraintPrimal,
@@ -1087,7 +1096,7 @@ function MOI.get(
 )
     MOI.check_result_index_bounds(model, attr)
     MOI.throw_if_not_valid(model, ci)
-    return model.inner.g[ci.value]
+    return model.inner.g[row(ci)]
 end
 
 function MOI.get(
@@ -1112,7 +1121,7 @@ function MOI.get(
     MOI.check_result_index_bounds(model, attr)
     MOI.throw_if_not_valid(model, ci)
     s = -_dual_multiplier(model)
-    return s * model.inner.mult_g[ci.value]
+    return s * model.inner.mult_g[row(ci)]
 end
 
 function MOI.get(
