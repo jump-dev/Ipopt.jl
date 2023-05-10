@@ -116,6 +116,7 @@ end
 
 function test_solve_time()
     model = Ipopt.Optimizer()
+    MOI.set(model, MOI.Silent(), true)
     MOI.add_variable(model)
     @test isnan(MOI.get(model, MOI.SolveTimeSec()))
     MOI.optimize!(model)
@@ -138,6 +139,7 @@ end
 
 function test_check_derivatives_for_naninf()
     model = Ipopt.Optimizer()
+    MOI.set(model, MOI.Silent(), true)
     x = MOI.add_variable(model)
     MOI.set(
         model,
@@ -305,6 +307,76 @@ function test_supports_ConstraintDualStart_VariableIndex()
             MOI.ConstraintIndex{MOI.VariableIndex,S},
         )
     end
+    return
+end
+
+function test_parameter_number_of_variables()
+    model = Ipopt.Optimizer()
+    x = MOI.add_variable(model)
+    p, ci = MOI.add_constrained_variable(model, MOI.Parameter(2.0))
+    @test MOI.get(model, MOI.NumberOfVariables()) == 2
+    return
+end
+
+function test_parameter_list_of_variable_indices()
+    model = Ipopt.Optimizer()
+    x = MOI.add_variable(model)
+    p, ci = MOI.add_constrained_variable(model, MOI.Parameter(2.0))
+    @test MOI.get(model, MOI.ListOfVariableIndices()) == [x, p]
+    # Now reversed
+    model = Ipopt.Optimizer()
+    p, ci = MOI.add_constrained_variable(model, MOI.Parameter(2.0))
+    x = MOI.add_variable(model)
+    @test MOI.get(model, MOI.ListOfVariableIndices()) == [p, x]
+    return
+end
+
+function test_parameter_scalar_affine_objective()
+    model = Ipopt.Optimizer()
+    MOI.set(model, MOI.Silent(), true)
+    x = MOI.add_variable(model)
+    p, ci = MOI.add_constrained_variable(model, MOI.Parameter(2.0))
+    MOI.set(model, MOI.ObjectiveSense(), MOI.MIN_SENSE)
+    # f = (x - p)^2 + x + p + 1.0
+    f = (1.0 * x - 1.0 * p) * (1.0 * x - 1.0 * p) + x + p + 1.0
+    MOI.set(model, MOI.ObjectiveFunction{typeof(f)}(), f)
+    MOI.optimize!(model)
+    @test MOI.get(model, MOI.VariablePrimal(), x) ≈ 1.5
+    @test MOI.get(model, MOI.VariablePrimal(), p) ≈ 2.0
+    @test MOI.get(model, MOI.ObjectiveValue()) ≈ (1.5 - 2.0)^2 + 4.5
+    MOI.set(model, MOI.ConstraintSet(), ci, MOI.Parameter(2.2))
+    MOI.optimize!(model)
+    @test MOI.get(model, MOI.VariablePrimal(), x) ≈ 1.7
+    @test MOI.get(model, MOI.VariablePrimal(), p) ≈ 2.2
+    @test MOI.get(model, MOI.ObjectiveValue()) ≈ (1.7 - 2.2)^2 + 4.9
+    MOI.add_constraint(model, x, MOI.LessThan(1.5))
+    MOI.optimize!(model)
+    @test MOI.get(model, MOI.VariablePrimal(), x) ≈ 1.5
+    @test MOI.get(model, MOI.VariablePrimal(), p) ≈ 2.2
+    @test MOI.get(model, MOI.ObjectiveValue()) ≈ (1.5 - 2.2)^2 + 4.7
+    return
+end
+
+function test_parameter_scalar_affine_objective()
+    model = Ipopt.Optimizer()
+    MOI.set(model, MOI.Silent(), true)
+    x = MOI.add_variable(model)
+    p, ci = MOI.add_constrained_variable(model, MOI.Parameter(2.0))
+    t = MOI.add_variable(model)
+    MOI.set(model, MOI.ObjectiveSense(), MOI.MIN_SENSE)
+    MOI.set(model, MOI.ObjectiveFunction{typeof(t)}(), t)
+    # f = (x - p)^2 + x + p + 1.0
+    f = (1.0 * x - 1.0 * p) * (1.0 * x - 1.0 * p) + x + p + 1.0
+    MOI.add_constraint(model, f - t, MOI.LessThan(0.0))
+    MOI.optimize!(model)
+    @test MOI.get(model, MOI.VariablePrimal(), x) ≈ 1.5
+    @test MOI.get(model, MOI.VariablePrimal(), p) ≈ 2.0
+    @test MOI.get(model, MOI.ObjectiveValue()) ≈ (1.5 - 2.0)^2 + 4.5
+    MOI.set(model, MOI.ConstraintSet(), ci, MOI.Parameter(2.2))
+    MOI.optimize!(model)
+    @test MOI.get(model, MOI.VariablePrimal(), x) ≈ 1.7
+    @test MOI.get(model, MOI.VariablePrimal(), p) ≈ 2.2
+    @test MOI.get(model, MOI.ObjectiveValue()) ≈ (1.7 - 2.2)^2 + 4.9
     return
 end
 
