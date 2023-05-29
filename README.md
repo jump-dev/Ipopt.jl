@@ -261,9 +261,3 @@ model = Model(Ipopt.Optimizer)
 set_attribute(model, "pardisolib", "/full/path/to/libpardiso")
 set_attribute(model, "linear_solver", "pardiso")
 ```
-
-### Windows
-
-Changing the linear solver dynamically may not work on Windows. Instead, you can
-use [Windows Subsystem for Linux](https://learn.microsoft.com/en-us/windows/wsl/install)
-and download the Linux version of each solver.
