@@ -254,11 +254,11 @@ set_attribute(model, "linear_solver", "ma86")
 Download Pardiso from [https://www.pardiso-project.org](https://www.pardiso-project.org).
 Save the shared library somewhere, and record the filename.
 
-Then, use Pardiso by setting the `parsidolib` and `linear_solver` attributes:
+Then, use Pardiso by setting the `pardisolib` and `linear_solver` attributes:
 ```julia
 using JuMP, Ipopt
 model = Model(Ipopt.Optimizer)
-set_attribute(model, "pardisolib", "/full/path/to/libparsido")
+set_attribute(model, "pardisolib", "/full/path/to/libpardiso")
 set_attribute(model, "linear_solver", "pardiso")
 ```
 
