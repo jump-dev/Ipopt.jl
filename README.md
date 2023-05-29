@@ -228,147 +228,36 @@ model = Model(Ipopt.Optimizer)
 
 ## Linear Solvers
 
-To improve performance, Ipopt supports a number of linear solvers. Installing
-these can be tricky, however, the following instructions should work. If they
-don't, or are not explicit enough, please open an issue.
+To improve performance, Ipopt supports a number of linear solvers.
 
-### Julia 1.7
+### HSL
 
-Depending on your system, you may encounter the error:
-`Error: no BLAS/LAPACK library loaded!`. If you do, run:
+Obtain a license and download `HSL_jll.jl` from [https://licences.stfc.ac.uk/product/julia-hsl](https://licences.stfc.ac.uk/product/julia-hsl).
+Install this download into your current environment using:
 ```julia
-import LinearAlgebra, OpenBLAS32_jll
-LinearAlgebra.BLAS.lbt_forward(OpenBLAS32_jll.libopenblas_path)
+import Pkg
+Pkg.dev("/full/path/to/HSL_jll.jl")
 ```
 
-### Pardiso (Pardiso Project)
+Then, use a linear solver in HSL by setting the `hsllib` and `linear_solver`
+attributes:
+```julia
+using JuMP, Ipopt
+import HSL_jll
+model = Model(Ipopt.Optimizer)
+set_attribute(model, "hsllib", HSL_jll.libhsl_path)
+set_attribute(model, "linear_solver", "ma86")
+```
 
-#### Linux
+### Pardiso
 
-_Tested on a clean install of Ubuntu 20.04._
+Download Pardiso from [https://www.pardiso-project.org](https://www.pardiso-project.org).
+Save the shared library somewhere, and record the filename.
 
-1. Install `lapack` and `libomp`:
-   ```
-   sudo apt install liblapack3 libomp-dev
-   ```
-2. Download Pardiso from [https://www.pardiso-project.org](https://www.pardiso-project.org)
-3. Rename the file `libpardiso-XXXXX.so` to `libpardiso.so`
-4. Place the `libpardiso.so` library somewhere on your load path
-   - Alternatively, if the library is located at `/full/path/libpardiso.so`,
-     start Julia with `export LD_LIBRARY_PATH=/full/path; julia`
-
-     To make this permanent, modify your `.bashrc` to include:
-     ```
-     export LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:/full/path/"
-     ```
-5. Set the option `linear_solver` to `pardiso`:
-   ```julia
-   using Libdl
-   # Note: these filenames may differ. Check `/usr/lib/x86_64-linux-gnu` for the
-   # specific extension.
-   Libdl.dlopen("/usr/lib/x86_64-linux-gnu/liblapack.so.3", RTLD_GLOBAL)
-   Libdl.dlopen("/usr/lib/x86_64-linux-gnu/libomp.so.5", RTLD_GLOBAL)
-
-   using JuMP, Ipopt
-   model = Model(Ipopt.Optimizer)
-   set_optimizer_attribute(model, "linear_solver", "pardiso")
-   ```
-
-#### Mac
-
-_Tested on a MacBook Pro, 10.15.7._
-
-1. Download Pardiso from [https://www.pardiso-project.org](https://www.pardiso-project.org)
-2. Rename the file `libpardiso-XXXXX.dylib` to `libpardiso.dylib`.
-3. Place the `libpardiso.dylib` library somewhere on your load path.
-   - Alternatively, if the library is located at `/full/path/libpardiso.dylib`,
-     start Julia with `export DL_LOAD_PATH=/full/path; julia`
-4. Set the option `linear_solver` to `pardiso`:
-   ```julia
-   using JuMP, Ipopt
-   model = Model(Ipopt.Optimizer)
-   set_optimizer_attribute(model, "linear_solver", "pardiso")
-   ```
-
-#### Windows
-
-Currently untested. If you have instructions that work, please open an issue.
-
-### HSL (MA27, MA86, MA97)
-
-#### Linux
-
-_Tested on a clean install of Ubuntu 20.04 and WSL Ubuntu 20.04_
-
-1. Install dependencies if necessary:
-   ```
-   sudo apt install gfortran libblas-dev libmetis-dev
-   ```
-   Note: on Windows Subsystem for Linux, you may also need `sudo apt install make`.
-2. Download the appropriate version of HSL.
-   - MA27: [HSL for Ipopt from HSL](http://www.hsl.rl.ac.uk/ipopt/)
-   - MA86: [HSL_MA86 from HSL](http://www.hsl.rl.ac.uk/download/HSL_MA86/1.6.0/)
-   - Other: http://www.hsl.rl.ac.uk/catalogue/
-3. Unzip the download, `cd` to the directory, and run the following:
-   ```
-   ./configure --prefix=</full/path/somewhere>
-   make
-   make install
-   ```
-   where `</full/path/somewhere>` is replaced as appropriate.
-4. Rename the resulting HSL library to `/full/path/somewhere/lib/libhsl.so`.
-   - For `ma27`, the file is `/full/path/somewhere/lib/libcoinhsl.so`
-   - For `ma86`, the file is `/full/path/somewhere/lib/libhsl_ma86.so`
-5. Place the `libhsl.so` library somewhere on your load path.
-   - Alternatively, start Julia with `export LD_LIBRARY_PATH=/full/path/somewhere/lib; julia`
-6. Set the option `linear_solver` to `ma27` or `ma86` as appropriate:
-   ```julia
-   using JuMP, Ipopt
-   model = Model(Ipopt.Optimizer)
-   set_optimizer_attribute(model, "linear_solver", "ma27")
-   # or
-   set_optimizer_attribute(model, "linear_solver", "ma86")
-   ```
-
-#### Mac
-
-_Tested on a MacBook Pro, 10.15.7, 12.6, 13.0_
-
-1. Download the appropriate version of HSL.
-   - MA27: [HSL for Ipopt from HSL](http://www.hsl.rl.ac.uk/ipopt/)
-   - MA86: [HSL_MA86 from HSL](http://www.hsl.rl.ac.uk/download/HSL_MA86/1.6.0/)
-   - Other: [http://www.hsl.rl.ac.uk/catalogue/](http://www.hsl.rl.ac.uk/catalogue/)
-2. Unzip the download, `cd` to the directory, and run the following:
-   ```
-   ./configure --prefix=</full/path/somewhere>
-   make
-   make install
-   ```
-   where `</full/path/somewhere>` is replaced as appropriate.
-3. Rename the resulting HSL library to `/full/path/somewhere/lib/libhsl.dylib`.
-   - For `ma27`, the file is `/full/path/somewhere/lib/libcoinhsl.dylib`
-   - For `ma86`, the file is `/full/path/somewhere/lib/libhsl_ma86.dylib`
-4. Now we need to ensure Ipopt can find `libhsl.dylib` this can be achieved by either
-
-   - Setting an environment variable `export DL_LOAD_PATH=/full/path/somewhere/lib`
-   - Setting `hsllib` with `set_optimizer_attribute(model, "hsllib","full/path/somewhere/lib/libhsl.dylib")`
-
-5. Set the option `linear_solver` to `ma27` or `ma86` as appropriate:
-   ```julia
-   using JuMP, Ipopt
-   model = Model(Ipopt.Optimizer)
-   set_optimizer_attribute(model, "linear_solver", "ma27")
-   # or
-   set_optimizer_attribute(model, "linear_solver", "ma86")
-   ```
-
-#### Windows
-
-Currently untested. If you have instructions that work, please open an issue.
-Alternatively you can use [Windows Subsystem for Linux](https://learn.microsoft.com/en-us/windows/wsl/install)
-and follow the Linux instructions.
-
-### Pardiso (MKL)
-
-Currently untested on all platforms. If you have instructions that work, please
-open an issue.
+Then, use Pardiso by setting the `pardisolib` and `linear_solver` attributes:
+```julia
+using JuMP, Ipopt
+model = Model(Ipopt.Optimizer)
+set_attribute(model, "pardisolib", "/full/path/to/libpardiso")
+set_attribute(model, "linear_solver", "pardiso")
+```
