@@ -5,7 +5,7 @@
 
 import Pkg
 if get(ENV, "CI", "false") == "true"
-    Pkg.pkg"add MathOptInterface#od/nlp-expr"
+    Pkg.pkg"add MathOptInterface#master"
 end
 
 using Test
