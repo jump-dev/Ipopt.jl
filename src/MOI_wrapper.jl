@@ -9,6 +9,12 @@ const _PARAMETER_OFFSET = 0x00f0000000000000
 
 _is_parameter(x::MOI.VariableIndex) = x.value >= _PARAMETER_OFFSET
 
+_is_parameter(term::MOI.ScalarAffineTerm) = _is_parameter(term.variable)
+
+function _is_parameter(term::MOI.ScalarQuadraticTerm)
+    return _is_parameter(term.variable_1) || _is_parameter(term.variable_2)
+end
+
 """
     Optimizer()
 
@@ -67,6 +73,7 @@ const _SETS =
 const _FUNCTIONS = Union{
     MOI.ScalarAffineFunction{Float64},
     MOI.ScalarQuadraticFunction{Float64},
+    MOI.ScalarNonlinearFunction,
 }
 
 MOI.get(::Optimizer, ::MOI.SolverVersion) = "3.14.4"
@@ -150,6 +157,39 @@ function MOI.set(
     p = model.parameters[MOI.VariableIndex(ci.value)]
     model.nlp_model[p] = set.value
     return
+end
+
+_replace_parameters(model::Optimizer, f) = f
+
+function _replace_parameters(model::Optimizer, f::MOI.VariableIndex)
+    if _is_parameter(f)
+        return model.parameters[f]
+    end
+    return f
+end
+
+function _replace_parameters(model::Optimizer, f::MOI.ScalarAffineFunction)
+    if any(_is_parameter, f.terms)
+        g = convert(MOI.ScalarNonlinearFunction, f)
+        return _replace_parameters(model, g)
+    end
+    return f
+end
+
+function _replace_parameters(model::Optimizer, f::MOI.ScalarQuadraticFunction)
+    if any(_is_parameter, f.affine_terms) ||
+       any(_is_parameter, f.quadratic_terms)
+        g = convert(MOI.ScalarNonlinearFunction, f)
+        return _replace_parameters(model, g)
+    end
+    return f
+end
+
+function _replace_parameters(model::Optimizer, f::MOI.ScalarNonlinearFunction)
+    for (i, arg) in enumerate(f.args)
+        f.args[i] = _replace_parameters(model, arg)
+    end
+    return f
 end
 
 function MOI.supports_constraint(
@@ -375,6 +415,77 @@ function MOI.set(
     return
 end
 
+### ScalarNonlinearFunction
+
+function MOI.is_valid(
+    model::Optimizer,
+    ci::MOI.ConstraintIndex{MOI.ScalarNonlinearFunction,<:_SETS},
+)
+    if model.nlp_model === nothing
+        return false
+    end
+    index = MOI.Nonlinear.ConstraintIndex(ci.value)
+    return MOI.is_valid(model.nlp_model, index)
+end
+
+function MOI.add_constraint(
+    model::Optimizer,
+    f::MOI.ScalarNonlinearFunction,
+    s::_SETS,
+)
+    if model.nlp_model === nothing
+        model.nlp_model = MOI.Nonlinear.Model()
+    end
+    if !isempty(model.parameters)
+        _replace_parameters(model, f)
+    end
+    index = MOI.Nonlinear.add_constraint(model.nlp_model, f, s)
+    model.inner = nothing
+    return MOI.ConstraintIndex{typeof(f),typeof(s)}(index.value)
+end
+
+function MOI.set(
+    model::Optimizer,
+    attr::MOI.ObjectiveFunction{MOI.ScalarNonlinearFunction},
+    func::MOI.ScalarNonlinearFunction,
+)
+    if model.nlp_model === nothing
+        model.nlp_model = MOI.Nonlinear.Model()
+    end
+    if !isempty(model.parameters)
+        _replace_parameters(model, func)
+    end
+    MOI.Nonlinear.set_objective(model.nlp_model, func)
+    model.inner = nothing
+    return
+end
+
+### UserDefinedFunction
+
+MOI.supports(model::Optimizer, ::MOI.UserDefinedFunction) = true
+
+function MOI.set(model::Optimizer, attr::MOI.UserDefinedFunction, args)
+    if model.nlp_model === nothing
+        model.nlp_model = MOI.Nonlinear.Model()
+    end
+    MOI.Nonlinear.register_operator(
+        model.nlp_model,
+        attr.name,
+        attr.arity,
+        args...,
+    )
+    return
+end
+
+### ListOfSupportedNonlinearOperators
+
+function MOI.get(model::Optimizer, attr::MOI.ListOfSupportedNonlinearOperators)
+    if model.nlp_model === nothing
+        model.nlp_model = MOI.Nonlinear.Model()
+    end
+    return MOI.get(model.nlp_model, attr)
+end
+
 ### MOI.VariablePrimalStart
 
 function MOI.supports(
@@ -554,6 +665,9 @@ function MOI.set(
     func::F,
 ) where {F<:Union{MOI.VariableIndex,<:_FUNCTIONS}}
     MOI.set(model.qp_data, attr, func)
+    if model.nlp_model !== nothing
+        MOI.Nonlinear.set_objective(model.nlp_model, nothing)
+    end
     model.inner = nothing
     return
 end
@@ -637,6 +751,11 @@ function _setup_model(model::Optimizer)
         # Don't attempt to create a problem because Ipopt will error.
         model.invalid_model = true
         return
+    end
+    if model.nlp_model !== nothing
+        backend = MOI.Nonlinear.SparseReverseMode()
+        evaluator = MOI.Nonlinear.Evaluator(model.nlp_model, backend, vars)
+        model.nlp_data = MOI.NLPBlockData(evaluator)
     end
     has_quadratic_constraints =
         any(isequal(_kFunctionTypeScalarQuadratic), model.qp_data.function_type)
@@ -961,6 +1080,15 @@ end
 
 ### MOI.ConstraintPrimal
 
+row(model::Optimizer, ci::MOI.ConstraintIndex{<:_FUNCTIONS}) = ci.value
+
+function row(
+    model::Optimizer,
+    ci::MOI.ConstraintIndex{MOI.ScalarNonlinearFunction},
+)
+    return length(model.qp_data) + ci.value
+end
+
 function MOI.get(
     model::Optimizer,
     attr::MOI.ConstraintPrimal,
@@ -968,7 +1096,7 @@ function MOI.get(
 )
     MOI.check_result_index_bounds(model, attr)
     MOI.throw_if_not_valid(model, ci)
-    return model.inner.g[ci.value]
+    return model.inner.g[row(model, ci)]
 end
 
 function MOI.get(
@@ -993,7 +1121,7 @@ function MOI.get(
     MOI.check_result_index_bounds(model, attr)
     MOI.throw_if_not_valid(model, ci)
     s = -_dual_multiplier(model)
-    return s * model.inner.mult_g[ci.value]
+    return s * model.inner.mult_g[row(model, ci)]
 end
 
 function MOI.get(

@@ -331,6 +331,88 @@ function test_parameter_list_of_variable_indices()
     return
 end
 
+function test_scalar_nonlinear_function_is_valid()
+    model = Ipopt.Optimizer()
+    x = MOI.add_variable(model)
+    F, S = MOI.ScalarNonlinearFunction, MOI.EqualTo{Float64}
+    @test MOI.is_valid(model, MOI.ConstraintIndex{F,S}(1)) == false
+    f = MOI.ScalarNonlinearFunction(:sin, Any[x])
+    c = MOI.add_constraint(model, f, MOI.EqualTo(0.0))
+    @test c isa MOI.ConstraintIndex{F,S}
+    @test MOI.is_valid(model, c) == true
+    return
+end
+
+function test_parameter()
+    model = Ipopt.Optimizer()
+    MOI.set(model, MOI.Silent(), true)
+    p, ci = MOI.add_constrained_variable(model, MOI.Parameter(1.0))
+    x = MOI.add_variable(model)
+    fi = MOI.ScalarNonlinearFunction(:-, Any[x, p])
+    f = MOI.ScalarNonlinearFunction(:^, Any[fi, 2])
+    MOI.set(model, MOI.ObjectiveFunction{typeof(f)}(), f)
+    MOI.set(model, MOI.ObjectiveSense(), MOI.MIN_SENSE)
+    @test MOI.get(model, MOI.NumberOfVariables()) == 2
+    @test MOI.get(model, MOI.ListOfVariableIndices()) == [p, x]
+    MOI.optimize!(model)
+    @test MOI.get(model, MOI.VariablePrimal(), p) ≈ 1
+    @test MOI.get(model, MOI.VariablePrimal(), x) ≈ 1
+    MOI.set(model, MOI.ConstraintSet(), ci, MOI.Parameter(-2.5))
+    MOI.optimize!(model)
+    @test MOI.get(model, MOI.VariablePrimal(), p) ≈ -2.5
+    @test MOI.get(model, MOI.VariablePrimal(), x) ≈ -2.5
+    return
+end
+
+function test_parameter_replace_parameters()
+    model = Ipopt.Optimizer()
+    MOI.set(model, MOI.Silent(), true)
+    p, ci = MOI.add_constrained_variable(model, MOI.Parameter(1.0))
+    x = MOI.add_variable(model)
+    t = MOI.add_variable(model)
+    lhs = MOI.ScalarNonlinearFunction(
+        :+,
+        Any[
+            x,
+            p,
+            1.0*x,
+            1.0*p,
+            1.0*x*x,
+            1.0*p*x,
+            MOI.ScalarNonlinearFunction(:^, Any[1.0*x-p, 2]),
+        ],
+    )
+    f = MOI.ScalarNonlinearFunction(:-, Any[lhs, t])
+    MOI.set(model, MOI.ObjectiveSense(), MOI.MIN_SENSE)
+    MOI.set(model, MOI.ObjectiveFunction{typeof(t)}(), t)
+    MOI.add_constraint(model, f, MOI.LessThan(0.0))
+    MOI.optimize!(model)
+    @test MOI.get(model, MOI.VariablePrimal(), p) ≈ 1.0
+    @test MOI.get(model, MOI.VariablePrimal(), x) ≈ -0.25
+    return
+end
+
+function test_parameter_reverse()
+    model = Ipopt.Optimizer()
+    MOI.set(model, MOI.Silent(), true)
+    x = MOI.add_variable(model)
+    p, ci = MOI.add_constrained_variable(model, MOI.Parameter(1.0))
+    fi = MOI.ScalarNonlinearFunction(:-, Any[x, p])
+    f = MOI.ScalarNonlinearFunction(:^, Any[fi, 2])
+    MOI.set(model, MOI.ObjectiveFunction{typeof(f)}(), f)
+    MOI.set(model, MOI.ObjectiveSense(), MOI.MIN_SENSE)
+    @test MOI.get(model, MOI.NumberOfVariables()) == 2
+    @test MOI.get(model, MOI.ListOfVariableIndices()) == [x, p]
+    MOI.optimize!(model)
+    @test MOI.get(model, MOI.VariablePrimal(), p) ≈ 1
+    @test MOI.get(model, MOI.VariablePrimal(), x) ≈ 1
+    MOI.set(model, MOI.ConstraintSet(), ci, MOI.Parameter(-2.5))
+    MOI.optimize!(model)
+    @test MOI.get(model, MOI.VariablePrimal(), p) ≈ -2.5
+    @test MOI.get(model, MOI.VariablePrimal(), x) ≈ -2.5
+    return
+end
+
 function test_parameter_scalar_affine_objective()
     model = Ipopt.Optimizer()
     MOI.set(model, MOI.Silent(), true)
@@ -377,6 +459,20 @@ function test_parameter_scalar_affine_objective()
     @test MOI.get(model, MOI.VariablePrimal(), x) ≈ 1.7
     @test MOI.get(model, MOI.VariablePrimal(), p) ≈ 2.2
     @test MOI.get(model, MOI.ObjectiveValue()) ≈ (1.7 - 2.2)^2 + 4.9
+    return
+end
+
+function test_ListOfSupportedNonlinearOperators()
+    model = Ipopt.Optimizer()
+    ops = MOI.get(model, MOI.ListOfSupportedNonlinearOperators())
+    @test ops isa Vector{Symbol}
+    @test :|| in ops
+    @test :ifelse in ops
+    @test :sin in ops
+    @test !(:f in ops)
+    f(x) = x^2
+    MOI.set(model, MOI.UserDefinedFunction(:f, 1), (f,))
+    @test :f in MOI.get(model, MOI.ListOfSupportedNonlinearOperators())
     return
 end
 
