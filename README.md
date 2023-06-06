@@ -243,7 +243,8 @@ import Pkg
 Pkg.develop(path = "/full/path/to/HSL_jll.jl")
 ```
 
-Then, use a linear solver in HSL by setting the `hsllib` and `linear_solver` attributes:
+Then, use a linear solver in HSL by setting the `hsllib` and `linear_solver`
+attributes:
 ```julia
 using JuMP, Ipopt
 import HSL_jll
