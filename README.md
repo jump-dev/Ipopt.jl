@@ -278,7 +278,7 @@ set_attribute(model, "linear_solver", "pardiso")
 ### SPRAL
 
 If you use Ipopt.jl with Julia ≥ v1.9, the linear solver [SPRAL](https://github.com/ralna/spral) is available.
-You can use it setting the `linear_solver` attribute:
+You can use it by setting the `linear_solver` attribute:
 ```julia
 using JuMP, Ipopt
 model = Model(Ipopt.Optimizer)
