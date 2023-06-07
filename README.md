@@ -284,7 +284,7 @@ using JuMP, Ipopt
 model = Model(Ipopt.Optimizer)
 set_attribute(model, "linear_solver", "spral")
 ```
-Note that the following environment variables must be set if you use SPRAL:
+Note that the following environment variables must be set before starting Julia:
 ```raw
 export OMP_CANCELLATION=TRUE
 export OMP_NESTED=TRUE
