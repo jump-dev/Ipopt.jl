@@ -235,7 +235,7 @@ To improve performance, Ipopt supports a number of linear solvers.
 Obtain a license and download `HSL_jll.jl` from [https://licences.stfc.ac.uk/product/julia-hsl](https://licences.stfc.ac.uk/product/julia-hsl).
 
 There are two versions available: LBT and OpenBLAS. LBT is the recommended option
-for Julia >= v1.9.
+for Julia ≥ v1.9.
 
 Install this download into your current environment using:
 ```julia
@@ -273,4 +273,20 @@ using JuMP, Ipopt
 model = Model(Ipopt.Optimizer)
 set_attribute(model, "pardisolib", "/full/path/to/libpardiso")
 set_attribute(model, "linear_solver", "pardiso")
+```
+
+### SPRAL
+
+If you use Ipopt.jl with Julia ≥ v1.9, the linear solver [SPRAL](https://github.com/ralna/spral) is available.
+You can use it by setting the `linear_solver` attribute:
+```julia
+using JuMP, Ipopt
+model = Model(Ipopt.Optimizer)
+set_attribute(model, "linear_solver", "spral")
+```
+Note that the following environment variables must be set before starting Julia:
+```raw
+export OMP_CANCELLATION=TRUE
+export OMP_NESTED=TRUE
+export OMP_PROC_BIND=TRUE
 ```
