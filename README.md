@@ -287,6 +287,5 @@ set_attribute(model, "linear_solver", "spral")
 Note that the following environment variables must be set before starting Julia:
 ```raw
 export OMP_CANCELLATION=TRUE
-export OMP_NESTED=TRUE
 export OMP_PROC_BIND=TRUE
 ```
