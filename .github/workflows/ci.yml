@@ -23,6 +23,11 @@ jobs:
             os: windows-latest
             arch: x86
     steps:
+      - name: Set environment variables for OpenMP
+        shell: bash
+        run: |
+          echo "OMP_CANCELLATION=TRUE" >> $GITHUB_ENV
+          echo "OMP_PROC_BIND=TRUE" >> $GITHUB_ENV
       - uses: actions/checkout@v2
       - uses: julia-actions/setup-julia@v1
         with:

@@ -16,6 +16,10 @@ function runtests(mod)
     end
 end
 
+@testset "Linear solver SPRAL" begin
+    include("spral.jl")
+end
+
 @testset "C" begin
     include("C_wrapper.jl")
 end

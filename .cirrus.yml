@@ -26,6 +26,8 @@ task:
     elif command -v fetch; then
         sh -c "$(fetch ${URL} -o -)"
     fi
+    echo "OMP_CANCELLATION=TRUE" >> $CIRRUS_ENV
+    echo "OMP_PROC_BIND=TRUE" >> $CIRRUS_ENV
   build_script:
     - cirrusjl build
   test_script:
