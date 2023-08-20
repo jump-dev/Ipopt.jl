@@ -481,7 +481,7 @@ function test_SPRAL()
         return
     end
     model = Ipopt.Optimizer()
-    MOI.set(model, MOI.RawOptimizerAttribute("linear_solver"), "spral")    
+    MOI.set(model, MOI.RawOptimizerAttribute("linear_solver"), "spral")
     MOI.set(model, MOI.Silent(), true)
     x = MOI.add_variable(model)
     MOI.set(model, MOI.ObjectiveSense(), MOI.MIN_SENSE)
