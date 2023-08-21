@@ -476,6 +476,22 @@ function test_ListOfSupportedNonlinearOperators()
     return
 end
 
+function test_SPRAL()
+    if VERSION < v"1.9" || !haskey(ENV, "OMP_CANCELLATION")
+        return
+    end
+    model = Ipopt.Optimizer()
+    MOI.set(model, MOI.RawOptimizerAttribute("linear_solver"), "spral")
+    MOI.set(model, MOI.Silent(), true)
+    x = MOI.add_variable(model)
+    MOI.set(model, MOI.ObjectiveSense(), MOI.MIN_SENSE)
+    f = 1.0 * x * x - 4.0 * x + 4.0
+    MOI.set(model, MOI.ObjectiveFunction{typeof(f)}(), f)
+    MOI.optimize!(model)
+    @test ≈(MOI.get(model, MOI.VariablePrimal(), x), 2.0; atol = 1e-6)
+    return
+end
+
 end  # module TestMOIWrapper
 
 TestMOIWrapper.runtests()
