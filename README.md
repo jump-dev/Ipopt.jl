@@ -289,7 +289,8 @@ Note that the following environment variables must be set before starting Julia:
 export OMP_CANCELLATION=TRUE
 export OMP_PROC_BIND=TRUE
 ```
-## BLAS and LAPACK demuxing
+
+## BLAS and LAPACK
 
 With Julia v1.9 or later, Ipopt and the linear solvers [MUMPS](https://mumps-solver.org/index.php)
 (default), SPRAL, and HSL are compiled with
