@@ -289,3 +289,44 @@ Note that the following environment variables must be set before starting Julia:
 export OMP_CANCELLATION=TRUE
 export OMP_PROC_BIND=TRUE
 ```
+
+## BLAS and LAPACK
+
+With Julia v1.9 or later, Ipopt and the linear solvers [MUMPS](https://mumps-solver.org/index.php)
+(default), SPRAL, and HSL are compiled with
+[`libblastrampoline`](https://github.com/JuliaLinearAlgebra/libblastrampoline)
+(LBT), a library that can change between BLAS and LAPACK backends at runtime.
+
+The default BLAS and LAPACK backend is [OpenBLAS](https://github.com/OpenMathLib/OpenBLAS).
+
+Using LBT, we can also switch dynamically to other BLAS backends such as Intel
+MKL and Apple Accelerate. Because Ipopt and the linear solvers heavily rely on
+BLAS and LAPACK routines, using an optimized backend for a particular platform
+can improve the performance.
+
+### MKL
+
+If you have [MKL.jl](https://github.com/JuliaLinearAlgebra/MKL.jl) installed,
+switch to MKL by adding `using MKL` to your code:
+
+```julia
+using MKL  # Replace OpenBLAS by Intel MKL
+using Ipopt
+```
+
+### AppleAccelerate
+
+If you are using macOS and you have [AppleAccelerate.jl](https://github.com/JuliaLinearAlgebra/AppleAccelerate.jl.jl) installed, add adding `using AppleAccelerate` to your code:
+
+```julia
+using AppleAccelerate  # Replace OpenBLAS by Apple Accelerate
+using Ipopt
+```
+
+### Display backends
+
+Check what backends are loaded using:
+```julia
+import LinearAlgebra
+LinearAlgebra.BLAS.lbt_get_config()
+```
