@@ -316,7 +316,7 @@ using Ipopt
 
 ### AppleAccelerate
 
-If you are using macOS and you have [AppleAccelerate.jl](https://github.com/JuliaLinearAlgebra/AppleAccelerate.jl) installed, add adding `using AppleAccelerate` to your code:
+If you are using macOS ≥ v13.4 and you have [AppleAccelerate.jl](https://github.com/JuliaLinearAlgebra/AppleAccelerate.jl) installed, add `using AppleAccelerate` to your code:
 
 ```julia
 using AppleAccelerate  # Replace OpenBLAS by Apple Accelerate
