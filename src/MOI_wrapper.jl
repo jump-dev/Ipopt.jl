@@ -871,9 +871,8 @@ function MOI.optimize!(model::Optimizer)
     end
     copy_parameters(model)
     inner = model.inner::IpoptProblem
-    if model.silent
-        AddIpoptIntOption(inner, "print_level", 0)
-    end
+    # The default print level is `5`
+    AddIpoptIntOption(inner, "print_level", model.silent ? 0 : 5)
     # Other misc options that over-ride the ones set above.
     for (name, value) in model.options
         if value isa String
