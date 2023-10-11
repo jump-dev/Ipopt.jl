@@ -914,7 +914,7 @@ function MOI.optimize!(model::Optimizer)
     model.barrier_iterations = 0
     function _moi_callback(args...)
         # iter_count is args[2]
-        model.barrier_iterations = max(model.barrier_iterations, args[2])
+        model.barrier_iterations = args[2]
         if model.callback !== nothing
             return model.callback(args...)
         end
