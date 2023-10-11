@@ -74,10 +74,12 @@ List of supported constraint types:
 
 List of supported model attributes:
 
- * [`MOI.NLPBlock()`](@ref)
- * [`MOI.NLPBlockDualStart()`](@ref)
- * [`MOI.Name()`](@ref)
- * [`MOI.ObjectiveSense()`](@ref)
+ * [`MOI.BarrierIterations`](@ref)
+ * [`MOI.NLPBlock`](@ref)
+ * [`MOI.NLPBlockDualStart`](@ref)
+ * [`MOI.Name`](@ref)
+ * [`MOI.ObjectiveSense`](@ref)
+ * [`MOI.SolveTimeSec`](@ref)
 
 ## Options
 

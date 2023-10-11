@@ -124,6 +124,20 @@ function test_solve_time()
     return
 end
 
+function test_barrier_iterations()
+    model = Ipopt.Optimizer()
+    MOI.set(model, MOI.Silent(), true)
+    x = MOI.add_variable(model)
+    f = (x - 1.0)^2 + 2.0 * x + 3.0
+    MOI.set(model, MOI.ObjectiveSense(), MOI.MIN_SENSE)
+    MOI.set(model, MOI.ObjectiveFunction{typeof(f)}(), f)
+    MOI.add_constraint(model, 1.0 * x, MOI.LessThan(0.5))
+    @test MOI.get(model, MOI.BarrierIterations()) == 0
+    MOI.optimize!(model)
+    @test MOI.get(model, MOI.BarrierIterations()) > 0
+    return
+end
+
 # Model structure for test_check_derivatives_for_naninf()
 struct Issue136 <: MOI.AbstractNLPEvaluator end
 MOI.initialize(::Issue136, ::Vector{Symbol}) = nothing
