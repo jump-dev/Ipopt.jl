@@ -42,6 +42,7 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
     qp_data::QPBlockData{Float64}
     nlp_model::Union{Nothing,MOI.Nonlinear.Model}
     callback::Union{Nothing,Function}
+    barrier_iterations::Int
 
     function Optimizer()
         return new(
@@ -63,6 +64,7 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
             QPBlockData{Float64}(),
             nothing,
             nothing,
+            0,
         )
     end
 end
@@ -105,6 +107,7 @@ function MOI.empty!(model::Optimizer)
     model.nlp_model = nothing
     model.qp_data = QPBlockData{Float64}()
     model.callback = nothing
+    model.barrier_iterations = 0
     return
 end
 
@@ -908,9 +911,16 @@ function MOI.optimize!(model::Optimizer)
         inner.mult_x_L[i] = _dual_start(model, model.mult_x_L[i])
         inner.mult_x_U[i] = _dual_start(model, model.mult_x_U[i], -1)
     end
-    if model.callback !== nothing
-        SetIntermediateCallback(inner, model.callback)
+    model.barrier_iterations = 0
+    function _default_moi_callback(args...)
+        # iter_count is args[2]
+        model.barrier_iterations = max(model.barrier_iterations, args[2])
+        if model.callback !== nothing
+            return model.callback(args...)
+        end
+        return true
     end
+    SetIntermediateCallback(inner, _default_moi_callback)
     IpoptSolve(inner)
     model.solve_time = time() - start_time
     return
@@ -1053,6 +1063,10 @@ end
 ### MOI.SolveTimeSec
 
 MOI.get(model::Optimizer, ::MOI.SolveTimeSec) = model.solve_time
+
+### MOI.BarrierIterations
+
+MOI.get(model::Optimizer, ::MOI.BarrierIterations) = model.barrier_iterations
 
 ### MOI.ObjectiveValue
 
