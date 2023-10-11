@@ -912,7 +912,7 @@ function MOI.optimize!(model::Optimizer)
         inner.mult_x_U[i] = _dual_start(model, model.mult_x_U[i], -1)
     end
     model.barrier_iterations = 0
-    function _default_moi_callback(args...)
+    function _moi_callback(args...)
         # iter_count is args[2]
         model.barrier_iterations = max(model.barrier_iterations, args[2])
         if model.callback !== nothing
@@ -920,7 +920,7 @@ function MOI.optimize!(model::Optimizer)
         end
         return true
     end
-    SetIntermediateCallback(inner, _default_moi_callback)
+    SetIntermediateCallback(inner, _moi_callback)
     IpoptSolve(inner)
     model.solve_time = time() - start_time
     return
