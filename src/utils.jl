@@ -182,13 +182,11 @@ end
 
 function sparse_hessian_structure(f::MOI.ScalarQuadraticFunction{T}) where {T}
     indices = Tuple{Int,Int}[]
-    i = 1
     for term in f.quadratic_terms
         if _is_parameter(term.variable_1) || _is_parameter(term.variable_2)
             continue
         end
         push!(indices, (term.variable_1.value, term.variable_2.value))
-        i += 1
     end
     return indices
 end
