@@ -56,11 +56,11 @@ function _bound_type_to_set(::Type{T}, k::_BoundType) where {T}
 end
 
 mutable struct QPBlockData{T}
-    objective::Union{MOI.ScalarAffineFunction{T},
-                     MOI.ScalarQuadraticFunction{T}}
+    objective::Union{MOI.ScalarAffineFunction{T},MOI.ScalarQuadraticFunction{T}}
     objective_function_type::_FunctionType
-    constraints::Vector{Union{MOI.ScalarAffineFunction{T},
-                              MOI.ScalarQuadraticFunction{T}}}
+    constraints::Vector{
+        Union{MOI.ScalarAffineFunction{T},MOI.ScalarQuadraticFunction{T}},
+    }
     g_L::Vector{T}
     g_U::Vector{T}
     mult_g::Vector{Union{Nothing,T}}
@@ -72,7 +72,7 @@ mutable struct QPBlockData{T}
         return new(
             zero(MOI.ScalarQuadraticFunction{T}),
             _kFunctionTypeScalarAffine,
-            MOI.ScalarQuadraticFunction{T}[],
+            Union{MOI.ScalarAffineFunction{T},MOI.ScalarQuadraticFunction{T}}[],
             T[],
             T[],
             Union{Nothing,T}[],
@@ -165,7 +165,7 @@ end
 function append_sparse_gradient_structure!(
     f::MOI.ScalarQuadraticFunction{T},
     J,
-    row
+    row,
 ) where {T}
     for term in f.affine_terms
         if !_is_parameter(term.variable)
@@ -180,18 +180,20 @@ function append_sparse_gradient_structure!(
             push!(J, (row, term.variable_2.value))
         end
     end
+    return
 end
 
 function append_sparse_gradient_structure!(
     f::MOI.ScalarAffineFunction{T},
     J,
-    row
+    row,
 ) where {T}
     for term in f.terms
         if !_is_parameter(term.variable)
             push!(J, (row, term.variable.value))
         end
     end
+    return
 end
 
 function eval_sparse_gradient(
@@ -238,7 +240,10 @@ function eval_sparse_gradient(
     return i
 end
 
-function append_sparse_hessian_structure!(f::MOI.ScalarQuadraticFunction, indices)
+function append_sparse_hessian_structure!(
+    f::MOI.ScalarQuadraticFunction,
+    indices,
+)
     for term in f.quadratic_terms
         if _is_parameter(term.variable_1) || _is_parameter(term.variable_2)
             continue
@@ -284,10 +289,7 @@ function MOI.set(
     f::F,
 ) where {
     T,
-    F<:Union{
-        MOI.VariableIndex,
-        MOI.ScalarAffineFunction{T},
-    },
+    F<:Union{MOI.VariableIndex,MOI.ScalarAffineFunction{T}},
 }
     block.objective = convert(MOI.ScalarAffineFunction{T}, f)
     block.objective_function_type = _function_info(f)
@@ -298,7 +300,7 @@ function MOI.set(
     block::QPBlockData{T},
     ::MOI.ObjectiveFunction{MOI.ScalarQuadraticFunction{T}},
     f::MOI.ScalarQuadraticFunction{T},
-) where T
+) where {T}
     block.objective = f
     block.objective_function_type = _function_info(f)
     return
