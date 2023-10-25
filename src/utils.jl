@@ -403,8 +403,8 @@ function MOI.eval_constraint(
     g::AbstractVector{T},
     x::AbstractVector{T},
 ) where {T}
-    for i in 1:length(block.constraints)
-        g[i] = eval_function(block.constraints[i], x, block.parameters)
+    for (i, constraint) in enumerate(block.constraints)
+        g[i] = eval_function(constraint, x, block.parameters)
     end
     return
 end
