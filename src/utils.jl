@@ -240,22 +240,17 @@ function eval_sparse_gradient(
     return i
 end
 
-function append_sparse_hessian_structure!(
-    f::MOI.ScalarQuadraticFunction,
-    indices,
-)
+function append_sparse_hessian_structure!(f::MOI.ScalarQuadraticFunction, H)
     for term in f.quadratic_terms
         if _is_parameter(term.variable_1) || _is_parameter(term.variable_2)
             continue
         end
-        push!(indices, (term.variable_1.value, term.variable_2.value))
+        push!(H, (term.variable_1.value, term.variable_2.value))
     end
-    return indices
+    return
 end
 
-function append_sparse_hessian_structure!(f::MOI.ScalarAffineFunction, indices)
-    return indices
-end
+append_sparse_hessian_structure!(::MOI.ScalarAffineFunction, H) = nothing
 
 function eval_sparse_hessian(
     ∇²f::AbstractVector{T},
@@ -510,7 +505,8 @@ function MOI.eval_constraint_jacobian(
 end
 
 function MOI.hessian_lagrangian_structure(block::QPBlockData)
-    H = append_sparse_hessian_structure!(block.objective, Tuple{Int,Int}[])
+    H = Tuple{Int,Int}[]
+    append_sparse_hessian_structure!(block.objective, H)
     for constraint in block.constraints
         append_sparse_hessian_structure!(constraint, H)
     end
