@@ -163,10 +163,10 @@ function eval_dense_gradient(
 end
 
 function append_sparse_gradient_structure!(
-    f::MOI.ScalarQuadraticFunction{T},
+    f::MOI.ScalarQuadraticFunction,
     J,
     row,
-) where {T}
+)
     for term in f.affine_terms
         if !_is_parameter(term.variable)
             push!(J, (row, term.variable.value))
@@ -183,11 +183,7 @@ function append_sparse_gradient_structure!(
     return
 end
 
-function append_sparse_gradient_structure!(
-    f::MOI.ScalarAffineFunction{T},
-    J,
-    row,
-) where {T}
+function append_sparse_gradient_structure!(f::MOI.ScalarAffineFunction, J, row)
     for term in f.terms
         if !_is_parameter(term.variable)
             push!(J, (row, term.variable.value))
@@ -282,10 +278,7 @@ function MOI.set(
     block::QPBlockData{T},
     ::MOI.ObjectiveFunction{F},
     f::F,
-) where {
-    T,
-    F<:Union{MOI.VariableIndex,MOI.ScalarAffineFunction{T}},
-}
+) where {T,F<:Union{MOI.VariableIndex,MOI.ScalarAffineFunction{T}}}
     block.objective = convert(MOI.ScalarAffineFunction{T}, f)
     block.objective_function_type = _function_info(f)
     return
