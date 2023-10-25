@@ -56,9 +56,11 @@ function _bound_type_to_set(::Type{T}, k::_BoundType) where {T}
 end
 
 mutable struct QPBlockData{T}
-    objective::MOI.ScalarQuadraticFunction{T}
+    objective::Union{MOI.ScalarAffineFunction{T},
+                     MOI.ScalarQuadraticFunction{T}}
     objective_function_type::_FunctionType
-    constraints::Vector{MOI.ScalarQuadraticFunction{T}}
+    constraints::Vector{Union{MOI.ScalarAffineFunction{T},
+                              MOI.ScalarQuadraticFunction{T}}}
     g_L::Vector{T}
     g_U::Vector{T}
     mult_g::Vector{Union{Nothing,T}}
@@ -110,6 +112,18 @@ function eval_function(
     return y
 end
 
+function eval_function(
+    f::MOI.ScalarAffineFunction{T},
+    x::Vector{T},
+    p::Dict{Int64,T},
+)::T where {T}
+    y = f.constant
+    for term in f.terms
+        y += term.coefficient * _value(term.variable, x, p)
+    end
+    return y
+end
+
 function eval_dense_gradient(
     ∇f::Vector{T},
     f::MOI.ScalarQuadraticFunction{T},
@@ -134,6 +148,20 @@ function eval_dense_gradient(
     return
 end
 
+function eval_dense_gradient(
+    ∇f::Vector{T},
+    f::MOI.ScalarAffineFunction{T},
+    x::Vector{T},
+    p::Dict{Int64,T},
+)::Nothing where {T}
+    for term in f.terms
+        if !_is_parameter(term.variable)
+            ∇f[term.variable.value] += term.coefficient
+        end
+    end
+    return
+end
+
 function append_sparse_gradient_structure!(
     f::MOI.ScalarQuadraticFunction{T},
     J,
@@ -150,6 +178,18 @@ function append_sparse_gradient_structure!(
         end
         if term.variable_1 != term.variable_2 && !_is_parameter(term.variable_2)
             push!(J, (row, term.variable_2.value))
+        end
+    end
+end
+
+function append_sparse_gradient_structure!(
+    f::MOI.ScalarAffineFunction{T},
+    J,
+    row
+) where {T}
+    for term in f.terms
+        if !_is_parameter(term.variable)
+            push!(J, (row, term.variable.value))
         end
     end
 end
@@ -182,13 +222,33 @@ function eval_sparse_gradient(
     return i
 end
 
-function append_sparse_hessian_structure!(f::MOI.ScalarQuadraticFunction{T}, indices) where {T}
+function eval_sparse_gradient(
+    ∇f::AbstractVector{T},
+    f::MOI.ScalarAffineFunction{T},
+    x::Vector{T},
+    p::Dict{Int64,T},
+)::Int where {T}
+    i = 0
+    for term in f.terms
+        if !_is_parameter(term.variable)
+            i += 1
+            ∇f[i] = term.coefficient
+        end
+    end
+    return i
+end
+
+function append_sparse_hessian_structure!(f::MOI.ScalarQuadraticFunction, indices)
     for term in f.quadratic_terms
         if _is_parameter(term.variable_1) || _is_parameter(term.variable_2)
             continue
         end
         push!(indices, (term.variable_1.value, term.variable_2.value))
     end
+    return indices
+end
+
+function append_sparse_hessian_structure!(f::MOI.ScalarAffineFunction, indices)
     return indices
 end
 
@@ -208,6 +268,14 @@ function eval_sparse_hessian(
     return i
 end
 
+function eval_sparse_hessian(
+    ∇²f::AbstractVector{T},
+    f::MOI.ScalarAffineFunction{T},
+    σ::T,
+)::Int where {T}
+    return 0
+end
+
 Base.length(block::QPBlockData) = length(block.bound_type)
 
 function MOI.set(
@@ -219,10 +287,19 @@ function MOI.set(
     F<:Union{
         MOI.VariableIndex,
         MOI.ScalarAffineFunction{T},
-        MOI.ScalarQuadraticFunction{T},
     },
 }
-    block.objective = convert(MOI.ScalarQuadraticFunction{T}, f)
+    block.objective = convert(MOI.ScalarAffineFunction{T}, f)
+    block.objective_function_type = _function_info(f)
+    return
+end
+
+function MOI.set(
+    block::QPBlockData{T},
+    ::MOI.ObjectiveFunction{MOI.ScalarQuadraticFunction{T}},
+    f::MOI.ScalarQuadraticFunction{T},
+) where T
+    block.objective = f
     block.objective_function_type = _function_info(f)
     return
 end
@@ -295,7 +372,7 @@ function MOI.add_constraint(
     f::Union{MOI.ScalarAffineFunction{T},MOI.ScalarQuadraticFunction{T}},
     set::Union{MOI.LessThan{T},MOI.GreaterThan{T},MOI.EqualTo{T}},
 ) where {T}
-    push!(block.constraints, convert(MOI.ScalarQuadraticFunction{T}, f))
+    push!(block.constraints, f)
     bound_type, l, u = _set_info(set)
     push!(block.g_L, l)
     push!(block.g_U, u)
