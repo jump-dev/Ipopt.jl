@@ -134,22 +134,24 @@ function eval_dense_gradient(
     return
 end
 
-function sparse_gradient_structure(f::MOI.ScalarQuadraticFunction{T}) where {T}
-    indices = Int[]
+function append_sparse_gradient_structure!(
+    f::MOI.ScalarQuadraticFunction{T},
+    J,
+    row
+) where {T}
     for term in f.affine_terms
         if !_is_parameter(term.variable)
-            push!(indices, term.variable.value)
+            push!(J, (row, term.variable.value))
         end
     end
     for term in f.quadratic_terms
         if !_is_parameter(term.variable_1)
-            push!(indices, term.variable_1.value)
+            push!(J, (row, term.variable_1.value))
         end
         if term.variable_1 != term.variable_2 && !_is_parameter(term.variable_2)
-            push!(indices, term.variable_2.value)
+            push!(J, (row, term.variable_2.value))
         end
     end
-    return indices
 end
 
 function eval_sparse_gradient(
@@ -180,8 +182,7 @@ function eval_sparse_gradient(
     return i
 end
 
-function sparse_hessian_structure(f::MOI.ScalarQuadraticFunction{T}) where {T}
-    indices = Tuple{Int,Int}[]
+function append_sparse_hessian_structure!(f::MOI.ScalarQuadraticFunction{T}, indices) where {T}
     for term in f.quadratic_terms
         if _is_parameter(term.variable_1) || _is_parameter(term.variable_2)
             continue
@@ -411,9 +412,7 @@ end
 function MOI.jacobian_structure(block::QPBlockData)
     J = Tuple{Int,Int}[]
     for (row, constraint) in enumerate(block.constraints)
-        for col in sparse_gradient_structure(constraint)
-            push!(J, (row, col))
-        end
+        append_sparse_gradient_structure!(constraint, J, row)
     end
     return J
 end
@@ -432,11 +431,9 @@ function MOI.eval_constraint_jacobian(
 end
 
 function MOI.hessian_lagrangian_structure(block::QPBlockData)
-    H = sparse_hessian_structure(block.objective)
+    H = append_sparse_hessian_structure!(block.objective, Tuple{Int,Int}[])
     for constraint in block.constraints
-        for (i, j) in sparse_hessian_structure(constraint)
-            push!(H, (i, j))
-        end
+        append_sparse_hessian_structure!(constraint, H)
     end
     return H
 end
