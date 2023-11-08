@@ -234,10 +234,10 @@ To improve performance, Ipopt supports a number of linear solvers.
 
 ### HSL
 
-Obtain a license and download `HSL_jll.jl` from [https://licences.stfc.ac.uk/product/julia-hsl](https://licences.stfc.ac.uk/product/julia-hsl).
+Obtain a license and download `HSL_jll.jl` from [https://licences.stfc.ac.uk/product/libhsl](https://licences.stfc.ac.uk/product/libhsl).
 
-There are two versions available: LBT and OpenBLAS. LBT is the recommended option
-for Julia ≥ v1.9.
+There are two versions available: LBT and OpenBLAS.
+LBT is the recommended option for Julia ≥ v1.9.
 
 Install this download into your current environment using:
 ```julia
@@ -260,8 +260,8 @@ set_attribute(model, "linear_solver", "ma86")
 Due to the security policy of macOS, Mac users may need to delete the quarantine
 attribute of the ZIP archive before extracting. For example:
 ```raw
-xattr -d com.apple.quarantine lbt_HSL_jll.jl-2023.5.26.zip
-xattr -d com.apple.quarantine openblas_HSL_jll.jl-2023.5.26.zip
+xattr -d com.apple.quarantine lbt_HSL_jll.jl-2023.11.7.zip
+xattr -d com.apple.quarantine openblas_HSL_jll.jl-2023.11.7.zip
 ```
 
 ### Pardiso
