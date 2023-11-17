@@ -11,7 +11,7 @@ OpenBLAS32_jll = "656ef2d0-ae68-5445-9ca0-591084a874a2"
 PrecompileTools = "aea7be01-6a6a-4083-8856-8a6e6704d82a"
 
 [compat]
-Ipopt_jll = "=300.1400.400, =300.1400.1302"
+Ipopt_jll = "=300.1400.400, =300.1400.1303"
 MathOptInterface = "1.17"
 OpenBLAS32_jll = "0.3.10"
 PrecompileTools = "1"
