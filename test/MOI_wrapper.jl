@@ -7,6 +7,7 @@ module TestMOIWrapper
 
 using Ipopt
 using Test
+using HSL_jll
 
 const MOI = Ipopt.MOI
 
@@ -491,7 +492,7 @@ function test_ListOfSupportedNonlinearOperators()
 end
 
 function test_SPRAL()
-    if VERSION < v"1.9" || !haskey(ENV, "OMP_CANCELLATION")
+    if VERSION < v"1.9" || !haskey(ENV, "OMP_CANCELLATION") || !haskey(ENV, "OMP_PROC_BIND")
         return
     end
     model = Ipopt.Optimizer()
@@ -503,6 +504,23 @@ function test_SPRAL()
     MOI.set(model, MOI.ObjectiveFunction{typeof(f)}(), f)
     MOI.optimize!(model)
     @test ≈(MOI.get(model, MOI.VariablePrimal(), x), 2.0; atol = 1e-6)
+    return
+end
+
+function test_HSL()
+    bool = @ccall libhsl.LIBHSL_isfunctional()::Bool
+    !bool && return
+    for hsl_solver in ("ma27", "ma57", "ma77", "ma86", "ma97")
+        model = Ipopt.Optimizer()
+        MOI.set(model, MOI.RawOptimizerAttribute("linear_solver"), hsl_solver)
+        MOI.set(model, MOI.Silent(), true)
+        x = MOI.add_variable(model)
+        MOI.set(model, MOI.ObjectiveSense(), MOI.MIN_SENSE)
+        f = 1.0 * x * x - 4.0 * x + 4.0
+        MOI.set(model, MOI.ObjectiveFunction{typeof(f)}(), f)
+        MOI.optimize!(model)
+        @test ≈(MOI.get(model, MOI.VariablePrimal(), x), 2.0; atol = 1e-6)
+    end
     return
 end
 
