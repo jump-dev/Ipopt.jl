@@ -492,7 +492,9 @@ function test_ListOfSupportedNonlinearOperators()
 end
 
 function test_SPRAL()
-    if VERSION < v"1.9" || !haskey(ENV, "OMP_CANCELLATION") || !haskey(ENV, "OMP_PROC_BIND")
+    if VERSION < v"1.9" ||
+       !haskey(ENV, "OMP_CANCELLATION") ||
+       !haskey(ENV, "OMP_PROC_BIND")
         return
     end
     model = Ipopt.Optimizer()
