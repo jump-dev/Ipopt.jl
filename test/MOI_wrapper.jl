@@ -5,9 +5,10 @@
 
 module TestMOIWrapper
 
-using Ipopt
 using Test
-using HSL_jll
+
+import HSL_jll
+import Ipopt
 
 const MOI = Ipopt.MOI
 
@@ -510,8 +511,9 @@ function test_SPRAL()
 end
 
 function test_HSL()
-    bool = @ccall libhsl.LIBHSL_isfunctional()::Bool
-    !bool && return
+    if !(@ccall libhsl.LIBHSL_isfunctional()::Bool)
+        return
+    end
     for hsl_solver in ("ma27", "ma57", "ma77", "ma86", "ma97")
         model = Ipopt.Optimizer()
         MOI.set(model, MOI.RawOptimizerAttribute("linear_solver"), hsl_solver)
