@@ -511,7 +511,7 @@ function test_SPRAL()
 end
 
 function test_HSL()
-    if !(@ccall libhsl.LIBHSL_isfunctional()::Bool)
+    if !(@ccall HSL_jll.libhsl.LIBHSL_isfunctional()::Bool)
         return
     end
     for hsl_solver in ("ma27", "ma57", "ma77", "ma86", "ma97")
