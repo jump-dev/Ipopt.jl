@@ -11,6 +11,7 @@ OpenBLAS32_jll = "656ef2d0-ae68-5445-9ca0-591084a874a2"
 PrecompileTools = "aea7be01-6a6a-4083-8856-8a6e6704d82a"
 
 [compat]
+HSL_jll = "2, 2023"
 Ipopt_jll = "=300.1400.400, =300.1400.1303"
 MathOptInterface = "1.17"
 OpenBLAS32_jll = "0.3.10"
@@ -19,6 +20,7 @@ julia = "1.6"
 
 [extras]
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+HSL_jll = "017b0a0e-03f4-516a-9b91-836bbd1904dd"
 
 [targets]
-test = ["Test"]
+test = ["Test", "HSL_jll"]
