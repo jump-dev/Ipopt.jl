@@ -543,6 +543,21 @@ function test_HSL()
     return
 end
 
+function test_ad_backend()
+    model = Ipopt.Optimizer()
+    attr = Ipopt.AutomaticDifferentiationBackend()
+    @test MOI.supports(model, attr)
+    @test MOI.get(model, attr) == MOI.Nonlinear.SparseReverseMode()
+    MOI.set(model, attr, MOI.Nonlinear.ExprGraphOnly())
+    @test MOI.get(model, attr) == MOI.Nonlinear.ExprGraphOnly()
+    x = MOI.add_variable(model)
+    f = (x - 1.0)^2
+    MOI.set(model, MOI.ObjectiveSense(), MOI.MIN_SENSE)
+    MOI.set(model, MOI.ObjectiveFunction{typeof(f)}(), f)
+    @test_throws ErrorException MOI.optimize!(model)
+    return
+end
+
 end  # module TestMOIWrapper
 
 TestMOIWrapper.runtests()
