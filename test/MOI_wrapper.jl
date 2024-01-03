@@ -551,7 +551,7 @@ function test_ad_backend()
     MOI.set(model, attr, MOI.Nonlinear.ExprGraphOnly())
     @test MOI.get(model, attr) == MOI.Nonlinear.ExprGraphOnly()
     x = MOI.add_variable(model)
-    f = (x - 1.0)^2
+    f = MOI.ScalarNonlinearFunction(:^, Any[x, 4])
     MOI.set(model, MOI.ObjectiveSense(), MOI.MIN_SENSE)
     MOI.set(model, MOI.ObjectiveFunction{typeof(f)}(), f)
     @test_throws ErrorException MOI.optimize!(model)
