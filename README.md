@@ -89,7 +89,7 @@ List of supported model attributes:
  * [`MOI.ObjectiveSense`](@ref)
  * [`MOI.SolveTimeSec`](@ref)
 
-List of supported ooptimizer attributes:
+List of supported optimizer attributes:
 
  * `Ipopt.AutomaticDifferentiationBackend`
 
