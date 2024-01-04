@@ -69,8 +69,12 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
     end
 end
 
-const _SETS =
-    Union{MOI.GreaterThan{Float64},MOI.LessThan{Float64},MOI.EqualTo{Float64}}
+const _SETS = Union{
+    MOI.GreaterThan{Float64},
+    MOI.LessThan{Float64},
+    MOI.EqualTo{Float64},
+    MOI.Interval{Float64},
+}
 
 const _FUNCTIONS = Union{
     MOI.ScalarAffineFunction{Float64},
