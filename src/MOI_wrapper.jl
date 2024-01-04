@@ -1178,6 +1178,17 @@ function MOI.get(
     return _dual_multiplier(model) * rc
 end
 
+function MOI.get(
+    model::Optimizer,
+    attr::MOI.ConstraintDual,
+    ci::MOI.ConstraintIndex{MOI.VariableIndex,MOI.Interval{Float64}},
+)
+    MOI.check_result_index_bounds(model, attr)
+    MOI.throw_if_not_valid(model, ci)
+    rc = model.inner.mult_x_L[ci.value] - model.inner.mult_x_U[ci.value]
+    return _dual_multiplier(model) * rc
+end
+
 ### MOI.NLPBlockDual
 
 function MOI.get(model::Optimizer, attr::MOI.NLPBlockDual)
