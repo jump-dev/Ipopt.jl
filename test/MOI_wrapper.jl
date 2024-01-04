@@ -168,6 +168,7 @@ function test_check_derivatives_for_naninf()
     # MOI.set(model, MOI.RawOptimizerAttribute("check_derivatives_for_naninf"), "no")
     MOI.optimize!(model)
     @test MOI.get(model, MOI.TerminationStatus()) == MOI.INVALID_MODEL
+    @test MOI.get(model, MOI.NLPBlock()) isa MOI.NLPBlockData
     return
 end
 
@@ -356,6 +357,18 @@ function test_scalar_nonlinear_function_is_valid()
     c = MOI.add_constraint(model, f, MOI.EqualTo(0.0))
     @test c isa MOI.ConstraintIndex{F,S}
     @test MOI.is_valid(model, c) == true
+    return
+end
+
+function test_scalar_nonlinear_function_nlp_block()
+    model = Ipopt.Optimizer()
+    x = MOI.add_variable(model)
+    f = MOI.ScalarNonlinearFunction(:^, Any[x, 4])
+    MOI.add_constraint(model, f, MOI.LessThan(1.0))
+    MOI.optimize!(model)
+    block = MOI.get(model, MOI.NLPBlock())
+    @test !block.has_objective
+    @test block.evaluator isa MOI.Nonlinear.Evaluator
     return
 end
 

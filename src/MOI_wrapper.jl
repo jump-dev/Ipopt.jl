@@ -624,6 +624,10 @@ MOI.get(model::Optimizer, ::MOI.NLPBlockDualStart) = model.nlp_dual_start
 
 MOI.supports(::Optimizer, ::MOI.NLPBlock) = true
 
+# This may also be set by `optimize!` and contain the block created from
+# ScalarNonlinearFunction
+MOI.get(model::Optimizer, ::MOI.NLPBlock) = model.nlp_data
+
 function MOI.set(model::Optimizer, ::MOI.NLPBlock, nlp_data::MOI.NLPBlockData)
     model.nlp_data = nlp_data
     model.inner = nothing
