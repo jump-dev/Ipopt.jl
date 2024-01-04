@@ -263,14 +263,16 @@ function test_get_model()
     MOI.Utilities.loadfromstring!(
         model,
         """
-        variables: x, y, z
+        variables: w, x, y, z
         minobjective: 1.0 * x * x + 2.0 * y + 3.0
+        w in Interval(-1.0, 1.0)
         x >= 1.0
         y <= 2.0
         z == 3.0
         1.0 * x >= 1.0
         2.0 * y <= 4.0
         3.0 * z == 9.0
+        4.0 * w in Interval(-10.1, 11.1)
         1.0 * x * x + x >= 1.0
         2.0 * y * y + y <= 8.0
         3.0 * z * z + z == 27.0
