@@ -756,39 +756,17 @@ function MOI.eval_hessian_lagrangian(model::Optimizer, H, x, σ, μ)
     return
 end
 
-### AutomaticDifferentiationBackend
+### MOI.AutomaticDifferentiationBackend
 
-"""
-    Ipopt.AutomaticDifferentiationBackend()
+MOI.supports(::Optimizer, ::MOI.AutomaticDifferentiationBackend) = true
 
-An `MOI.AbstractOptimizerAttribute` for setting the automatic differentiation
-backend used by Ipopt.
-
-The value must be a subtype of `MOI.Nonlinear.AbstractAutomaticDifferentiation`.
-
-```jldoctest
-julia> import Ipopt
-
-julia> import MathOptInterface as MOI
-
-julia> model = Ipopt.Optimizer();
-
-julia> MOI.set(
-           model,
-           Ipopt.AutomaticDifferentiationBackend(),
-           MOI.Nonlinear.SparseReverseMode(),
-       )
-```
-"""
-struct AutomaticDifferentiationBackend <: MOI.AbstractOptimizerAttribute end
-
-MOI.supports(::Optimizer, ::AutomaticDifferentiationBackend) = true
-
-MOI.get(model::Optimizer, ::AutomaticDifferentiationBackend) = model.ad_backend
+function MOI.get(model::Optimizer, ::MOI.AutomaticDifferentiationBackend)
+    return model.ad_backend
+end
 
 function MOI.set(
     model::Optimizer,
-    ::AutomaticDifferentiationBackend,
+    ::MOI.AutomaticDifferentiationBackend,
     backend::MOI.Nonlinear.AbstractAutomaticDifferentiation,
 )
     model.ad_backend = backend

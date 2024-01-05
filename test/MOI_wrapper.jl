@@ -9,8 +9,7 @@ using Test
 
 import HSL_jll
 import Ipopt
-
-const MOI = Ipopt.MOI
+import MathOptInterface as MOI
 
 function runtests()
     for name in names(@__MODULE__; all = true)
@@ -545,7 +544,7 @@ end
 
 function test_ad_backend()
     model = Ipopt.Optimizer()
-    attr = Ipopt.AutomaticDifferentiationBackend()
+    attr = MOI.AutomaticDifferentiationBackend()
     @test MOI.supports(model, attr)
     @test MOI.get(model, attr) == MOI.Nonlinear.SparseReverseMode()
     MOI.set(model, attr, MOI.Nonlinear.ExprGraphOnly())

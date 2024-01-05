@@ -5,6 +5,9 @@
 
 using Test
 
+import Pkg
+Pkg.pkg"add MathOptInterface#master"
+
 function runtests(mod)
     for name in names(mod; all = true)
         if !startswith("$(name)", "test_")

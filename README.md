@@ -91,7 +91,7 @@ List of supported model attributes:
 
 List of supported optimizer attributes:
 
- * `Ipopt.AutomaticDifferentiationBackend`
+ * [`MOI.AutomaticDifferentiationBackend`](@ref)
 
 ## Options
 
