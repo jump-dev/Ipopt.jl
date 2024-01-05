@@ -5,9 +5,6 @@
 
 using Test
 
-import Pkg
-Pkg.pkg"add MathOptInterface#master"
-
 function runtests(mod)
     for name in names(mod; all = true)
         if !startswith("$(name)", "test_")
@@ -17,6 +14,7 @@ function runtests(mod)
             getfield(mod, name)()
         end
     end
+    return
 end
 
 @testset "C" begin
