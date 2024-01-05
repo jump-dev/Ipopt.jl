@@ -69,8 +69,12 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
     end
 end
 
-const _SETS =
-    Union{MOI.GreaterThan{Float64},MOI.LessThan{Float64},MOI.EqualTo{Float64}}
+const _SETS = Union{
+    MOI.GreaterThan{Float64},
+    MOI.LessThan{Float64},
+    MOI.EqualTo{Float64},
+    MOI.Interval{Float64},
+}
 
 const _FUNCTIONS = Union{
     MOI.ScalarAffineFunction{Float64},
@@ -1167,6 +1171,17 @@ function MOI.get(
     model::Optimizer,
     attr::MOI.ConstraintDual,
     ci::MOI.ConstraintIndex{MOI.VariableIndex,MOI.EqualTo{Float64}},
+)
+    MOI.check_result_index_bounds(model, attr)
+    MOI.throw_if_not_valid(model, ci)
+    rc = model.inner.mult_x_L[ci.value] - model.inner.mult_x_U[ci.value]
+    return _dual_multiplier(model) * rc
+end
+
+function MOI.get(
+    model::Optimizer,
+    attr::MOI.ConstraintDual,
+    ci::MOI.ConstraintIndex{MOI.VariableIndex,MOI.Interval{Float64}},
 )
     MOI.check_result_index_bounds(model, attr)
     MOI.throw_if_not_valid(model, ci)
