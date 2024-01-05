@@ -13,14 +13,16 @@ PrecompileTools = "aea7be01-6a6a-4083-8856-8a6e6704d82a"
 [compat]
 HSL_jll = "2, 2023"
 Ipopt_jll = "=300.1400.400, =300.1400.1303"
-MathOptInterface = "1.17"
+LinearAlgebra = "<0.0.1, 1.6"
+MathOptInterface = "1.25"
 OpenBLAS32_jll = "0.3.10"
 PrecompileTools = "1"
+Test = "<0.0.1, 1.6"
 julia = "1.6"
 
 [extras]
-Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 HSL_jll = "017b0a0e-03f4-516a-9b91-836bbd1904dd"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
-test = ["Test", "HSL_jll"]
+test = ["HSL_jll", "Test"]

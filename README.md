@@ -89,6 +89,10 @@ List of supported model attributes:
  * [`MOI.ObjectiveSense`](@ref)
  * [`MOI.SolveTimeSec`](@ref)
 
+List of supported optimizer attributes:
+
+ * [`MOI.AutomaticDifferentiationBackend`](@ref)
+
 ## Options
 
 Supported options are listed in the [Ipopt documentation](https://coin-or.github.io/Ipopt/OPTIONS.html#OPTIONS_REF).

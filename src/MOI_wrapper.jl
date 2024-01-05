@@ -43,6 +43,7 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
     nlp_model::Union{Nothing,MOI.Nonlinear.Model}
     callback::Union{Nothing,Function}
     barrier_iterations::Int
+    ad_backend::MOI.Nonlinear.AbstractAutomaticDifferentiation
 
     function Optimizer()
         return new(
@@ -65,6 +66,7 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
             nothing,
             nothing,
             0,
+            MOI.Nonlinear.SparseReverseMode(),
         )
     end
 end
@@ -754,6 +756,23 @@ function MOI.eval_hessian_lagrangian(model::Optimizer, H, x, σ, μ)
     return
 end
 
+### MOI.AutomaticDifferentiationBackend
+
+MOI.supports(::Optimizer, ::MOI.AutomaticDifferentiationBackend) = true
+
+function MOI.get(model::Optimizer, ::MOI.AutomaticDifferentiationBackend)
+    return model.ad_backend
+end
+
+function MOI.set(
+    model::Optimizer,
+    ::MOI.AutomaticDifferentiationBackend,
+    backend::MOI.Nonlinear.AbstractAutomaticDifferentiation,
+)
+    model.ad_backend = backend
+    return
+end
+
 ### MOI.optimize!
 
 function _setup_model(model::Optimizer)
@@ -764,9 +783,9 @@ function _setup_model(model::Optimizer)
         return
     end
     if model.nlp_model !== nothing
-        backend = MOI.Nonlinear.SparseReverseMode()
-        evaluator = MOI.Nonlinear.Evaluator(model.nlp_model, backend, vars)
-        model.nlp_data = MOI.NLPBlockData(evaluator)
+        model.nlp_data = MOI.NLPBlockData(
+            MOI.Nonlinear.Evaluator(model.nlp_model, model.ad_backend, vars),
+        )
     end
     has_quadratic_constraints =
         any(isequal(_kFunctionTypeScalarQuadratic), model.qp_data.function_type)

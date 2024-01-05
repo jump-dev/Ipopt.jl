@@ -14,6 +14,7 @@ function runtests(mod)
             getfield(mod, name)()
         end
     end
+    return
 end
 
 @testset "C" begin
