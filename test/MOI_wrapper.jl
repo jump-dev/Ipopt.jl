@@ -557,6 +557,24 @@ function test_ad_backend()
     return
 end
 
+function test_mixing_new_old_api()
+    # new then old
+    model = Ipopt.Optimizer()
+    MOI.add_constrained_variable(model, MOI.Parameter(2.0))
+    bounds = MOI.NLPBoundsPair.([25.0, 40.0], [Inf, 40.0])
+    block_data = MOI.NLPBlockData(bounds, MOI.Test.HS071(true), true)
+    err = ErrorException("Cannot mix the new and legacy nonlinear APIs")
+    @test_throws err MOI.set(model, MOI.NLPBlock(), block_data)
+    # old then new
+    model = Ipopt.Optimizer()
+    bounds = MOI.NLPBoundsPair.([25.0, 40.0], [Inf, 40.0])
+    block_data = MOI.NLPBlockData(bounds, MOI.Test.HS071(true), true)
+    MOI.set(model, MOI.NLPBlock(), block_data)
+    err = ErrorException("Cannot mix the new and legacy nonlinear APIs")
+    @test_throws err MOI.add_constrained_variable(model, MOI.Parameter(2.0))
+    return
+end
+
 end  # module TestMOIWrapper
 
 TestMOIWrapper.runtests()

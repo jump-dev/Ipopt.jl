@@ -141,14 +141,22 @@ function MOI.supports_add_constrained_variable(
     return true
 end
 
+function _init_nlp_model(model)
+    if model.nlp_model === nothing
+        if !(model.nlp_data.evaluator isa _EmptyNLPEvaluator)
+            error("Cannot mix the new and legacy nonlinear APIs")
+        end
+        model.nlp_model = MOI.Nonlinear.Model()
+    end
+    return
+end
+
 function MOI.add_constrained_variable(
     model::Optimizer,
     set::MOI.Parameter{Float64},
 )
     model.inner = nothing
-    if model.nlp_model === nothing
-        model.nlp_model = MOI.Nonlinear.Model()
-    end
+    _init_nlp_model(model)
     p = MOI.VariableIndex(_PARAMETER_OFFSET + length(model.parameters))
     push!(model.list_of_variable_indices, p)
     model.parameters[p] =
@@ -442,9 +450,7 @@ function MOI.add_constraint(
     f::MOI.ScalarNonlinearFunction,
     s::_SETS,
 )
-    if model.nlp_model === nothing
-        model.nlp_model = MOI.Nonlinear.Model()
-    end
+    _init_nlp_model(model)
     if !isempty(model.parameters)
         _replace_parameters(model, f)
     end
@@ -458,9 +464,7 @@ function MOI.set(
     attr::MOI.ObjectiveFunction{MOI.ScalarNonlinearFunction},
     func::MOI.ScalarNonlinearFunction,
 )
-    if model.nlp_model === nothing
-        model.nlp_model = MOI.Nonlinear.Model()
-    end
+    _init_nlp_model(model)
     if !isempty(model.parameters)
         _replace_parameters(model, func)
     end
@@ -474,9 +478,7 @@ end
 MOI.supports(model::Optimizer, ::MOI.UserDefinedFunction) = true
 
 function MOI.set(model::Optimizer, attr::MOI.UserDefinedFunction, args)
-    if model.nlp_model === nothing
-        model.nlp_model = MOI.Nonlinear.Model()
-    end
+    _init_nlp_model(model)
     MOI.Nonlinear.register_operator(
         model.nlp_model,
         attr.name,
@@ -489,9 +491,7 @@ end
 ### ListOfSupportedNonlinearOperators
 
 function MOI.get(model::Optimizer, attr::MOI.ListOfSupportedNonlinearOperators)
-    if model.nlp_model === nothing
-        model.nlp_model = MOI.Nonlinear.Model()
-    end
+    _init_nlp_model(model)
     return MOI.get(model.nlp_model, attr)
 end
 
@@ -635,6 +635,9 @@ MOI.supports(::Optimizer, ::MOI.NLPBlock) = true
 MOI.get(model::Optimizer, ::MOI.NLPBlock) = model.nlp_data
 
 function MOI.set(model::Optimizer, ::MOI.NLPBlock, nlp_data::MOI.NLPBlockData)
+    if model.nlp_model !== nothing
+        error("Cannot mix the new and legacy nonlinear APIs")
+    end
     model.nlp_data = nlp_data
     model.inner = nothing
     return
