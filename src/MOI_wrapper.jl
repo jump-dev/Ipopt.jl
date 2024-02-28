@@ -141,7 +141,6 @@ function MOI.supports_add_constrained_variable(
     return true
 end
 
-
 function _init_nlp_model(model)
     if model.nlp_model === nothing
         if !(model.nlp_data.evaluator isa _EmptyNLPEvaluator)
