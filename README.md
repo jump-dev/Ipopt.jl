@@ -12,6 +12,12 @@
 
 This wrapper is maintained by the JuMP community and is not a COIN-OR project.
 
+## Getting help
+
+If you need help, please ask a question on the [JuMP community forum](https://jump.dev/forum).
+
+If you have a reproducible example of a bug, please [open a GitHub issue](https://github.com/jump-dev/Ipopt.jl/issues/new).
+
 ## License
 
 `Ipopt.jl` is licensed under the [MIT License](https://github.com/jump-dev/Ipopt.jl/blob/master/LICENSE.md).
