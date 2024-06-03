@@ -321,9 +321,9 @@ With Julia v1.9 or later, Ipopt and the linear solvers [MUMPS](https://mumps-sol
 The default BLAS and LAPACK backend is [OpenBLAS](https://github.com/OpenMathLib/OpenBLAS).
 
 Using LBT, we can also switch dynamically to other BLAS backends such as Intel
-MKL and Apple Accelerate. Because Ipopt and the linear solvers heavily rely on
-BLAS and LAPACK routines, using an optimized backend for a particular platform
-can improve the performance.
+MKL, BLIS, and Apple Accelerate. Because Ipopt and the linear solvers heavily
+rely on BLAS and LAPACK routines, using an optimized backend for a particular
+platform can improve the performance.
 
 ### MKL
 
@@ -331,16 +331,29 @@ If you have [MKL.jl](https://github.com/JuliaLinearAlgebra/MKL.jl) installed,
 switch to MKL by adding `using MKL` to your code:
 
 ```julia
-using MKL  # Replace OpenBLAS by Intel MKL
+using MKL
 using Ipopt
 ```
+
+### BLIS
+
+If you have [BLISBLAS.jl](https://github.com/JuliaLinearAlgebra/BLISBLAS.jl)
+installed, switch to BLIS by adding `using BLISBLAS` to your code:
+
+```julia
+using BLISBLAS
+using Ipopt
+```
+
+Note that this will replace OpenBLAS's BLAS functionality by BLIS. OpenBLAS will
+still be used for LAPACK functionality.
 
 ### AppleAccelerate
 
 If you are using macOS ≥ v13.4 and you have [AppleAccelerate.jl](https://github.com/JuliaLinearAlgebra/AppleAccelerate.jl) installed, add `using AppleAccelerate` to your code:
 
 ```julia
-using AppleAccelerate  # Replace OpenBLAS by Apple Accelerate
+using AppleAccelerate
 using Ipopt
 ```
 
