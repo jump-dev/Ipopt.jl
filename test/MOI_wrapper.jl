@@ -336,6 +336,16 @@ function test_parameter_number_of_variables()
     return
 end
 
+function test_parameter_is_valid()
+    model = Ipopt.Optimizer()
+    p, ci = MOI.add_constrained_variable(model, MOI.Parameter(2.0))
+    @test MOI.is_valid(model, p)
+    @test MOI.is_valid(model, ci)
+    @test !MOI.is_valid(model, typeof(p)(p.value + 1))
+    @test !MOI.is_valid(model, typeof(ci)(ci.value + 1))
+    return
+end
+
 function test_parameter_list_of_variable_indices()
     model = Ipopt.Optimizer()
     x = MOI.add_variable(model)

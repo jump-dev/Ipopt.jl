@@ -165,6 +165,14 @@ function MOI.add_constrained_variable(
     return p, ci
 end
 
+function MOI.is_valid(
+    model::Optimizer,
+    ci::MOI.ConstraintIndex{MOI.VariableIndex,MOI.Parameter{Float64}},
+)
+    p = MOI.VariableIndex(ci.value)
+    return haskey(model.parameters, p)
+end
+
 function MOI.set(
     model::Optimizer,
     ::MOI.ConstraintSet,
