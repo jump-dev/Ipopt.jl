@@ -274,6 +274,12 @@ set_attribute(model, "hsllib", HSL_jll.libhsl_path)
 set_attribute(model, "linear_solver", "ma86")
 ```
 
+The available HSL solvers are `"ma27"`, `"ma57"`, `"ma86"`, `"ma87"`, and `"ma97"`.
+We recommend using either sequential BLAS and LAPACK backends or a multithreaded version
+limited to one thread when employing the linear solvers `"ma86"`, `"ma87"`, or `"ma97"`.
+These solvers already leverage parallelism via OpenMP, and enabling multiple threads in
+BLAS and LAPACK may result in thread oversubscription.
+
 #### macOS users
 
 Due to the security policy of macOS, Mac users may need to delete the quarantine
@@ -318,12 +324,25 @@ With Julia v1.9 or later, Ipopt and the linear solvers [MUMPS](https://mumps-sol
 [`libblastrampoline`](https://github.com/JuliaLinearAlgebra/libblastrampoline)
 (LBT), a library that can change between BLAS and LAPACK backends at runtime.
 
-The default BLAS and LAPACK backend is [OpenBLAS](https://github.com/OpenMathLib/OpenBLAS).
+Note that the BLAS and LAPACK backends loaded at runtime must be compiled with 32-bit integers.
+The default BLAS and LAPACK backend is [OpenBLAS](https://github.com/OpenMathLib/OpenBLAS),
+and we rely on the Julia artifact `OpenBLAS32_jll.jl` if no backend is loaded before `using Ipopt`.
 
 Using LBT, we can also switch dynamically to other BLAS backends such as Intel
 MKL, BLIS, and Apple Accelerate. Because Ipopt and the linear solvers heavily
 rely on BLAS and LAPACK routines, using an optimized backend for a particular
 platform can improve the performance.
+
+### Sequential BLAS and LAPACK
+
+If you have `ReferenceBLAS32_jll.jl` and `LAPACK32_jll.jl` installed,
+switch to sequential and [reference version of BLAS and LAPACK](https://github.com/Reference-LAPACK/lapack) with:
+```julia
+using ReferenceBLAS32_jll, LAPACK32_jll
+LinearAlgebra.BLAS.lbt_forward(libblas32)
+LinearAlgebra.BLAS.lbt_forward(liblapack32)
+using Ipopt
+```
 
 ### MKL
 
@@ -337,16 +356,15 @@ using Ipopt
 
 ### BLIS
 
-If you have [BLISBLAS.jl](https://github.com/JuliaLinearAlgebra/BLISBLAS.jl)
-installed, switch to BLIS by adding `using BLISBLAS` to your code:
+If you have `BLIS32_jll.jl` and `LAPACK32_jll.jl` installed,
+switch to [BLIS](https://github.com/flame/blis) with:
 
 ```julia
-using BLISBLAS
+using blis32_jll, LAPACK32_jll
+LinearAlgebra.BLAS.lbt_forward(blis32)
+LinearAlgebra.BLAS.lbt_forward(liblapack32)
 using Ipopt
 ```
-
-Note that this will replace OpenBLAS's BLAS functionality by BLIS. OpenBLAS will
-still be used for LAPACK functionality.
 
 ### AppleAccelerate
 
