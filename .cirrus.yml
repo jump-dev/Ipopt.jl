@@ -2,14 +2,14 @@ task:
   matrix:
     - name: FreeBSD
       freebsd_instance:
-        image_family: freebsd-13-2
+        image_family: freebsd-13-3
       env:
         matrix:
           - JULIA_VERSION: 1.6
           - JULIA_VERSION: 1
     - name: MacOS M1
       macos_instance:
-        image: ghcr.io/cirruslabs/macos-monterey-base:latest
+        image: ghcr.io/cirruslabs/macos-sonoma-base:latest
       env:
         - JULIA_VERSION: 1
   install_script: |
