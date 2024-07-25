@@ -11,8 +11,8 @@ OpenBLAS32_jll = "656ef2d0-ae68-5445-9ca0-591084a874a2"
 PrecompileTools = "aea7be01-6a6a-4083-8856-8a6e6704d82a"
 
 [compat]
-HSL_jll = "2, 2023"
-Ipopt_jll = "=300.1400.400, =300.1400.1400"
+HSL_jll = "3, 2023, 2024"
+Ipopt_jll = "=300.1400.400, =300.1400.1400, =300.1400.1600"
 LinearAlgebra = "<0.0.1, 1.6"
 MathOptInterface = "1.25"
 OpenBLAS32_jll = "0.3.10"
