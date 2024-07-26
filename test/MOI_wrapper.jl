@@ -117,14 +117,22 @@ end
 
 function test_ConstraintDualStart_ScalarNonlinearFunction()
     model = Ipopt.Optimizer()
+    MOI.set(model, MOI.Silent(), true)
     x = MOI.add_variables(model, 2)
+    MOI.add_constraint.(model, x, MOI.Interval(0.0, 0.8))
     f = MOI.ScalarNonlinearFunction(:sin, Any[1.0*x[1]-1.0*x[2]])
     c = MOI.add_constraint(model, f, MOI.EqualTo(0.5))
+    g = 1.0 * x[1] + 1.0 * x[2]
+    MOI.set(model, MOI.ObjectiveSense(), MOI.MIN_SENSE)
+    MOI.set(model, MOI.ObjectiveFunction{typeof(g)}(), g)
     @test MOI.get(model, MOI.ConstraintDualStart(), c) === nothing
-    MOI.set(model, MOI.ConstraintDualStart(), c, 0.1)
-    @test MOI.get(model, MOI.ConstraintDualStart(), c) === 0.1
+    MOI.set(model, MOI.ConstraintDualStart(), c, 1.15)
+    MOI.optimize!(model)
+    @test MOI.get(model, MOI.ConstraintDualStart(), c) === 1.15
     MOI.set(model, MOI.ConstraintDualStart(), c, nothing)
     @test MOI.get(model, MOI.ConstraintDualStart(), c) === nothing
+    MOI.optimize!(model)
+    @test MOI.get(model, MOI.TerminationStatus()) == MOI.LOCALLY_SOLVED
     return
 end
 
