@@ -400,10 +400,7 @@ end
 
 function MOI.get(
     model::Optimizer,
-    attr::Union{
-        MOI.ConstraintFunction,
-        MOI.ConstraintSet,
-    },
+    attr::Union{MOI.ConstraintFunction,MOI.ConstraintSet},
     c::MOI.ConstraintIndex{F,S},
 ) where {F<:_FUNCTIONS,S<:_SETS}
     return MOI.get(model.qp_data, attr, c)
@@ -976,7 +973,7 @@ function MOI.optimize!(model::Optimizer)
     if model.nlp_dual_start === nothing
         inner.mult_g[(offset+1):end] .= 0.0
         for (key, val) in model.mult_g_nlp
-            inner.mult_g[offset + key.value] = val
+            inner.mult_g[offset+key.value] = val
         end
     else
         for (i, start) in enumerate(model.nlp_dual_start::Vector{Float64})

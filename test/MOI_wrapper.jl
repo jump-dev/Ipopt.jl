@@ -118,7 +118,7 @@ end
 function test_ConstraintDualStart_ScalarNonlinearFunction()
     model = Ipopt.Optimizer()
     x = MOI.add_variables(model, 2)
-    f = MOI.ScalarNonlinearFunction(:sin, Any[1.0 * x[1] - 1.0 * x[2]])
+    f = MOI.ScalarNonlinearFunction(:sin, Any[1.0*x[1]-1.0*x[2]])
     c = MOI.add_constraint(model, f, MOI.EqualTo(0.5))
     @test MOI.get(model, MOI.ConstraintDualStart(), c) === nothing
     MOI.set(model, MOI.ConstraintDualStart(), c, 0.1)
