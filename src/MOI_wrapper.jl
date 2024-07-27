@@ -38,7 +38,7 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
 
     nlp_data::MOI.NLPBlockData
     nlp_dual_start::Union{Nothing,Vector{Float64}}
-
+    mult_g_nlp::Dict{MOI.Nonlinear.ConstraintIndex,Float64}
     qp_data::QPBlockData{Float64}
     nlp_model::Union{Nothing,MOI.Nonlinear.Model}
     callback::Union{Nothing,Function}
@@ -62,6 +62,7 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
             Union{Nothing,Float64}[],
             MOI.NLPBlockData([], _EmptyNLPEvaluator(), false),
             nothing,
+            Dict{MOI.Nonlinear.ConstraintIndex,Float64}(),
             QPBlockData{Float64}(),
             nothing,
             nothing,
@@ -399,11 +400,7 @@ end
 
 function MOI.get(
     model::Optimizer,
-    attr::Union{
-        MOI.ConstraintFunction,
-        MOI.ConstraintSet,
-        MOI.ConstraintDualStart,
-    },
+    attr::Union{MOI.ConstraintFunction,MOI.ConstraintSet},
     c::MOI.ConstraintIndex{F,S},
 ) where {F<:_FUNCTIONS,S<:_SETS}
     return MOI.get(model.qp_data, attr, c)
@@ -428,6 +425,14 @@ function MOI.supports(
     return true
 end
 
+function MOI.get(
+    model::Optimizer,
+    attr::MOI.ConstraintDualStart,
+    c::MOI.ConstraintIndex{F,S},
+) where {F<:_FUNCTIONS,S<:_SETS}
+    return MOI.get(model.qp_data, attr, c)
+end
+
 function MOI.set(
     model::Optimizer,
     attr::MOI.ConstraintDualStart,
@@ -436,6 +441,33 @@ function MOI.set(
 ) where {F<:_FUNCTIONS,S<:_SETS}
     MOI.throw_if_not_valid(model, ci)
     MOI.set(model.qp_data, attr, ci, value)
+    # No need to reset model.inner, because this gets handled in optimize!.
+    return
+end
+
+function MOI.get(
+    model::Optimizer,
+    attr::MOI.ConstraintDualStart,
+    ci::MOI.ConstraintIndex{MOI.ScalarNonlinearFunction,S},
+) where {S<:_SETS}
+    MOI.throw_if_not_valid(model, ci)
+    index = MOI.Nonlinear.ConstraintIndex(ci.value)
+    return get(model.mult_g_nlp, index, nothing)
+end
+
+function MOI.set(
+    model::Optimizer,
+    attr::MOI.ConstraintDualStart,
+    ci::MOI.ConstraintIndex{MOI.ScalarNonlinearFunction,S},
+    value::Union{Real,Nothing},
+) where {S<:_SETS}
+    MOI.throw_if_not_valid(model, ci)
+    index = MOI.Nonlinear.ConstraintIndex(ci.value)
+    if value === nothing
+        delete!(model.mult_g_nlp, index)
+    else
+        model.mult_g_nlp[index] = convert(Float64, value)
+    end
     # No need to reset model.inner, because this gets handled in optimize!.
     return
 end
@@ -940,6 +972,9 @@ function MOI.optimize!(model::Optimizer)
     offset = length(model.qp_data.mult_g)
     if model.nlp_dual_start === nothing
         inner.mult_g[(offset+1):end] .= 0.0
+        for (key, val) in model.mult_g_nlp
+            inner.mult_g[offset+key.value] = val
+        end
     else
         for (i, start) in enumerate(model.nlp_dual_start::Vector{Float64})
             inner.mult_g[offset+i] = _dual_start(model, start, -1)
