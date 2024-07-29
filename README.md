@@ -274,9 +274,9 @@ set_attribute(model, "hsllib", HSL_jll.libhsl_path)
 set_attribute(model, "linear_solver", "ma86")
 ```
 
-The available HSL solvers are `"ma27"`, `"ma57"`, `"ma86"`, `"ma87"`, and `"ma97"`.
+The available HSL solvers are `"ma27"`, `"ma57"`, `"ma77"`, `"ma86"`, and `"ma97"`.
 We recommend using either sequential BLAS and LAPACK backends or a multithreaded version
-limited to one thread when employing the linear solvers `"ma86"`, `"ma87"`, or `"ma97"`.
+limited to one thread when employing the linear solvers `"ma86"`, or `"ma97"`.
 These solvers already leverage parallelism via OpenMP, and enabling multiple threads in
 BLAS and LAPACK may result in thread oversubscription.
 
