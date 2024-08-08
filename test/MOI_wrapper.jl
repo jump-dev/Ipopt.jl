@@ -87,6 +87,10 @@ function test_ConstraintDualStart()
         MOI.ScalarAffineFunction(MOI.ScalarAffineTerm.(1.0, x), 0.0),
         MOI.LessThan(1.5),
     )
+    @test MOI.supports(model, MOI.ConstraintDualStart(), typeof(l))
+    @test MOI.supports(model, MOI.ConstraintDualStart(), typeof(u))
+    @test MOI.supports(model, MOI.ConstraintDualStart(), typeof(e))
+    @test MOI.supports(model, MOI.ConstraintDualStart(), typeof(c))
     @test MOI.get(model, MOI.ConstraintDualStart(), l) === nothing
     @test MOI.get(model, MOI.ConstraintDualStart(), u) === nothing
     @test MOI.get(model, MOI.ConstraintDualStart(), e) === nothing
@@ -125,6 +129,7 @@ function test_ConstraintDualStart_ScalarNonlinearFunction()
     g = 1.0 * x[1] + 1.0 * x[2]
     MOI.set(model, MOI.ObjectiveSense(), MOI.MIN_SENSE)
     MOI.set(model, MOI.ObjectiveFunction{typeof(g)}(), g)
+    @test MOI.supports(model, MOI.ConstraintDualStart(), typeof(c))
     @test MOI.get(model, MOI.ConstraintDualStart(), c) === nothing
     MOI.set(model, MOI.ConstraintDualStart(), c, 1.15)
     MOI.optimize!(model)
@@ -603,6 +608,28 @@ function test_mixing_new_old_api()
     MOI.set(model, MOI.NLPBlock(), block_data)
     err = ErrorException("Cannot mix the new and legacy nonlinear APIs")
     @test_throws err MOI.add_constrained_variable(model, MOI.Parameter(2.0))
+    return
+end
+
+function test_nlp_model_objective_function_type()
+    model = Ipopt.Optimizer()
+    x = MOI.add_variable(model)
+    f = MOI.ScalarNonlinearFunction(:sqrt, Any[x])
+    MOI.set(model, MOI.ObjectiveSense(), MOI.MIN_SENSE)
+    MOI.set(model, MOI.ObjectiveFunction{typeof(f)}(), f)
+    F = MOI.get(model, MOI.ObjectiveFunctionType())
+    @test F == MOI.ScalarNonlinearFunction
+    return
+end
+
+function test_nlp_model_set_set()
+    model = Ipopt.Optimizer()
+    x = MOI.add_variable(model)
+    f = MOI.ScalarNonlinearFunction(:sqrt, Any[x])
+    c = MOI.add_constraint(model, f, MOI.LessThan(2.0))
+    @test MOI.get(model, MOI.ConstraintSet(), c) == MOI.LessThan(2.0)
+    MOI.set(model, MOI.ConstraintSet(), c, MOI.LessThan(3.0))
+    @test MOI.get(model, MOI.ConstraintSet(), c) == MOI.LessThan(3.0)
     return
 end
 
