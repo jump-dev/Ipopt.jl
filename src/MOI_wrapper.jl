@@ -463,7 +463,7 @@ end
 function MOI.get(
     model::Optimizer,
     attr::MOI.ConstraintDualStart,
-    c::MOI.ConstraintIndex{F,_SETS},
+    c::MOI.ConstraintIndex{F,<:_SETS},
 ) where {
     F<:Union{
         MOI.ScalarAffineFunction{Float64},
