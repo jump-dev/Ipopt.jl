@@ -606,6 +606,28 @@ function test_mixing_new_old_api()
     return
 end
 
+function test_nlp_model_objective_function_type()
+    model = Ipopt.Optimizer()
+    x = MOI.add_variable(model)
+    f = MOI.ScalarNonlinearFunction(:sqrt, Any[x])
+    MOI.set(model, MOI.ObjectiveSense(), MOI.MIN_SENSE)
+    MOI.set(model, MOI.ObjectiveFunction{typeof(f)}(), f)
+    F = MOI.get(model, MOI.ObjectiveFunctionType())
+    @test F == MOI.ScalarNonlinearFunction
+    return
+end
+
+function test_nlp_model_set_set()
+    model = Ipopt.Optimizer()
+    x = MOI.add_variable(model)
+    f = MOI.ScalarNonlinearFunction(:sqrt, Any[x])
+    c = MOI.add_constraint(model, f, MOI.LessThan(2.0))
+    @test MOI.get(model, MOI.ConstraintSet(), c) == MOI.LessThan(2.0)
+    MOI.set(model, MOI.ConstraintSet(), c, MOI.LessThan(3.0))
+    @test MOI.get(model, MOI.ConstraintSet(), c) == MOI.LessThan(3.0)
+    return
+end
+
 end  # module TestMOIWrapper
 
 TestMOIWrapper.runtests()

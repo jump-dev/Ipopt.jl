@@ -79,12 +79,6 @@ const _SETS = Union{
     MOI.Interval{Float64},
 }
 
-const _FUNCTIONS = Union{
-    MOI.ScalarAffineFunction{Float64},
-    MOI.ScalarQuadraticFunction{Float64},
-    MOI.ScalarNonlinearFunction,
-}
-
 MOI.get(::Optimizer, ::MOI.SolverVersion) = "3.14.4"
 
 ### _EmptyNLPEvaluator
@@ -220,7 +214,14 @@ end
 
 function MOI.supports_constraint(
     ::Optimizer,
-    ::Type{<:Union{MOI.VariableIndex,_FUNCTIONS}},
+    ::Type{
+        <:Union{
+            MOI.VariableIndex,
+            MOI.ScalarAffineFunction{Float64},
+            MOI.ScalarQuadraticFunction{Float64},
+            MOI.ScalarNonlinearFunction,
+        },
+    },
     ::Type{<:_SETS},
 )
     return true
@@ -380,12 +381,24 @@ end
 
 function MOI.is_valid(
     model::Optimizer,
-    ci::MOI.ConstraintIndex{<:_FUNCTIONS,<:_SETS},
-)
+    ci::MOI.ConstraintIndex{F,<:_SETS},
+) where {
+    F<:Union{
+        MOI.ScalarAffineFunction{Float64},
+        MOI.ScalarQuadraticFunction{Float64},
+    },
+}
     return MOI.is_valid(model.qp_data, ci)
 end
 
-function MOI.add_constraint(model::Optimizer, func::_FUNCTIONS, set::_SETS)
+function MOI.add_constraint(
+    model::Optimizer,
+    func::Union{
+        MOI.ScalarAffineFunction{Float64},
+        MOI.ScalarQuadraticFunction{Float64},
+    },
+    set::_SETS,
+)
     index = MOI.add_constraint(model.qp_data, func, set)
     model.inner = nothing
     return index
@@ -394,15 +407,26 @@ end
 function MOI.get(
     model::Optimizer,
     attr::Union{MOI.NumberOfConstraints{F,S},MOI.ListOfConstraintIndices{F,S}},
-) where {F<:_FUNCTIONS,S<:_SETS}
+) where {
+    F<:Union{
+        MOI.ScalarAffineFunction{Float64},
+        MOI.ScalarQuadraticFunction{Float64},
+    },
+    S<:_SETS,
+}
     return MOI.get(model.qp_data, attr)
 end
 
 function MOI.get(
     model::Optimizer,
     attr::Union{MOI.ConstraintFunction,MOI.ConstraintSet},
-    c::MOI.ConstraintIndex{F,S},
-) where {F<:_FUNCTIONS,S<:_SETS}
+    c::MOI.ConstraintIndex{F,<:_SETS},
+) where {
+    F<:Union{
+        MOI.ScalarAffineFunction{Float64},
+        MOI.ScalarQuadraticFunction{Float64},
+    },
+}
     return MOI.get(model.qp_data, attr, c)
 end
 
@@ -411,7 +435,13 @@ function MOI.set(
     ::MOI.ConstraintSet,
     ci::MOI.ConstraintIndex{F,S},
     set::S,
-) where {F<:_FUNCTIONS,S<:_SETS}
+) where {
+    F<:Union{
+        MOI.ScalarAffineFunction{Float64},
+        MOI.ScalarQuadraticFunction{Float64},
+    },
+    S<:_SETS,
+}
     MOI.set(model.qp_data, MOI.ConstraintSet(), ci, set)
     model.inner = nothing
     return
@@ -420,54 +450,42 @@ end
 function MOI.supports(
     ::Optimizer,
     ::MOI.ConstraintDualStart,
-    ::Type{MOI.ConstraintIndex{F,S}},
-) where {F<:_FUNCTIONS,S<:_SETS}
+    ::Type{MOI.ConstraintIndex{F,<:_SETS}},
+) where {
+    F<:Union{
+        MOI.ScalarAffineFunction{Float64},
+        MOI.ScalarQuadraticFunction{Float64},
+    },
+}
     return true
 end
 
 function MOI.get(
     model::Optimizer,
     attr::MOI.ConstraintDualStart,
-    c::MOI.ConstraintIndex{F,S},
-) where {F<:_FUNCTIONS,S<:_SETS}
+    c::MOI.ConstraintIndex{F,_SETS},
+) where {
+    F<:Union{
+        MOI.ScalarAffineFunction{Float64},
+        MOI.ScalarQuadraticFunction{Float64},
+    },
+}
     return MOI.get(model.qp_data, attr, c)
 end
 
 function MOI.set(
     model::Optimizer,
     attr::MOI.ConstraintDualStart,
-    ci::MOI.ConstraintIndex{F,S},
+    ci::MOI.ConstraintIndex{F,<:_SETS},
     value::Union{Real,Nothing},
-) where {F<:_FUNCTIONS,S<:_SETS}
+) where {
+    F<:Union{
+        MOI.ScalarAffineFunction{Float64},
+        MOI.ScalarQuadraticFunction{Float64},
+    },
+}
     MOI.throw_if_not_valid(model, ci)
     MOI.set(model.qp_data, attr, ci, value)
-    # No need to reset model.inner, because this gets handled in optimize!.
-    return
-end
-
-function MOI.get(
-    model::Optimizer,
-    attr::MOI.ConstraintDualStart,
-    ci::MOI.ConstraintIndex{MOI.ScalarNonlinearFunction,S},
-) where {S<:_SETS}
-    MOI.throw_if_not_valid(model, ci)
-    index = MOI.Nonlinear.ConstraintIndex(ci.value)
-    return get(model.mult_g_nlp, index, nothing)
-end
-
-function MOI.set(
-    model::Optimizer,
-    attr::MOI.ConstraintDualStart,
-    ci::MOI.ConstraintIndex{MOI.ScalarNonlinearFunction,S},
-    value::Union{Real,Nothing},
-) where {S<:_SETS}
-    MOI.throw_if_not_valid(model, ci)
-    index = MOI.Nonlinear.ConstraintIndex(ci.value)
-    if value === nothing
-        delete!(model.mult_g_nlp, index)
-    else
-        model.mult_g_nlp[index] = convert(Float64, value)
-    end
     # No need to reset model.inner, because this gets handled in optimize!.
     return
 end
@@ -499,6 +517,13 @@ function MOI.add_constraint(
     return MOI.ConstraintIndex{typeof(f),typeof(s)}(index.value)
 end
 
+function MOI.supports(
+    ::Optimizer,
+    ::MOI.ObjectiveFunction{MOI.ScalarNonlinearFunction},
+)
+    return true
+end
+
 function MOI.set(
     model::Optimizer,
     attr::MOI.ObjectiveFunction{MOI.ScalarNonlinearFunction},
@@ -510,6 +535,57 @@ function MOI.set(
     end
     MOI.Nonlinear.set_objective(model.nlp_model, func)
     model.inner = nothing
+    return
+end
+
+function MOI.get(
+    model::Optimizer,
+    ::MOI.ConstraintSet,
+    ci::MOI.ConstraintIndex{MOI.ScalarNonlinearFunction,<:_SETS},
+)
+    MOI.throw_if_not_valid(model, ci)
+    index = MOI.Nonlinear.ConstraintIndex(ci.value)
+    return model.nlp_model[index].set
+end
+
+function MOI.set(
+    model::Optimizer,
+    ::MOI.ConstraintSet,
+    ci::MOI.ConstraintIndex{MOI.ScalarNonlinearFunction,S},
+    set::S,
+) where {S<:_SETS}
+    MOI.throw_if_not_valid(model, ci)
+    index = MOI.Nonlinear.ConstraintIndex(ci.value)
+    func = model.nlp_model[index].expression
+    model.nlp_model.constraints[index] = MOI.Nonlinear.Constraint(func, set)
+    model.inner = nothing
+    return
+end
+
+function MOI.get(
+    model::Optimizer,
+    attr::MOI.ConstraintDualStart,
+    ci::MOI.ConstraintIndex{MOI.ScalarNonlinearFunction,<:_SETS},
+)
+    MOI.throw_if_not_valid(model, ci)
+    index = MOI.Nonlinear.ConstraintIndex(ci.value)
+    return get(model.mult_g_nlp, index, nothing)
+end
+
+function MOI.set(
+    model::Optimizer,
+    attr::MOI.ConstraintDualStart,
+    ci::MOI.ConstraintIndex{MOI.ScalarNonlinearFunction,<:_SETS},
+    value::Union{Real,Nothing},
+)
+    MOI.throw_if_not_valid(model, ci)
+    index = MOI.Nonlinear.ConstraintIndex(ci.value)
+    if value === nothing
+        delete!(model.mult_g_nlp, index)
+    else
+        model.mult_g_nlp[index] = convert(Float64, value)
+    end
+    # No need to reset model.inner, because this gets handled in optimize!.
     return
 end
 
@@ -701,25 +777,50 @@ MOI.get(model::Optimizer, ::MOI.ObjectiveSense) = model.sense
 
 ### ObjectiveFunction
 
-function MOI.get(
-    model::Optimizer,
-    attr::Union{MOI.ObjectiveFunctionType,MOI.ObjectiveFunction},
-)
+function MOI.get(model::Optimizer, attr::MOI.ObjectiveFunctionType)
+    if model.nlp_model !== nothing && model.nlp_model.objective !== nothing
+        return MOI.ScalarNonlinearFunction
+    end
     return MOI.get(model.qp_data, attr)
 end
 
 function MOI.supports(
     ::Optimizer,
-    ::MOI.ObjectiveFunction{<:Union{MOI.VariableIndex,<:_FUNCTIONS}},
+    ::MOI.ObjectiveFunction{
+        <:Union{
+            MOI.VariableIndex,
+            MOI.ScalarAffineFunction{Float64},
+            MOI.ScalarQuadraticFunction{Float64},
+        },
+    },
 )
     return true
+end
+
+function MOI.get(
+    model::Optimizer,
+    attr::MOI.ObjectiveFunction{F},
+) where {
+    F<:Union{
+        MOI.VariableIndex,
+        MOI.ScalarAffineFunction{Float64},
+        MOI.ScalarQuadraticFunction{Float64},
+    },
+}
+    return MOI.get(model.qp_data, attr)
 end
 
 function MOI.set(
     model::Optimizer,
     attr::MOI.ObjectiveFunction{F},
     func::F,
-) where {F<:Union{MOI.VariableIndex,<:_FUNCTIONS}}
+) where {
+    F<:Union{
+        MOI.VariableIndex,
+        MOI.ScalarAffineFunction{Float64},
+        MOI.ScalarQuadraticFunction{Float64},
+    },
+}
     MOI.set(model.qp_data, attr, func)
     if model.nlp_model !== nothing
         MOI.Nonlinear.set_objective(model.nlp_model, nothing)
@@ -1166,7 +1267,17 @@ end
 
 ### MOI.ConstraintPrimal
 
-row(model::Optimizer, ci::MOI.ConstraintIndex{<:_FUNCTIONS}) = ci.value
+function row(
+    model::Optimizer,
+    ci::MOI.ConstraintIndex{F},
+) where {
+    F<:Union{
+        MOI.ScalarAffineFunction{Float64},
+        MOI.ScalarQuadraticFunction{Float64},
+    },
+}
+    return ci.value
+end
 
 function row(
     model::Optimizer,
@@ -1178,8 +1289,14 @@ end
 function MOI.get(
     model::Optimizer,
     attr::MOI.ConstraintPrimal,
-    ci::MOI.ConstraintIndex{<:_FUNCTIONS,<:_SETS},
-)
+    ci::MOI.ConstraintIndex{F,<:_SETS},
+) where {
+    F<:Union{
+        MOI.ScalarAffineFunction{Float64},
+        MOI.ScalarQuadraticFunction{Float64},
+        MOI.ScalarNonlinearFunction,
+    },
+}
     MOI.check_result_index_bounds(model, attr)
     MOI.throw_if_not_valid(model, ci)
     return model.inner.g[row(model, ci)]
@@ -1202,8 +1319,14 @@ _dual_multiplier(model::Optimizer) = model.sense == MOI.MIN_SENSE ? 1.0 : -1.0
 function MOI.get(
     model::Optimizer,
     attr::MOI.ConstraintDual,
-    ci::MOI.ConstraintIndex{<:_FUNCTIONS,<:_SETS},
-)
+    ci::MOI.ConstraintIndex{F,<:_SETS},
+) where {
+    F<:Union{
+        MOI.ScalarAffineFunction{Float64},
+        MOI.ScalarQuadraticFunction{Float64},
+        MOI.ScalarNonlinearFunction,
+    },
+}
     MOI.check_result_index_bounds(model, attr)
     MOI.throw_if_not_valid(model, ci)
     s = -_dual_multiplier(model)
