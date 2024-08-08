@@ -87,6 +87,10 @@ function test_ConstraintDualStart()
         MOI.ScalarAffineFunction(MOI.ScalarAffineTerm.(1.0, x), 0.0),
         MOI.LessThan(1.5),
     )
+    @test MOI.supports(model, MOI.ConstraintDualStart(), typeof(l))
+    @test MOI.supports(model, MOI.ConstraintDualStart(), typeof(u))
+    @test MOI.supports(model, MOI.ConstraintDualStart(), typeof(e))
+    @test MOI.supports(model, MOI.ConstraintDualStart(), typeof(c))
     @test MOI.get(model, MOI.ConstraintDualStart(), l) === nothing
     @test MOI.get(model, MOI.ConstraintDualStart(), u) === nothing
     @test MOI.get(model, MOI.ConstraintDualStart(), e) === nothing
@@ -125,6 +129,7 @@ function test_ConstraintDualStart_ScalarNonlinearFunction()
     g = 1.0 * x[1] + 1.0 * x[2]
     MOI.set(model, MOI.ObjectiveSense(), MOI.MIN_SENSE)
     MOI.set(model, MOI.ObjectiveFunction{typeof(g)}(), g)
+    @test MOI.supports(model, MOI.ConstraintDualStart(), typeof(c))
     @test MOI.get(model, MOI.ConstraintDualStart(), c) === nothing
     MOI.set(model, MOI.ConstraintDualStart(), c, 1.15)
     MOI.optimize!(model)
