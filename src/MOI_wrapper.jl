@@ -450,7 +450,7 @@ end
 function MOI.supports(
     ::Optimizer,
     ::MOI.ConstraintDualStart,
-    ::Type{MOI.ConstraintIndex{F,<:_SETS}},
+    ::Type{<:MOI.ConstraintIndex{F,<:_SETS}},
 ) where {
     F<:Union{
         MOI.ScalarAffineFunction{Float64},
@@ -560,6 +560,14 @@ function MOI.set(
     model.nlp_model.constraints[index] = MOI.Nonlinear.Constraint(func, set)
     model.inner = nothing
     return
+end
+
+function MOI.supports(
+    ::Optimizer,
+    ::MOI.ConstraintDualStart,
+    ::Type{<:MOI.ConstraintIndex{MOI.ScalarNonlinearFunction,<:_SETS}},
+)
+    return true
 end
 
 function MOI.get(
