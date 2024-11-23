@@ -1224,7 +1224,7 @@ function _manually_evaluated_primal_status(model::Optimizer)
        all(g_L[i] - atol <= g[i] <= g_U[i] + atol for i in 1:m)
         return MOI.NEARLY_FEASIBLE_POINT
     end
-    return MOI.LOCALLY_INFEASIBLE
+    return MOI.INFEASIBLE_POINT
 end
 
 function MOI.get(model::Optimizer, attr::MOI.PrimalStatus)
