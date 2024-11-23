@@ -633,6 +633,45 @@ function test_nlp_model_set_set()
     return
 end
 
+function test_manually_evaluated_primal_status()
+    model = Ipopt.Optimizer()
+    MOI.set(model, MOI.Silent(), true)
+    x = MOI.add_variable(model)
+    MOI.add_constraint(model, x, MOI.Interval(0.0, 1.0))
+    MOI.add_constraint(model, 1.0 * x, MOI.Interval(0.1, 1.1))
+    f = MOI.ScalarNonlinearFunction(:log, Any[x])
+    MOI.add_constraint(model, f, MOI.Interval(-1.0, 1.0))
+    MOI.optimize!(model)
+    x_star = copy(model.inner.x)
+    g_star = copy(model.inner.g)
+    for (xi, status) in (
+        x_star[1] => MOI.FEASIBLE_POINT,
+        -1.0 => MOI.INFEASIBLE_POINT,
+        -1e-7 => MOI.NEARLY_FEASIBLE_POINT,
+        1 + 1e-7 => MOI.NEARLY_FEASIBLE_POINT,
+        0.0 => MOI.FEASIBLE_POINT,
+        1.0 => MOI.FEASIBLE_POINT,
+    )
+        model.inner.x[1] = xi
+        @test Ipopt._manually_evaluated_primal_status(model) == status
+    end
+    model.inner.x .= x_star
+    for (gi, status) in (
+        g_star => MOI.FEASIBLE_POINT,
+        [0.0, 0.0] => MOI.INFEASIBLE_POINT,
+        [0.1 - 1e-7, 0.0] => MOI.NEARLY_FEASIBLE_POINT,
+        [1.1 + 1e-7, 0.0] => MOI.NEARLY_FEASIBLE_POINT,
+        [0.1, -1.0 - 1e-7] => MOI.NEARLY_FEASIBLE_POINT,
+        [0.1, 1.0 + 1e-7] => MOI.NEARLY_FEASIBLE_POINT,
+        [0.1, 1.0] => MOI.FEASIBLE_POINT,
+        [1.1, -1.0] => MOI.FEASIBLE_POINT,
+    )
+        model.inner.g .= gi
+        @test Ipopt._manually_evaluated_primal_status(model) == status
+    end
+    return
+end
+
 end  # module TestMOIWrapper
 
 TestMOIWrapper.runtests()
