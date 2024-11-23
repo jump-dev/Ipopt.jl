@@ -1202,10 +1202,10 @@ end
 
 ### MOI.PrimalStatus
 
-function _manually_evaluated_primal_status(model::Optimizer)    
+function _manually_evaluated_primal_status(model::Optimizer)
     x, g = model.inner.x, model.inner.g
     m, n = length(g), length(x)
-    x, x_L, x_U = model.variables.lower, model.variables.upper
+    x_L, x_U = model.variables.lower, model.variables.upper
     g_L, g_U = copy(model.qp_data.g_L), copy(model.qp_data.g_U)
     # Assuming constraints are guaranteed to be in the order [qp_cons, nlp_cons]
     for bound in model.nlp_data.constraint_bounds
