@@ -1141,36 +1141,6 @@ end
 
 ### MOI.TerminationStatus
 
-function _termination_status_from_restoration_failure(model::Optimizer)
-    x = model.inner.x
-    x_lbs = model.variables.lower
-    x_ubs = model.variables.upper
-    g = model.inner.g
-    g_lbs = copy(model.qp_data.g_L)
-    g_ubs = copy(model.qp_data.g_U)
-    # Assuming constraints are guaranteed to be in the order [qp_cons, nlp_cons]
-    for bound in model.nlp_data.constraint_bounds
-        push!(g_lbs, bound.lower)
-        push!(g_ubs, bound.upper)
-    end
-    # 1e-8 is the default tolerance
-    tol = get(model.options, "tol", 1e-8)
-    # 1e-6 is the default acceptable tolerance
-    atol = get(model.options, "acceptable_tol", 1e-6)
-    # TODO: Distinguish between equality and inequality constraints here?
-    bounds_feasible = all((x_lbs .- tol) .<= x .<= (x_ubs .+ tol))
-    bounds_acceptable = all((x_lbs .- atol) .<= x .<= (x_ubs .+ atol))
-    constr_feasible = all((g_lbs .- tol) .<= g .<= (g_ubs .+ tol))
-    constr_acceptable = all((g_lbs .- atol) .<= g .<= (g_ubs .+ atol))
-    if bounds_feasible && constr_feasible
-        return MOI.LOCALLY_SOLVED
-    elseif bounds_acceptable && constr_acceptable
-        return MOI.ALMOST_LOCALLY_SOLVED
-    else
-        return MOI.LOCALLY_INFEASIBLE
-    end
-end
-
 function MOI.get(model::Optimizer, ::MOI.TerminationStatus)
     if model.invalid_model
         return MOI.INVALID_MODEL
@@ -1197,8 +1167,7 @@ function MOI.get(model::Optimizer, ::MOI.TerminationStatus)
     elseif status == :Maximum_WallTime_Exceeded
         return MOI.TIME_LIMIT
     elseif status == :Restoration_Failed
-        #return MOI.NUMERICAL_ERROR
-        return _termination_status_from_restoration_failure(model)
+        return MOI.NUMERICAL_ERROR
     elseif status == :Error_In_Step_Computation
         return MOI.NUMERICAL_ERROR
     elseif status == :Invalid_Option
@@ -1233,6 +1202,31 @@ end
 
 ### MOI.PrimalStatus
 
+function _manually_evaluated_primal_status(model::Optimizer)    
+    x, g = model.inner.x, model.inner.g
+    m, n = length(g), length(x)
+    x, x_L, x_U = model.variables.lower, model.variables.upper
+    g_L, g_U = copy(model.qp_data.g_L), copy(model.qp_data.g_U)
+    # Assuming constraints are guaranteed to be in the order [qp_cons, nlp_cons]
+    for bound in model.nlp_data.constraint_bounds
+        push!(g_L, bound.lower)
+        push!(g_U, bound.upper)
+    end
+    # 1e-8 is the default tolerance
+    tol = get(model.options, "tol", 1e-8)
+    if all(x_L[i] - tol <= x[i] <= x_U[i] + tol for i in 1:n) &&
+       all(g_L[i] - tol <= g[i] <= g_U[i] + tol for i in 1:m)
+        return MOI.FEASIBLE_POINT
+    end
+    # 1e-6 is the default acceptable tolerance
+    atol = get(model.options, "acceptable_tol", 1e-6)
+    if all(x_L[i] - atol <= x[i] <= x_U[i] + atol for i in 1:n) &&
+       all(g_L[i] - atol <= g[i] <= g_U[i] + atol for i in 1:m)
+        return MOI.NEARLY_FEASIBLE_POINT
+    end
+    return MOI.LOCALLY_INFEASIBLE
+end
+
 function MOI.get(model::Optimizer, attr::MOI.PrimalStatus)
     if !(1 <= attr.result_index <= MOI.get(model, MOI.ResultCount()))
         return MOI.NO_SOLUTION
@@ -1249,7 +1243,9 @@ function MOI.get(model::Optimizer, attr::MOI.PrimalStatus)
     elseif status == :Infeasible_Problem_Detected
         return MOI.INFEASIBLE_POINT
     else
-        return MOI.UNKNOWN_RESULT_STATUS
+        # Not sure. RestorationFailure can terminate at a feasible (but
+        # non-stationary) point.
+        return _manually_evaluated_primal_status(model)
     end
 end
 
