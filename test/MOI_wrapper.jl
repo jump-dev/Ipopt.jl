@@ -144,6 +144,7 @@ end
 
 function test_ConstraintDualStart_variable_bound_min_greater_than()
     model = Ipopt.Optimizer()
+    MOI.set(model, MOI.Silent(), true)
     x, c = MOI.add_constrained_variable(model, MOI.GreaterThan(1.0))
     MOI.set(model, MOI.VariablePrimalStart(), x, 1.0)
     MOI.set(model, MOI.ConstraintDualStart(), c, 1.0)
@@ -157,6 +158,7 @@ end
 
 function test_ConstraintDualStart_variable_bound_max_less_than()
     model = Ipopt.Optimizer()
+    MOI.set(model, MOI.Silent(), true)
     x, c = MOI.add_constrained_variable(model, MOI.LessThan(1.0))
     MOI.set(model, MOI.VariablePrimalStart(), x, 1.0)
     MOI.set(model, MOI.ConstraintDualStart(), c, -1.0)
@@ -170,6 +172,7 @@ end
 
 function test_ConstraintDualStart_variable_bound_min_equal_to()
     model = Ipopt.Optimizer()
+    MOI.set(model, MOI.Silent(), true)
     x, c = MOI.add_constrained_variable(model, MOI.EqualTo(1.0))
     MOI.set(model, MOI.VariablePrimalStart(), x, 1.0)
     MOI.set(model, MOI.ConstraintDualStart(), c, 1.0)
@@ -308,6 +311,7 @@ end
 
 function test_empty_optimize()
     model = Ipopt.Optimizer()
+    MOI.set(model, MOI.Silent(), true)
     @test MOI.get(model, MOI.RawStatusString()) == "Optimize not called"
     MOI.optimize!(model)
     @test MOI.get(model, MOI.TerminationStatus()) == MOI.INVALID_MODEL
@@ -439,6 +443,7 @@ end
 
 function test_scalar_nonlinear_function_nlp_block()
     model = Ipopt.Optimizer()
+    MOI.set(model, MOI.Silent(), true)
     x = MOI.add_variable(model)
     f = MOI.ScalarNonlinearFunction(:^, Any[x, 4])
     MOI.add_constraint(model, f, MOI.LessThan(1.0))
@@ -620,6 +625,7 @@ end
 
 function test_ad_backend()
     model = Ipopt.Optimizer()
+    MOI.set(model, MOI.Silent(), true)
     attr = MOI.AutomaticDifferentiationBackend()
     @test MOI.supports(model, attr)
     @test MOI.get(model, attr) == MOI.Nonlinear.SparseReverseMode()
