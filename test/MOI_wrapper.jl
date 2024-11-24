@@ -78,6 +78,7 @@ end
 
 function test_ConstraintDualStart()
     model = Ipopt.Optimizer()
+    MOI.set(model, MOI.Silent(), true)
     x = MOI.add_variables(model, 2)
     l = MOI.add_constraint(model, x[1], MOI.GreaterThan(1.0))
     u = MOI.add_constraint(model, x[1], MOI.LessThan(1.0))
@@ -107,6 +108,7 @@ function test_ConstraintDualStart()
     @test MOI.get(model, MOI.ConstraintDualStart(), e) == -1.5
     @test MOI.get(model, MOI.ConstraintDualStart(), c) == 2.0
     @test MOI.get(model, MOI.NLPBlockDualStart()) == [1.0, 2.0]
+    MOI.optimize!(model)
     MOI.set(model, MOI.ConstraintDualStart(), l, nothing)
     MOI.set(model, MOI.ConstraintDualStart(), u, nothing)
     MOI.set(model, MOI.ConstraintDualStart(), e, nothing)
@@ -739,6 +741,22 @@ function test_RawOptimizerAttribute()
     @test MOI.supports(model, attr)
     MOI.set(model, attr, 0)
     @test MOI.get(model, attr) == 0
+    return
+end
+
+function test_empty_nlp_evaluator()
+    model = Ipopt.Optimizer()
+    block = MOI.get(model, MOI.NLPBlock())
+    evaluator = block.evaluator
+    @test MOI.features_available(evaluator) == [:Grad, :Jac, :Hess]
+    MOI.initialize(evaluator, [:Grad, :Jac, :Hess])
+    x = Float64[]
+    @test MOI.eval_constraint(evaluator, Float64[], x) === nothing
+    @test MOI.jacobian_structure(evaluator) == Tuple{Int,Int}[]
+    @test MOI.hessian_lagrangian_structure(evaluator) == Tuple{Int,Int}[]
+    @test MOI.eval_constraint_jacobian(evaluator, Float64[], x) === nothing
+    H, mu = Float64[], Float64[]
+    @test MOI.eval_hessian_lagrangian(evaluator, H, x, 1.0, mu) === nothing
     return
 end
 
