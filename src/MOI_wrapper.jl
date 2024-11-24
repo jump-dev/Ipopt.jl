@@ -630,14 +630,26 @@ function MOI.supports(
     return true
 end
 
+function MOI.get(
+    model::Optimizer,
+    attr::MOI.VariablePrimalStart,
+    vi::MOI.VariableIndex,
+)
+    if _is_parameter(vi)
+        throw(MOI.GetAttributeNotAllowed(attr, "Variable is a Parameter"))
+    end
+    MOI.throw_if_not_valid(model, vi)
+    return model.variable_primal_start[column(vi)]
+end
+
 function MOI.set(
     model::Optimizer,
-    ::MOI.VariablePrimalStart,
+    attr::MOI.VariablePrimalStart,
     vi::MOI.VariableIndex,
     value::Union{Real,Nothing},
 )
     if _is_parameter(vi)
-        return  # Do nothing
+        throw(MOI.SetAttributeNotAllowed(attr, "Variable is a Parameter"))
     end
     MOI.throw_if_not_valid(model, vi)
     model.variable_primal_start[column(vi)] = value
