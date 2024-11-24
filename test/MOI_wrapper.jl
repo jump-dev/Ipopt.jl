@@ -633,6 +633,26 @@ function test_nlp_model_set_set()
     return
 end
 
+function test_VariablePrimalStart()
+    attr = MOI.VariablePrimalStart()
+    model = Ipopt.Optimizer()
+    x = MOI.add_variable(model)
+    @test MOI.supports(model, attr, typeof(x))
+    @test MOI.get(model, attr, x) === nothing
+    MOI.set(model, attr, x, 1.0)
+    @test MOI.get(model, attr, x) == 1.0
+    p, _ = MOI.add_constrained_variable(model, MOI.Parameter(1.0))
+    @test_throws(
+        MOI.GetAttributeNotAllowed{typeof(attr)},
+        MOI.get(model, attr, p),
+    )
+    @test_throws(
+        MOI.SetAttributeNotAllowed{typeof(attr)},
+        MOI.set(model, attr, p, 1.0),
+    )
+    return
+end
+
 function test_manually_evaluated_primal_status()
     model = Ipopt.Optimizer()
     MOI.set(model, MOI.Silent(), true)
