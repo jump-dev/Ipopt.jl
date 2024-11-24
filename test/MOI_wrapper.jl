@@ -108,7 +108,6 @@ function test_ConstraintDualStart()
     @test MOI.get(model, MOI.ConstraintDualStart(), e) == -1.5
     @test MOI.get(model, MOI.ConstraintDualStart(), c) == 2.0
     @test MOI.get(model, MOI.NLPBlockDualStart()) == [1.0, 2.0]
-    MOI.optimize!(model)
     MOI.set(model, MOI.ConstraintDualStart(), l, nothing)
     MOI.set(model, MOI.ConstraintDualStart(), u, nothing)
     MOI.set(model, MOI.ConstraintDualStart(), e, nothing)
@@ -757,6 +756,23 @@ function test_empty_nlp_evaluator()
     @test MOI.eval_constraint_jacobian(evaluator, Float64[], x) === nothing
     H, mu = Float64[], Float64[]
     @test MOI.eval_hessian_lagrangian(evaluator, H, x, 1.0, mu) === nothing
+    return
+end
+
+function test_NLPBlockDualStart()
+    model = Ipopt.Optimizer()
+    MOI.set(model, MOI.Silent(), true)
+    x = MOI.add_variables(model, 4)
+    MOI.set.(model, MOI.VariablePrimalStart(), x, 1.0)
+    block = MOI.NLPBlockData(
+        MOI.NLPBoundsPair.([25.0, 40.0], [Inf, 40.0]),
+        MOI.Test.HS071(false),
+        true,
+    )
+    MOI.set(model, MOI.NLPBlock(), block)
+    MOI.set(model, MOI.NLPBlockDualStart(), [1.0, -1.0])
+    MOI.optimize!(model)
+    @test isapprox(MOI.get(model, MOI.NLPBlockDual()), [0.0, 0.0]; atol = 1e-6)
     return
 end
 
