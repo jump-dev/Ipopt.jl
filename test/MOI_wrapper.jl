@@ -91,6 +91,7 @@ function test_ConstraintDualStart()
     @test MOI.supports(model, MOI.ConstraintDualStart(), typeof(u))
     @test MOI.supports(model, MOI.ConstraintDualStart(), typeof(e))
     @test MOI.supports(model, MOI.ConstraintDualStart(), typeof(c))
+    @test MOI.supports(model, MOI.NLPBlockDualStart())
     @test MOI.get(model, MOI.ConstraintDualStart(), l) === nothing
     @test MOI.get(model, MOI.ConstraintDualStart(), u) === nothing
     @test MOI.get(model, MOI.ConstraintDualStart(), e) === nothing
@@ -164,6 +165,19 @@ function test_ConstraintDualStart_variable_bound_max_less_than()
     MOI.optimize!(model)
     @test isapprox(MOI.get(model, MOI.ConstraintDual(), c), -1.0; atol = 1e-6)
     @test MOI.get(model, MOI.ConstraintDualStart(), c) == -1.0
+    return
+end
+
+function test_ConstraintDualStart_variable_bound_min_equal_to()
+    model = Ipopt.Optimizer()
+    x, c = MOI.add_constrained_variable(model, MOI.EqualTo(1.0))
+    MOI.set(model, MOI.VariablePrimalStart(), x, 1.0)
+    MOI.set(model, MOI.ConstraintDualStart(), c, 1.0)
+    MOI.set(model, MOI.ObjectiveSense(), MOI.MIN_SENSE)
+    MOI.set(model, MOI.ObjectiveFunction{MOI.VariableIndex}(), x)
+    MOI.optimize!(model)
+    @test isapprox(MOI.get(model, MOI.ConstraintDual(), c), 1.0; atol = 1e-6)
+    @test MOI.get(model, MOI.ConstraintDualStart(), c) == 1.0
     return
 end
 
