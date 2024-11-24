@@ -742,6 +742,15 @@ function test_RawOptimizerAttribute()
     return
 end
 
+function test_function_type_to_func()
+    model = Ipopt.Optimizer()
+    x = MOI.add_variable(model)
+    MOI.set(model, MOI.ObjectiveSense(), MOI.MIN_SENSE)
+    MOI.set(model, MOI.ObjectiveFunction{MOI.VariableIndex}(), x)
+    @test MOI.get(model, MOI.ObjectiveFunctionType()) == MOI.VariableIndex
+    return
+end
+
 end  # module TestMOIWrapper
 
 TestMOIWrapper.runtests()
