@@ -154,7 +154,6 @@ function test_ConstraintDualStart_variable_bound_min_greater_than()
     return
 end
 
-
 function test_ConstraintDualStart_variable_bound_max_less_than()
     model = Ipopt.Optimizer()
     x, c = MOI.add_constrained_variable(model, MOI.LessThan(1.0))
