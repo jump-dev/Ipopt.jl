@@ -1122,28 +1122,30 @@ function MOI.optimize!(model::Optimizer)
 end
 
 # From Ipopt/src/Interfaces/IpReturnCodes_inc.h
-const _STATUS_CODES = Dict(
-    0 => :Solve_Succeeded,
-    1 => :Solved_To_Acceptable_Level,
-    2 => :Infeasible_Problem_Detected,
-    3 => :Search_Direction_Becomes_Too_Small,
-    4 => :Diverging_Iterates,
-    5 => :User_Requested_Stop,
-    6 => :Feasible_Point_Found,
-    -1 => :Maximum_Iterations_Exceeded,
-    -2 => :Restoration_Failed,
-    -3 => :Error_In_Step_Computation,
-    -4 => :Maximum_CpuTime_Exceeded,
-    -5 => :Maximum_WallTime_Exceeded,
-    -10 => :Not_Enough_Degrees_Of_Freedom,
-    -11 => :Invalid_Problem_Definition,
-    -12 => :Invalid_Option,
-    -13 => :Invalid_Number_Detected,
-    -100 => :Unrecoverable_Exception,
-    -101 => :NonIpopt_Exception_Thrown,
-    -102 => :Insufficient_Memory,
-    -199 => :Internal_Error,
+#!format:off
+const _STATUS_CODES = Dict{Int,Tuple{Symbol,MOI.TerminationStatusCode,MOI.ResultStatusCode}}(
+    0 => (:Solve_Succeeded, MOI.LOCALLY_SOLVED, MOI.FEASIBLE_POINT),
+    1 => (:Solved_To_Acceptable_Level, MOI.ALMOST_LOCALLY_SOLVED, MOI.NEARLY_FEASIBLE_POINT),
+    2 => (:Infeasible_Problem_Detected, MOI.LOCALLY_INFEASIBLE, MOI.INFEASIBLE_POINT),
+    3 => (:Search_Direction_Becomes_Too_Small, MOI.SLOW_PROGRESS, MOI.UNKNOWN_RESULT_STATUS),
+    4 => (:Diverging_Iterates, MOI.NORM_LIMIT, MOI.UNKNOWN_RESULT_STATUS),
+    5 => (:User_Requested_Stop, MOI.INTERRUPTED, MOI.UNKNOWN_RESULT_STATUS),
+    6 => (:Feasible_Point_Found, MOI.LOCALLY_SOLVED, MOI.FEASIBLE_POINT),
+    -1 => (:Maximum_Iterations_Exceeded, MOI.ITERATION_LIMIT, MOI.UNKNOWN_RESULT_STATUS),
+    -2 => (:Restoration_Failed, MOI.OTHER_ERROR, MOI.UNKNOWN_RESULT_STATUS),
+    -3 => (:Error_In_Step_Computation, MOI.NUMERICAL_ERROR, MOI.UNKNOWN_RESULT_STATUS),
+    -4 => (:Maximum_CpuTime_Exceeded, MOI.TIME_LIMIT, MOI.UNKNOWN_RESULT_STATUS),
+    -5 => (:Maximum_WallTime_Exceeded, MOI.TIME_LIMIT, MOI.UNKNOWN_RESULT_STATUS),
+    -10 => (:Not_Enough_Degrees_Of_Freedom, MOI.INVALID_MODEL, MOI.UNKNOWN_RESULT_STATUS),
+    -11 => (:Invalid_Problem_Definition, MOI.INVALID_MODEL, MOI.UNKNOWN_RESULT_STATUS),
+    -12 => (:Invalid_Option, MOI.INVALID_OPTION, MOI.UNKNOWN_RESULT_STATUS),
+    -13 => (:Invalid_Number_Detected, MOI.INVALID_MODEL, MOI.UNKNOWN_RESULT_STATUS),
+    -100 => (:Unrecoverable_Exception, MOI.OTHER_ERROR, MOI.UNKNOWN_RESULT_STATUS),
+    -101 => (:NonIpopt_Exception_Thrown, MOI.OTHER_ERROR, MOI.UNKNOWN_RESULT_STATUS),
+    -102 => (:Insufficient_Memory, MOI.MEMORY_LIMIT, MOI.UNKNOWN_RESULT_STATUS),
+    -199 => (:Internal_Error, MOI.OTHER_ERROR, MOI.UNKNOWN_RESULT_STATUS),
 )
+#!format:on
 
 ### MOI.ResultCount
 
@@ -1160,45 +1162,7 @@ function MOI.get(model::Optimizer, ::MOI.TerminationStatus)
     elseif model.inner === nothing
         return MOI.OPTIMIZE_NOT_CALLED
     end
-    status = _STATUS_CODES[model.inner.status]
-    if status == :Solve_Succeeded || status == :Feasible_Point_Found
-        return MOI.LOCALLY_SOLVED
-    elseif status == :Infeasible_Problem_Detected
-        return MOI.LOCALLY_INFEASIBLE
-    elseif status == :Solved_To_Acceptable_Level
-        return MOI.ALMOST_LOCALLY_SOLVED
-    elseif status == :Search_Direction_Becomes_Too_Small
-        return MOI.NUMERICAL_ERROR
-    elseif status == :Diverging_Iterates
-        return MOI.NORM_LIMIT
-    elseif status == :User_Requested_Stop
-        return MOI.INTERRUPTED
-    elseif status == :Maximum_Iterations_Exceeded
-        return MOI.ITERATION_LIMIT
-    elseif status == :Maximum_CpuTime_Exceeded
-        return MOI.TIME_LIMIT
-    elseif status == :Maximum_WallTime_Exceeded
-        return MOI.TIME_LIMIT
-    elseif status == :Restoration_Failed
-        return MOI.OTHER_ERROR
-    elseif status == :Error_In_Step_Computation
-        return MOI.NUMERICAL_ERROR
-    elseif status == :Invalid_Option
-        return MOI.INVALID_OPTION
-    elseif status == :Not_Enough_Degrees_Of_Freedom
-        return MOI.INVALID_MODEL
-    elseif status == :Invalid_Problem_Definition
-        return MOI.INVALID_MODEL
-    elseif status == :Invalid_Number_Detected
-        return MOI.INVALID_MODEL
-    elseif status == :Unrecoverable_Exception
-        return MOI.OTHER_ERROR
-    elseif status == :NonIpopt_Exception_Thrown
-        return MOI.OTHER_ERROR
-    else
-        @assert status == :Insufficient_Memory
-        return MOI.MEMORY_LIMIT
-    end
+    return _STATUS_CODES[model.inner.status][2]
 end
 
 ### MOI.RawStatusString
@@ -1209,7 +1173,7 @@ function MOI.get(model::Optimizer, ::MOI.RawStatusString)
     elseif model.inner === nothing
         return "Optimize not called"
     else
-        return string(_STATUS_CODES[model.inner.status])
+        return string(_STATUS_CODES[model.inner.status][1])
     end
 end
 
@@ -1244,22 +1208,13 @@ function MOI.get(model::Optimizer, attr::MOI.PrimalStatus)
     if !(1 <= attr.result_index <= MOI.get(model, MOI.ResultCount()))
         return MOI.NO_SOLUTION
     end
-    status = _STATUS_CODES[model.inner.status]
-    if status == :Solve_Succeeded
-        return MOI.FEASIBLE_POINT
-    elseif status == :Feasible_Point_Found
-        return MOI.FEASIBLE_POINT
-    elseif status == :Solved_To_Acceptable_Level
-        # Solutions are only guaranteed to satisfy the "acceptable" convergence
-        # tolerances.
-        return MOI.NEARLY_FEASIBLE_POINT
-    elseif status == :Infeasible_Problem_Detected
-        return MOI.INFEASIBLE_POINT
-    else
+    status = _STATUS_CODES[model.inner.status][3]
+    if status == MOI.UNKNOWN_RESULT_STATUS
         # Not sure. RestorationFailure can terminate at a feasible (but
         # non-stationary) point.
         return _manually_evaluated_primal_status(model)
     end
+    return status
 end
 
 ### MOI.DualStatus
@@ -1268,18 +1223,7 @@ function MOI.get(model::Optimizer, attr::MOI.DualStatus)
     if !(1 <= attr.result_index <= MOI.get(model, MOI.ResultCount()))
         return MOI.NO_SOLUTION
     end
-    status = _STATUS_CODES[model.inner.status]
-    if status == :Solve_Succeeded
-        return MOI.FEASIBLE_POINT
-    elseif status == :Feasible_Point_Found
-        return MOI.FEASIBLE_POINT
-    elseif status == :Solved_To_Acceptable_Level
-        # Solutions are only guaranteed to satisfy the "acceptable" convergence
-        # tolerances.
-        return MOI.NEARLY_FEASIBLE_POINT
-    else
-        return MOI.UNKNOWN_RESULT_STATUS
-    end
+    return _STATUS_CODES[model.inner.status][3]
 end
 
 ### MOI.SolveTimeSec
