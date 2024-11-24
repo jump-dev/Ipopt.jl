@@ -18,7 +18,7 @@
     _kFunctionTypeScalarQuadratic,
 )
 
-function _function_type_to_set(::Type{T}, k::_FunctionType) where {T}
+function _function_type_to_func(::Type{T}, k::_FunctionType) where {T}
     if k == _kFunctionTypeVariableIndex
         return MOI.VariableIndex
     elseif k == _kFunctionTypeScalarAffine
@@ -299,7 +299,7 @@ function MOI.set(
 end
 
 function MOI.get(block::QPBlockData{T}, ::MOI.ObjectiveFunctionType) where {T}
-    return _function_type_to_set(T, block.objective_function_type)
+    return _function_type_to_func(T, block.objective_function_type)
 end
 
 function MOI.get(block::QPBlockData{T}, ::MOI.ObjectiveFunction{F}) where {T,F}
@@ -312,7 +312,7 @@ function MOI.get(
 ) where {T}
     constraints = Set{Tuple{Type,Type}}()
     for i in 1:length(block)
-        F = _function_type_to_set(T, block.function_type[i])
+        F = _function_type_to_func(T, block.function_type[i])
         S = _bound_type_to_set(T, block.bound_type[i])
         push!(constraints, (F, S))
     end
@@ -342,7 +342,7 @@ function MOI.get(
     for i in 1:length(block)
         if _bound_type_to_set(T, block.bound_type[i]) != S
             continue
-        elseif _function_type_to_set(T, block.function_type[i]) != F
+        elseif _function_type_to_func(T, block.function_type[i]) != F
             continue
         end
         push!(ret, MOI.ConstraintIndex{F,S}(i))
