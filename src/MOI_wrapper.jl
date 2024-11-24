@@ -1111,7 +1111,7 @@ end
 
 # From Ipopt/src/Interfaces/IpReturnCodes_inc.h
 #!format:off
-const _STATUS_CODES = Dict(
+const _STATUS_CODES = Dict{Int,Tuple{Symbol,MOI.TerminationStatusCode,MOI.ResultStatusCode}}(
     0 => (:Solve_Succeeded, MOI.LOCALLY_SOLVED, MOI.FEASIBLE_POINT),
     1 => (:Solved_To_Acceptable_Level, MOI.ALMOST_LOCALLY_SOLVED, MOI.NEARLY_FEASIBLE_POINT),
     2 => (:Infeasible_Problem_Detected, MOI.LOCALLY_INFEASIBLE, MOI.INFEASIBLE_POINT),
