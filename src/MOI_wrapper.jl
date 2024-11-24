@@ -1167,7 +1167,7 @@ function MOI.get(model::Optimizer, ::MOI.TerminationStatus)
     elseif status == :Maximum_WallTime_Exceeded
         return MOI.TIME_LIMIT
     elseif status == :Restoration_Failed
-        return MOI.NUMERICAL_ERROR
+        return MOI.OTHER_ERROR
     elseif status == :Error_In_Step_Computation
         return MOI.NUMERICAL_ERROR
     elseif status == :Invalid_Option
