@@ -287,7 +287,8 @@ end
 
 function MOI.get(model::Optimizer, p::MOI.RawOptimizerAttribute)
     if !haskey(model.options, p.name)
-        error("RawParameter with name $(p.name) is not set.")
+        msg = "RawOptimizerAttribute with name $(p.name) is not already set."
+        throw(MOI.GetAttributeNotAllowed(p, msg))
     end
     return model.options[p.name]
 end

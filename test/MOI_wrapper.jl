@@ -672,6 +672,16 @@ function test_manually_evaluated_primal_status()
     return
 end
 
+function test_RawOptimizerAttribute()
+    model = Ipopt.Optimizer()
+    attr = MOI.RawOptimizerAttribute("print_level")
+    @test_throws MOI.GetAttributeNotAllowed{typeof(attr)} MOI.get(model, attr)
+    @test MOI.supports(model, attr)
+    MOI.set(model, attr, 0)
+    @test MOI.get(model, attr) == 0
+    return
+end
+
 end  # module TestMOIWrapper
 
 TestMOIWrapper.runtests()
