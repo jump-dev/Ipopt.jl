@@ -238,6 +238,106 @@ function test_hs071()
     return
 end
 
+function test_IpoptProblem_errors()
+    @test_throws(
+        ErrorException(
+            "IPOPT: Failed to construct problem because there are 0 variables. If you intended to construct an empty problem, one work-around is to add a variable fixed to 0.",
+        ),
+        Ipopt.CreateIpoptProblem(
+            0,          # n,
+            Float64[],  # x_L,
+            Float64[],  # x_U,
+            0,          # m,
+            Float64[],  # g_L,
+            Float64[],  # g_U,
+            0,          # nele_jac,
+            0,          # nele_hess
+            x -> 0.0,           # eval_f,
+            (x, g) -> nothing,  # eval_g,
+            (x, g) -> nothing,  # eval_grad_f,
+            (args...) -> nothing, # eval_jac_g,
+            nothing,
+        ),
+    )
+    @test_throws(
+        ErrorException(
+            "IPOPT: Failed to construct problem for some unknown reason.",
+        ),
+        Ipopt.CreateIpoptProblem(
+            1,          # n,
+            Float64[0.0],  # x_L,
+            Float64[1.0],  # x_U,
+            0,          # m,
+            Float64[],  # g_L,
+            Float64[],  # g_U,
+            -1,          # nele_jac,
+            0,          # nele_hess
+            x -> 0.0,           # eval_f,
+            (x, g) -> nothing,  # eval_g,
+            (x, g) -> nothing,  # eval_grad_f,
+            (args...) -> nothing, # eval_jac_g,
+            nothing,
+        ),
+    )
+    return
+end
+
+function test_non_ascii_options()
+    prob = Ipopt.CreateIpoptProblem(
+        1,          # n,
+        [0.0],  # x_L,
+        [1.0],  # x_U,
+        0,          # m,
+        Float64[],  # g_L,
+        Float64[],  # g_U,
+        0,          # nele_jac,
+        0,          # nele_hess
+        x -> x[1],           # eval_f,
+        (x, g) -> nothing,  # eval_g,
+        (x, g) -> (g[1] = 1.0),  # eval_grad_f,
+        (args...) -> nothing, # eval_jac_g,
+        nothing,
+    )
+    @test_throws(
+        ErrorException("IPOPT: Non ASCII parameters not supported"),
+        Ipopt.AddIpoptStrOption(prob, "ρ", "false"),
+    )
+    @test_throws(
+        ErrorException("IPOPT: Non ASCII parameters not supported"),
+        Ipopt.AddIpoptNumOption(prob, "ρ", 1.0),
+    )
+    @test_throws(
+        ErrorException("IPOPT: Non ASCII parameters not supported"),
+        Ipopt.AddIpoptIntOption(prob, "ρ", 1),
+    )
+    @test_throws(
+        ErrorException("IPOPT: Non ASCII parameters not supported"),
+        Ipopt.OpenIpoptOutputFile(prob, "ρ.txt", 1),
+    )
+    return
+end
+
+function test_SetIpoptProblemScaling()
+    prob = Ipopt.CreateIpoptProblem(
+        1,          # n,
+        [0.0],  # x_L,
+        [1.0],  # x_U,
+        0,          # m,
+        Float64[],  # g_L,
+        Float64[],  # g_U,
+        0,          # nele_jac,
+        0,          # nele_hess
+        x -> x[1],           # eval_f,
+        (x, g) -> nothing,  # eval_g,
+        (x, g) -> (g[1] = 1.0),  # eval_grad_f,
+        (args...) -> nothing, # eval_jac_g,
+        nothing,
+    )
+    Ipopt.SetIpoptProblemScaling(prob, 1.0, [0.1], C_NULL)
+    # I don't know how to test this, or to trigger the error.
+    return
+end
+
 end  # TestCWrapper
 
 runtests(TestCWrapper)
