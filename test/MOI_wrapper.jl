@@ -250,6 +250,7 @@ function test_callback()
     f = MOI.ScalarAffineFunction([MOI.ScalarAffineTerm(1.0, x)], 0.5)
     MOI.set(model, MOI.ObjectiveFunction{typeof(f)}(), f)
     x_vals = Float64[]
+    mu_vals = Float64[]
     function my_callback(
         alg_mod::Cint,
         iter_count::Cint,
@@ -263,15 +264,18 @@ function test_callback()
         alpha_pr::Float64,
         ls_trials::Cint,
     )
+        push!(mu_vals, mu)
         push!(x_vals, MOI.get(model, MOI.CallbackVariablePrimal(model), x))
         @test isapprox(obj_value, 1.0 * x_vals[end] + 0.5, atol = 1e-1)
         return iter_count < 1
     end
     MOI.set(model, Ipopt.CallbackFunction(), my_callback)
+    MOI.set(model, MOI.RawOptimizerAttribute("mu_init"), 0.5)
     MOI.optimize!(model)
     @test MOI.get(model, MOI.TerminationStatus()) == MOI.INTERRUPTED
     @test length(x_vals) == 2
     @test x_vals[1] !== x_vals[2]
+    @test first(mu_vals) == 0.5
     return
 end
 
@@ -788,6 +792,22 @@ function test_function_type_to_func()
     MOI.set(model, MOI.ObjectiveSense(), MOI.MIN_SENSE)
     MOI.set(model, MOI.ObjectiveFunction{MOI.VariableIndex}(), x)
     @test MOI.get(model, MOI.ObjectiveFunctionType()) == MOI.VariableIndex
+    return
+end
+
+function test_error_adding_option()
+    model = Ipopt.Optimizer()
+    x = MOI.add_variable(model)
+    name, value = "print_level", :zero
+    MOI.set(model, MOI.RawOptimizerAttribute(name), value)
+    @test_throws(
+        ErrorException(
+            "Unable to add option `\"$name\"` with the value " *
+            "`$value::$(typeof(value))`. The value must be a `::String`, " *
+            "`::Integer`, or `::Float64`.",
+        ),
+        MOI.optimize!(model),
+    )
     return
 end
 

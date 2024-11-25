@@ -1074,9 +1074,14 @@ function MOI.optimize!(model::Optimizer)
             AddIpoptStrOption(inner, name, value)
         elseif value isa Integer
             AddIpoptIntOption(inner, name, value)
-        else
-            @assert value isa Float64
+        elseif value isa Float64
             AddIpoptNumOption(inner, name, value)
+        else
+            error(
+                "Unable to add option `\"$name\"` with the value " *
+                "`$value::$(typeof(value))`. The value must be a `::String`, " *
+                "`::Integer`, or `::Float64`.",
+            )
         end
     end
     # Initialize the starting point, projecting variables from 0 onto their
