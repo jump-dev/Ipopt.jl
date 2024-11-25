@@ -23,6 +23,8 @@ mutable struct IpoptProblem
     intermediate::Union{Function,Nothing}
 end
 
+Base.unsafe_convert(::Type{Ptr{Cvoid}}, p::IpoptProblem) = p.ipopt_problem
+
 function _Eval_F_CB(
     n::Cint,
     x_ptr::Ptr{Float64},
@@ -226,40 +228,22 @@ function CreateIpoptProblem(
             Ptr{Cvoid},
         ),
     )
-    ipopt_problem = ccall(
-        (:CreateIpoptProblem, libipopt),
-        Ptr{Cvoid},
-        (
-            Cint,
-            Ptr{Float64},
-            Ptr{Float64},
-            Cint,
-            Ptr{Float64},
-            Ptr{Float64},
-            Cint,
-            Cint,
-            Cint,
-            Ptr{Cvoid},
-            Ptr{Cvoid},
-            Ptr{Cvoid},
-            Ptr{Cvoid},
-            Ptr{Cvoid},
-        ),
-        n,
-        x_L,
-        x_U,
-        m,
-        g_L,
-        g_U,
-        nele_jac,
-        nele_hess,
-        1,  # 1 = Fortran style indexing
-        eval_f_cb,
-        eval_g_cb,
-        eval_grad_f_cb,
-        eval_jac_g_cb,
-        eval_h_cb,
-    )
+    ipopt_problem = @ccall libipopt.CreateIpoptProblem(
+        n::Cint,
+        x_L::Ptr{Cdouble},
+        x_U::Ptr{Cdouble},
+        m::Cint,
+        g_L::Ptr{Cdouble},
+        g_U::Ptr{Cdouble},
+        nele_jac::Cint,
+        nele_hess::Cint,
+        1::Cint,  # 1 = Fortran style indexing
+        eval_f_cb::Ptr{Cvoid},
+        eval_g_cb::Ptr{Cvoid},
+        eval_grad_f_cb::Ptr{Cvoid},
+        eval_jac_g_cb::Ptr{Cvoid},
+        eval_h_cb::Ptr{Cvoid},
+    )::Ptr{Cvoid}
     if ipopt_problem == C_NULL
         if n == 0
             error(
@@ -294,12 +278,7 @@ function CreateIpoptProblem(
 end
 
 function FreeIpoptProblem(prob::IpoptProblem)
-    ccall(
-        (:FreeIpoptProblem, libipopt),
-        Cvoid,
-        (Ptr{Cvoid},),
-        prob.ipopt_problem,
-    )
+    @ccall libipopt.FreeIpoptProblem(prob::Ptr{Cvoid})::Cvoid
     return
 end
 
@@ -307,14 +286,11 @@ function AddIpoptStrOption(prob::IpoptProblem, keyword::String, value::String)
     if !(isascii(keyword) && isascii(value))
         error("IPOPT: Non ASCII parameters not supported")
     end
-    ret = ccall(
-        (:AddIpoptStrOption, libipopt),
-        Bool,
-        (Ptr{Cvoid}, Ptr{UInt8}, Ptr{UInt8}),
-        prob.ipopt_problem,
-        keyword,
-        value,
-    )
+    ret = @ccall libipopt.AddIpoptStrOption(
+        prob::Ptr{Cvoid},
+        keyword::Ptr{UInt8},
+        value::Ptr{UInt8},
+    )::Bool
     if !ret
         error("IPOPT: Couldn't set option '$keyword' to value '$value'.")
     end
@@ -325,14 +301,11 @@ function AddIpoptNumOption(prob::IpoptProblem, keyword::String, value::Float64)
     if !isascii(keyword)
         error("IPOPT: Non ASCII parameters not supported")
     end
-    ret = ccall(
-        (:AddIpoptNumOption, libipopt),
-        Bool,
-        (Ptr{Cvoid}, Ptr{UInt8}, Float64),
-        prob.ipopt_problem,
-        keyword,
-        value,
-    )
+    ret = @ccall libipopt.AddIpoptNumOption(
+        prob::Ptr{Cvoid},
+        keyword::Ptr{UInt8},
+        value::Cdouble,
+    )::Bool
     if !ret
         error("IPOPT: Couldn't set option '$keyword' to value '$value'.")
     end
@@ -343,14 +316,11 @@ function AddIpoptIntOption(prob::IpoptProblem, keyword::String, value::Integer)
     if !isascii(keyword)
         error("IPOPT: Non ASCII parameters not supported")
     end
-    ret = ccall(
-        (:AddIpoptIntOption, libipopt),
-        Bool,
-        (Ptr{Cvoid}, Ptr{UInt8}, Cint),
-        prob.ipopt_problem,
-        keyword,
-        value,
-    )
+    ret = @ccall libipopt.AddIpoptIntOption(
+        prob::Ptr{Cvoid},
+        keyword::Ptr{UInt8},
+        value::Cint,
+    )::Bool
     if !ret
         error(
             "IPOPT: Couldn't set option '$keyword' to value '$value'::Int32. " *
@@ -369,14 +339,11 @@ function OpenIpoptOutputFile(
     if !isascii(file_name)
         error("IPOPT: Non ASCII parameters not supported")
     end
-    ret = ccall(
-        (:OpenIpoptOutputFile, libipopt),
-        Bool,
-        (Ptr{Cvoid}, Ptr{UInt8}, Cint),
-        prob.ipopt_problem,
-        file_name,
-        print_level,
-    )
+    ret = @ccall libipopt.OpenIpoptOutputFile(
+        prob::Ptr{Cvoid},
+        file_name::Ptr{UInt8},
+        print_level::Cint,
+    )::Bool
     if !ret
         error("IPOPT: Couldn't open output file.")
     end
@@ -389,15 +356,12 @@ function SetIpoptProblemScaling(
     x_scaling::Union{Ptr{Cvoid},Vector{Float64}},
     g_scaling::Union{Ptr{Cvoid},Vector{Float64}},
 )
-    ret = ccall(
-        (:SetIpoptProblemScaling, libipopt),
-        Bool,
-        (Ptr{Cvoid}, Float64, Ptr{Float64}, Ptr{Float64}),
-        prob.ipopt_problem,
-        obj_scaling,
-        x_scaling,
-        g_scaling,
-    )
+    ret = @ccall libipopt.SetIpoptProblemScaling(
+        prob::Ptr{Cvoid},
+        obj_scaling::Cdouble,
+        x_scaling::Ptr{Cdouble},
+        g_scaling::Ptr{Cdouble},
+    )::Bool
     @assert ret  # The C++ code has `return true`
     return
 end
@@ -421,44 +385,28 @@ function SetIntermediateCallback(prob::IpoptProblem, intermediate::Function)
             Ptr{Cvoid},
         ),
     )
-    ret = ccall(
-        (:SetIntermediateCallback, libipopt),
-        Bool,
-        (Ptr{Cvoid}, Ptr{Cvoid}),
-        prob.ipopt_problem,
-        intermediate_cb,
-    )
+    ret = @ccall libipopt.SetIntermediateCallback(
+        prob::Ptr{Cvoid},
+        intermediate_cb::Ptr{Cvoid},
+    )::Bool
     @assert ret  # The C++ code has `return true`
     prob.intermediate = intermediate
     return
 end
 
 function IpoptSolve(prob::IpoptProblem)
-    final_objval = Ref{Cdouble}(0.0)
-    ret = ccall(
-        (:IpoptSolve, libipopt),
-        Cint,
-        (
-            Ptr{Cvoid},
-            Ptr{Float64},
-            Ptr{Float64},
-            Ptr{Float64},
-            Ptr{Float64},
-            Ptr{Float64},
-            Ptr{Float64},
-            Ptr{Cvoid},
-        ),
-        prob.ipopt_problem,
-        prob.x,
-        prob.g,
-        final_objval,
-        prob.mult_g,
-        prob.mult_x_L,
-        prob.mult_x_U,
-        pointer_from_objref(prob),
-    )
-    prob.obj_val = final_objval[]
-    prob.status = ret
+    p_objval = Ref{Cdouble}(0.0)
+    prob.status = @ccall libipopt.IpoptSolve(
+        prob::Ptr{Cvoid},
+        prob.x::Ptr{Cdouble},
+        prob.g::Ptr{Cdouble},
+        p_objval::Ptr{Cdouble},
+        prob.mult_g::Ptr{Cdouble},
+        prob.mult_x_L::Ptr{Cdouble},
+        prob.mult_x_U::Ptr{Cdouble},
+        pointer_from_objref(prob)::Ptr{Cvoid},
+    )::Cint
+    prob.obj_val = p_objval[]
     return prob.status
 end
 
@@ -473,30 +421,17 @@ function GetIpoptCurrentIterate(
     g::Union{Ptr{Cvoid},Vector{Float64}},
     lambda::Union{Ptr{Cvoid},Vector{Float64}},
 )
-    ret = ccall(
-        (:GetIpoptCurrentIterate, libipopt),
-        Bool,
-        (
-            Ptr{Cvoid},
-            Cint,
-            Cint,
-            Ptr{Float64},
-            Ptr{Float64},
-            Ptr{Float64},
-            Cint,
-            Ptr{Float64},
-            Ptr{Float64},
-        ),
-        prob.ipopt_problem,
-        scaled,
-        n,
-        x,
-        z_L,
-        z_U,
-        m,
-        g,
-        lambda,
-    )
+    ret = @ccall libipopt.GetIpoptCurrentIterate(
+        prob::Ptr{Cvoid},
+        scaled::Bool,
+        n::Cint,
+        x::Ptr{Cdouble},
+        z_L::Ptr{Cdouble},
+        z_U::Ptr{Cdouble},
+        m::Cint,
+        g::Ptr{Cdouble},
+        lambda::Ptr{Cdouble},
+    )::Bool
     if !ret
         error("IPOPT: Something went wrong getting the current iterate.")
     end
@@ -516,34 +451,19 @@ function GetIpoptCurrentViolations(
     nlp_constraint_violation::Union{Ptr{Cvoid},Vector{Float64}},
     compl_g::Union{Ptr{Cvoid},Vector{Float64}},
 )
-    ret = ccall(
-        (:GetIpoptCurrentViolations, libipopt),
-        Bool,
-        (
-            Ptr{Cvoid},
-            Cint,
-            Cint,
-            Ptr{Float64},
-            Ptr{Float64},
-            Ptr{Float64},
-            Ptr{Float64},
-            Ptr{Float64},
-            Cint,
-            Ptr{Float64},
-            Ptr{Float64},
-        ),
-        prob.ipopt_problem,
-        scaled,
-        n,
-        x_L_violation,
-        x_U_violation,
-        compl_x_L,
-        compl_x_U,
-        grad_lag_x,
-        m,
-        nlp_constraint_violation,
-        compl_g,
-    )
+    ret = @ccall libipopt.GetIpoptCurrentViolations(
+        prob::Ptr{Cvoid},
+        scaled::Bool,
+        n::Cint,
+        x_L_violation::Ptr{Cdouble},
+        x_U_violation::Ptr{Cdouble},
+        compl_x_L::Ptr{Cdouble},
+        compl_x_U::Ptr{Cdouble},
+        grad_lag_x::Ptr{Cdouble},
+        m::Cint,
+        nlp_constraint_violation::Ptr{Cdouble},
+        compl_g::Ptr{Cdouble},
+    )::Bool
     if !ret
         error("IPOPT: Something went wrong getting the current violations.")
     end
