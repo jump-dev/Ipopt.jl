@@ -8,6 +8,8 @@ module TestCWrapper
 using Ipopt
 using Test
 
+import Ipopt_jll
+
 function test_hs071()
     # hs071
     # min x1 * x4 * (x1 + x2 + x3) + x3
@@ -335,6 +337,123 @@ function test_SetIpoptProblemScaling()
     )
     Ipopt.SetIpoptProblemScaling(prob, 1.0, [0.1], C_NULL)
     # I don't know how to test this, or to trigger the error.
+    return
+end
+
+function test_OpenIpoptOutputFile()
+    prob = Ipopt.CreateIpoptProblem(
+        1,          # n,
+        [0.0],  # x_L,
+        [1.0],  # x_U,
+        0,          # m,
+        Float64[],  # g_L,
+        Float64[],  # g_U,
+        0,          # nele_jac,
+        0,          # nele_hess
+        x -> x[1],           # eval_f,
+        (x, g) -> nothing,  # eval_g,
+        (x, g) -> (g[1] = 1.0),  # eval_grad_f,
+        (args...) -> nothing, # eval_jac_g,
+        nothing,
+    )
+    @test_throws(
+        ErrorException("IPOPT: Couldn't open output file."),
+        Ipopt.OpenIpoptOutputFile(prob, "/illegal/bar.txt", 1),
+    )
+    return
+end
+
+function _ipopt_version()
+    io = IOBuffer()
+    run(pipeline(`$(Ipopt_jll.amplexe()) -v`; stdout = io))
+    seekstart(io)
+    version = read(io, String)
+    m = match(r"Ipopt ([0-9]+.[0-9]+.[0-9]+)", version)
+    if m === nothing
+        return v"0.0.0"  # Something went wrong
+    end
+    return VersionNumber(m[1])
+end
+
+function test_GetIpoptCurrentIterate()
+    if _ipopt_version() < v"3.14.12"
+        return  # Bug fixed in 3.14.12
+    end
+    prob = Ipopt.CreateIpoptProblem(
+        1,          # n,
+        [0.0],  # x_L,
+        [1.0],  # x_U,
+        0,          # m,
+        Float64[],  # g_L,
+        Float64[],  # g_U,
+        0,          # nele_jac,
+        0,          # nele_hess
+        x -> x[1],           # eval_f,
+        (x, g) -> nothing,  # eval_g,
+        (x, g) -> (g[1] = 1.0),  # eval_grad_f,
+        (args...) -> nothing, # eval_jac_g,
+        nothing,
+    )
+    x, z_L, z_U = zeros(1), zeros(1), zeros(1)
+    @test_throws(
+        ErrorException(
+            "IPOPT: Something went wrong getting the current iterate.",
+        ),
+        Ipopt.GetIpoptCurrentIterate(
+            prob,
+            false,
+            1,
+            x,
+            z_L,
+            z_U,
+            0,
+            Float64[],
+            Float64[],
+        ),
+    )
+    return
+end
+
+function test_GetIpoptCurrentViolations()
+    if _ipopt_version() < v"3.14.12"
+        return  # Bug fixed in 3.14.12
+    end
+    prob = Ipopt.CreateIpoptProblem(
+        1,          # n,
+        [0.0],  # x_L,
+        [1.0],  # x_U,
+        0,          # m,
+        Float64[],  # g_L,
+        Float64[],  # g_U,
+        0,          # nele_jac,
+        0,          # nele_hess
+        x -> x[1],           # eval_f,
+        (x, g) -> nothing,  # eval_g,
+        (x, g) -> (g[1] = 1.0),  # eval_grad_f,
+        (args...) -> nothing, # eval_jac_g,
+        nothing,
+    )
+    x_L, x_U = zeros(1), zeros(1)
+    comp_x_L, comp_x_U = zeros(1), zeros(1)
+    grad_lag_x = zeros(1)
+    @test_throws(
+        ErrorException(
+            "IPOPT: Something went wrong getting the current violations.",
+        ),
+        Ipopt.GetIpoptCurrentViolations(
+            prob,
+            false,
+            1,
+            x_L,
+            x_U,
+            comp_x_L,
+            comp_x_U,
+            grad_lag_x,
+            0,
+            Float64[],
+            Float64[],
+        ),
+    )
     return
 end
 
