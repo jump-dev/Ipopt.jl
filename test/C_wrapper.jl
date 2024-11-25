@@ -369,6 +369,9 @@ function _ipopt_version()
     seekstart(io)
     version = read(io, String)
     m = match(r"Ipopt ([0-9]+.[0-9]+.[0-9]+)", version)
+    if m === nothing
+        return v"0.0.0"  # Something went wrong
+    end
     return VersionNumber(m[1])
 end
 
