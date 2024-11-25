@@ -791,6 +791,22 @@ function test_function_type_to_func()
     return
 end
 
+function test_error_adding_option()
+    model = Ipopt.Optimizer()
+    x = MOI.add_variable(model)
+    name, value = "print_level", :zero
+    MOI.set(model, MOI.RawOptimizerAttribute(name), value)
+    @test_throws(
+        ErrorException(
+            "Unable to add option `\"$name\"` with the value " *
+            "`$value::$(typeof(value))`. The value must be a `::String`, " *
+            "`::Integer`, or `::Float64`.",
+        ),
+        MOI.optimize!(model),
+    )
+    return
+end
+
 end  # module TestMOIWrapper
 
 TestMOIWrapper.runtests()
