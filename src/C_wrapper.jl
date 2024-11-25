@@ -309,13 +309,13 @@ function AddIpoptStrOption(prob::IpoptProblem, keyword::String, value::String)
     end
     ret = ccall(
         (:AddIpoptStrOption, libipopt),
-        Cint,
+        Bool,
         (Ptr{Cvoid}, Ptr{UInt8}, Ptr{UInt8}),
         prob.ipopt_problem,
         keyword,
         value,
     )
-    if ret == 0
+    if !ret
         error("IPOPT: Couldn't set option '$keyword' to value '$value'.")
     end
     return
@@ -327,13 +327,13 @@ function AddIpoptNumOption(prob::IpoptProblem, keyword::String, value::Float64)
     end
     ret = ccall(
         (:AddIpoptNumOption, libipopt),
-        Cint,
+        Bool,
         (Ptr{Cvoid}, Ptr{UInt8}, Float64),
         prob.ipopt_problem,
         keyword,
         value,
     )
-    if ret == 0
+    if !ret
         error("IPOPT: Couldn't set option '$keyword' to value '$value'.")
     end
     return
@@ -345,13 +345,13 @@ function AddIpoptIntOption(prob::IpoptProblem, keyword::String, value::Integer)
     end
     ret = ccall(
         (:AddIpoptIntOption, libipopt),
-        Cint,
+        Bool,
         (Ptr{Cvoid}, Ptr{UInt8}, Cint),
         prob.ipopt_problem,
         keyword,
         value,
     )
-    if ret == 0
+    if !ret
         error(
             "IPOPT: Couldn't set option '$keyword' to value '$value'::Int32. " *
             "Note that `Num` options need to be explictly passed as " *
@@ -371,13 +371,13 @@ function OpenIpoptOutputFile(
     end
     ret = ccall(
         (:OpenIpoptOutputFile, libipopt),
-        Cint,
+        Bool,
         (Ptr{Cvoid}, Ptr{UInt8}, Cint),
         prob.ipopt_problem,
         file_name,
         print_level,
     )
-    if ret == 0
+    if !ret
         error("IPOPT: Couldn't open output file.")
     end
     return
@@ -391,14 +391,14 @@ function SetIpoptProblemScaling(
 )
     ret = ccall(
         (:SetIpoptProblemScaling, libipopt),
-        Cint,
+        Bool,
         (Ptr{Cvoid}, Float64, Ptr{Float64}, Ptr{Float64}),
         prob.ipopt_problem,
         obj_scaling,
         x_scaling,
         g_scaling,
     )
-    @assert ret == 1  # The C++ code has `return true`
+    @assert ret  # The C++ code has `return true`
     return
 end
 
@@ -423,13 +423,12 @@ function SetIntermediateCallback(prob::IpoptProblem, intermediate::Function)
     )
     ret = ccall(
         (:SetIntermediateCallback, libipopt),
-        Cint,
+        Bool,
         (Ptr{Cvoid}, Ptr{Cvoid}),
         prob.ipopt_problem,
         intermediate_cb,
     )
-    @show ret
-    @assert ret == 1  # The C++ code has `return true`
+    @assert ret  # The C++ code has `return true`
     prob.intermediate = intermediate
     return
 end
@@ -476,7 +475,7 @@ function GetIpoptCurrentIterate(
 )
     ret = ccall(
         (:GetIpoptCurrentIterate, libipopt),
-        Cint,
+        Bool,
         (
             Ptr{Cvoid},
             Cint,
@@ -498,7 +497,7 @@ function GetIpoptCurrentIterate(
         g,
         lambda,
     )
-    if ret == 0
+    if !ret
         error("IPOPT: Something went wrong getting the current iterate.")
     end
     return
@@ -519,7 +518,7 @@ function GetIpoptCurrentViolations(
 )
     ret = ccall(
         (:GetIpoptCurrentViolations, libipopt),
-        Cint,
+        Bool,
         (
             Ptr{Cvoid},
             Cint,
@@ -545,7 +544,7 @@ function GetIpoptCurrentViolations(
         nlp_constraint_violation,
         compl_g,
     )
-    if ret == 0
+    if !ret
         error("IPOPT: Something went wrong getting the current violations.")
     end
     return
