@@ -457,6 +457,27 @@ function test_GetIpoptCurrentViolations()
     return
 end
 
+function test_Hessian_failure()
+    prob = Ipopt.CreateIpoptProblem(
+        1,          # n,
+        [0.0],  # x_L,
+        [1.0],  # x_U,
+        0,          # m,
+        Float64[],  # g_L,
+        Float64[],  # g_U,
+        0,          # nele_jac,
+        1,          # nele_hess
+        x -> x[1],           # eval_f,
+        (x, g) -> nothing,  # eval_g,
+        (x, g) -> (g[1] = 1.0),  # eval_grad_f,
+        (args...) -> nothing, # eval_jac_g,
+        nothing,
+    )
+    prob.x = [0.0]
+    @test Ipopt.IpoptSolve(prob) == -12  # InvalidOption
+    return
+end
+
 end  # TestCWrapper
 
 runtests(TestCWrapper)
