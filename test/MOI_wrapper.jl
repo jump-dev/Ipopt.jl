@@ -551,7 +551,7 @@ function test_parameter_scalar_affine_objective()
     return
 end
 
-function test_parameter_scalar_affine_objective()
+function test_parameter_variable_index_objective()
     model = Ipopt.Optimizer()
     MOI.set(model, MOI.Silent(), true)
     x = MOI.add_variable(model)
