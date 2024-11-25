@@ -338,6 +338,105 @@ function test_SetIpoptProblemScaling()
     return
 end
 
+function test_OpenIpoptOutputFile()
+    prob = Ipopt.CreateIpoptProblem(
+        1,          # n,
+        [0.0],  # x_L,
+        [1.0],  # x_U,
+        0,          # m,
+        Float64[],  # g_L,
+        Float64[],  # g_U,
+        0,          # nele_jac,
+        0,          # nele_hess
+        x -> x[1],           # eval_f,
+        (x, g) -> nothing,  # eval_g,
+        (x, g) -> (g[1] = 1.0),  # eval_grad_f,
+        (args...) -> nothing, # eval_jac_g,
+        nothing,
+    )
+    @test_throws(
+        ErrorException("IPOPT: Couldn't open output file."),
+        Ipopt.OpenIpoptOutputFile(prob, "/illegal/bar.txt", 1),
+    )
+    return
+end
+
+function test_GetIpoptCurrentIterate()
+    prob = Ipopt.CreateIpoptProblem(
+        1,          # n,
+        [0.0],  # x_L,
+        [1.0],  # x_U,
+        0,          # m,
+        Float64[],  # g_L,
+        Float64[],  # g_U,
+        0,          # nele_jac,
+        0,          # nele_hess
+        x -> x[1],           # eval_f,
+        (x, g) -> nothing,  # eval_g,
+        (x, g) -> (g[1] = 1.0),  # eval_grad_f,
+        (args...) -> nothing, # eval_jac_g,
+        nothing,
+    )
+    x, z_L, z_U = zeros(1), zeros(1), zeros(1)
+    @test_throws(
+        ErrorException(
+            "IPOPT: Something went wrong getting the current iterate.",
+        ),
+        Ipopt.GetIpoptCurrentIterate(
+            prob,
+            false,
+            1,
+            x,
+            z_L,
+            z_U,
+            0,
+            Float64[],
+            Float64[],
+        ),
+    )
+    return
+end
+
+function test_GetIpoptCurrentViolations()
+    prob = Ipopt.CreateIpoptProblem(
+        1,          # n,
+        [0.0],  # x_L,
+        [1.0],  # x_U,
+        0,          # m,
+        Float64[],  # g_L,
+        Float64[],  # g_U,
+        0,          # nele_jac,
+        0,          # nele_hess
+        x -> x[1],           # eval_f,
+        (x, g) -> nothing,  # eval_g,
+        (x, g) -> (g[1] = 1.0),  # eval_grad_f,
+        (args...) -> nothing, # eval_jac_g,
+        nothing,
+    )
+    x_L, x_U = zeros(1), zeros(1)
+    comp_x_L, comp_x_U = zeros(1), zeros(1)
+    grad_lag_x = zeros(1)
+    @test_throws(
+        ErrorException(
+            "IPOPT: Something went wrong getting the current violations.",
+        ),
+        Ipopt.GetIpoptCurrentViolations(
+            prob,
+            false,
+            1,
+            x_L,
+            x_U,
+            comp_x_L,
+            comp_x_U,
+            grad_lag_x,
+            0,
+            Float64[],
+            Float64[],
+        ),
+    )
+    return
+end
+
 end  # TestCWrapper
 
 runtests(TestCWrapper)

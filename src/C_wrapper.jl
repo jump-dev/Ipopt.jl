@@ -398,9 +398,7 @@ function SetIpoptProblemScaling(
         x_scaling,
         g_scaling,
     )
-    if ret == 0
-        error("IPOPT: Error setting problem scaling.")
-    end
+    @assert ret == 1  # The C++ code has `return true`
     return
 end
 
@@ -430,9 +428,7 @@ function SetIntermediateCallback(prob::IpoptProblem, intermediate::Function)
         prob.ipopt_problem,
         intermediate_cb,
     )
-    if ret == 0
-        error("IPOPT: Something went wrong setting the intermediate callback.")
-    end
+    @assert ret == 1  # The C++ code has `return true`
     prob.intermediate = intermediate
     return
 end
