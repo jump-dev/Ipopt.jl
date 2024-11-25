@@ -8,6 +8,8 @@ module TestCWrapper
 using Ipopt
 using Test
 
+import Ipopt_jll
+
 function test_hs071()
     # hs071
     # min x1 * x4 * (x1 + x2 + x3) + x3
