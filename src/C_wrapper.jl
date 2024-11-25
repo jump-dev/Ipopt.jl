@@ -428,6 +428,7 @@ function SetIntermediateCallback(prob::IpoptProblem, intermediate::Function)
         prob.ipopt_problem,
         intermediate_cb,
     )
+    @show ret
     @assert ret == 1  # The C++ code has `return true`
     prob.intermediate = intermediate
     return
