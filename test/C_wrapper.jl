@@ -361,7 +361,19 @@ function test_OpenIpoptOutputFile()
     return
 end
 
+function _ipopt_version()
+    io = IOBuffer()
+    run(pipeline(`$(Ipopt_jll.amplexe()) -v`; stdout = io))
+    seekstart(io)
+    version = read(io, String)
+    m = match(r"Ipopt ([0-9]+.[0-9]+.[0-9]+)", version)
+    return VersionNumber(m[1])
+end
+
 function test_GetIpoptCurrentIterate()
+    if _ipopt_version() < v"3.14.12"
+        return  # Bug fixed in 3.14.12
+    end
     prob = Ipopt.CreateIpoptProblem(
         1,          # n,
         [0.0],  # x_L,
@@ -398,6 +410,9 @@ function test_GetIpoptCurrentIterate()
 end
 
 function test_GetIpoptCurrentViolations()
+    if _ipopt_version() < v"3.14.12"
+        return  # Bug fixed in 3.14.12
+    end
     prob = Ipopt.CreateIpoptProblem(
         1,          # n,
         [0.0],  # x_L,
