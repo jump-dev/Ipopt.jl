@@ -253,7 +253,8 @@ To improve performance, Ipopt supports a number of linear solvers.
 
 ### HSL
 
-Obtain a license and download `HSL_jll.jl` from [https://licences.stfc.ac.uk/product/libhsl](https://licences.stfc.ac.uk/product/libhsl).
+Obtain a license and download `HSL_jll.jl` from [
+https://licences.stfc.ac.uk/products/Software/HSL/LibHSL](https://licences.stfc.ac.uk/products/Software/HSL/LibHSL).
 
 There are two versions available: LBT and OpenBLAS.
 LBT is the recommended option for Julia ≥ v1.9.
