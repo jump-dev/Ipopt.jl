@@ -19,6 +19,10 @@ jobs:
         os: [ubuntu-latest, macOS-latest, windows-latest]
         arch: [x64]
         include:
+          # Test again linux ARM
+          - version: '1'
+            os: ubuntu-24.04-arm
+            arch: arm64
           # Also test against 32-bit Linux on LTS.
           - version: '1.6'
             os: ubuntu-latest
