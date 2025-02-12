@@ -631,12 +631,15 @@ end
 function test_ad_backend()
     model = Ipopt.Optimizer()
     MOI.set(model, MOI.Silent(), true)
+    x = MOI.add_variable(model)
     attr = MOI.AutomaticDifferentiationBackend()
     @test MOI.supports(model, attr)
     @test MOI.get(model, attr) == MOI.Nonlinear.SparseReverseMode()
+    MOI.optimize!(model)
+    @test model.inner isa Ipopt.IpoptProblem
     MOI.set(model, attr, MOI.Nonlinear.ExprGraphOnly())
     @test MOI.get(model, attr) == MOI.Nonlinear.ExprGraphOnly()
-    x = MOI.add_variable(model)
+    @test model.inner === nothing
     f = MOI.ScalarNonlinearFunction(:^, Any[x, 4])
     MOI.set(model, MOI.ObjectiveSense(), MOI.MIN_SENSE)
     MOI.set(model, MOI.ObjectiveFunction{typeof(f)}(), f)

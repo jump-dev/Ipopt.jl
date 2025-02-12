@@ -934,6 +934,10 @@ function MOI.set(
     ::MOI.AutomaticDifferentiationBackend,
     backend::MOI.Nonlinear.AbstractAutomaticDifferentiation,
 )
+    # Setting the backend will invalidate the model if it is different. But we
+    # don't requrire == for `::MOI.Nonlinear.AutomaticDifferentiationBackend` so
+    # act defensive and invalidate regardless.
+    model.inner = nothing
     model.ad_backend = backend
     return
 end
