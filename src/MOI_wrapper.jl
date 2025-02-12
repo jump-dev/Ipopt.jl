@@ -893,7 +893,7 @@ function MOI.jacobian_structure(model::Optimizer)
     if length(model.nlp_data.constraint_bounds) > 0
         J_nlp = MOI.jacobian_structure(
             model.nlp_data.evaluator,
-        )::Vector{Tuple{Int,Int}}
+        )::Vector{Tuple{Int64,Int64}}
         for (row, col) in J_nlp
             push!(J, (row + offset, col))
         end
