@@ -858,7 +858,7 @@ function MOI.eval_objective(model::Optimizer, x)
     if model.sense == MOI.FEASIBILITY_SENSE
         return 0.0
     elseif model.nlp_data.has_objective
-        return MOI.eval_objective(model.nlp_data.evaluator, x)
+        return MOI.eval_objective(model.nlp_data.evaluator, x)::Float64
     end
     return MOI.eval_objective(model.qp_data, x)
 end
@@ -891,7 +891,10 @@ function MOI.jacobian_structure(model::Optimizer)
     J = MOI.jacobian_structure(model.qp_data)
     offset = length(model.qp_data)
     if length(model.nlp_data.constraint_bounds) > 0
-        for (row, col) in MOI.jacobian_structure(model.nlp_data.evaluator)
+        J_nlp = MOI.jacobian_structure(
+            model.nlp_data.evaluator,
+        )::Vector{Tuple{Int64,Int64}}
+        for (row, col) in J_nlp
             push!(J, (row + offset, col))
         end
     end
