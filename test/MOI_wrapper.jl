@@ -814,6 +814,30 @@ function test_error_adding_option()
     return
 end
 
+function test_ctrl_c()
+    model = Ipopt.Optimizer()
+    MOI.set(model, MOI.RawOptimizerAttribute("print_level"), 0)
+    x = MOI.add_variable(model)
+    MOI.add_constraint(model, x, MOI.GreaterThan(1.0))
+    my_callback = (args...) -> throw(InterruptException())
+    MOI.set(model, Ipopt.CallbackFunction(), my_callback)
+    MOI.optimize!(model)
+    @test MOI.get(model, MOI.TerminationStatus()) == MOI.INTERRUPTED
+    @test MOI.get(model, MOI.RawStatusString()) == "User_Requested_Stop"
+    return
+end
+
+function test_other_error()
+    model = Ipopt.Optimizer()
+    MOI.set(model, MOI.RawOptimizerAttribute("print_level"), 0)
+    x = MOI.add_variable(model)
+    MOI.add_constraint(model, x, MOI.GreaterThan(1.0))
+    my_callback = (args...) -> error("ABC")
+    MOI.set(model, Ipopt.CallbackFunction(), my_callback)
+    @test_throws ErrorException("ABC") MOI.optimize!(model)
+    return
+end
+
 end  # module TestMOIWrapper
 
 TestMOIWrapper.runtests()

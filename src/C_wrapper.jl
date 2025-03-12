@@ -144,23 +144,30 @@ function _Intermediate_CB(
     alpha_pr::Float64,
     ls_trials::Cint,
     user_data::Ptr{Cvoid},
-)
-    prob = unsafe_pointer_to_objref(user_data)::IpoptProblem
-    ret = prob.intermediate(
-        alg_mod,
-        iter_count,
-        obj_value,
-        inf_pr,
-        inf_du,
-        mu,
-        d_norm,
-        regularization_size,
-        alpha_du,
-        alpha_pr,
-        ls_trials,
-    )
-    # Return TRUE if the optimization should continue.
-    return ret ? Cint(1) : Cint(0)
+)::Cint
+    try
+        return reenable_sigint() do
+            prob = unsafe_pointer_to_objref(user_data)::IpoptProblem
+            return prob.intermediate(
+                alg_mod,
+                iter_count,
+                obj_value,
+                inf_pr,
+                inf_du,
+                mu,
+                d_norm,
+                regularization_size,
+                alpha_du,
+                alpha_pr,
+                ls_trials,
+            )
+        end
+    catch err
+        if !(err isa InterruptException)
+            rethrow(err)
+        end
+        return false  # optimization should stop
+    end
 end
 
 function CreateIpoptProblem(
@@ -396,16 +403,19 @@ end
 
 function IpoptSolve(prob::IpoptProblem)
     p_objval = Ref{Cdouble}(0.0)
-    prob.status = @ccall libipopt.IpoptSolve(
-        prob::Ptr{Cvoid},
-        prob.x::Ptr{Cdouble},
-        prob.g::Ptr{Cdouble},
-        p_objval::Ptr{Cdouble},
-        prob.mult_g::Ptr{Cdouble},
-        prob.mult_x_L::Ptr{Cdouble},
-        prob.mult_x_U::Ptr{Cdouble},
-        pointer_from_objref(prob)::Ptr{Cvoid},
-    )::Cint
+    disable_sigint() do
+        prob.status = @ccall libipopt.IpoptSolve(
+            prob::Ptr{Cvoid},
+            prob.x::Ptr{Cdouble},
+            prob.g::Ptr{Cdouble},
+            p_objval::Ptr{Cdouble},
+            prob.mult_g::Ptr{Cdouble},
+            prob.mult_x_L::Ptr{Cdouble},
+            prob.mult_x_U::Ptr{Cdouble},
+            pointer_from_objref(prob)::Ptr{Cvoid},
+        )::Cint
+        return
+    end
     prob.obj_val = p_objval[]
     return prob.status
 end
