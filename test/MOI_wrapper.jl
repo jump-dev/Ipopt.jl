@@ -838,6 +838,21 @@ function test_other_error()
     return
 end
 
+function test_scalar_nonlinear_function_attributes()
+    model = Ipopt.Optimizer()
+    x = MOI.add_variable(model)
+    F, S = MOI.ScalarNonlinearFunction, MOI.LessThan{Float64}
+    @test isempty(MOI.get(model, MOI.ListOfConstraintTypesPresent()))
+    @test isempty(MOI.get(model, MOI.ListOfConstraintIndices{F,S}()))
+    @test MOI.get(model, MOI.NumberOfConstraints{F,S}()) == 0
+    f = MOI.ScalarNonlinearFunction(:log, Any[x])
+    c = MOI.add_constraint(model, f, MOI.LessThan(1.0))
+    @test MOI.get(model, MOI.ListOfConstraintIndices{F,S}()) == [c]
+    @test MOI.get(model, MOI.NumberOfConstraints{F,S}()) == 1
+    @test (F, S) in MOI.get(model, MOI.ListOfConstraintTypesPresent())
+    return
+end
+
 end  # module TestMOIWrapper
 
 TestMOIWrapper.runtests()

@@ -229,9 +229,22 @@ end
 
 ### MOI.ListOfConstraintTypesPresent
 
+_add_scalar_nonlinear_constraints(ret, ::Nothing) = nothing
+
+function _add_scalar_nonlinear_constraints(ret, nlp_model::MOI.Nonlinear.Model)
+    for v in values(nlp_model.constraints)
+        F, S = MOI.ScalarNonlinearFunction, typeof(v.set)
+        if !((F, S) in ret)
+            push!(ret, (F, S))
+        end
+    end
+    return
+end
+
 function MOI.get(model::Optimizer, attr::MOI.ListOfConstraintTypesPresent)
     ret = MOI.get(model.variables, attr)
     append!(ret, MOI.get(model.qp_data, attr))
+    _add_scalar_nonlinear_constraints(ret, model.nlp_model)
     return ret
 end
 
@@ -502,6 +515,32 @@ function MOI.is_valid(
     end
     index = MOI.Nonlinear.ConstraintIndex(ci.value)
     return MOI.is_valid(model.nlp_model, index)
+end
+
+function MOI.get(
+    model::Optimizer,
+    attr::MOI.ListOfConstraintIndices{F,S},
+) where {F<:MOI.ScalarNonlinearFunction,S<:_SETS}
+    ret = MOI.ConstraintIndex{F,S}[]
+    if model.nlp_model === nothing
+        return ret
+    end
+    for (k, v) in model.nlp_model.constraints
+        if v.set isa S
+            push!(ret, MOI.ConstraintIndex{F,S}(k.value))
+        end
+    end
+    return ret
+end
+
+function MOI.get(
+    model::Optimizer,
+    attr::MOI.NumberOfConstraints{F,S},
+) where {F<:MOI.ScalarNonlinearFunction,S<:_SETS}
+    if model.nlp_model === nothing
+        return 0
+    end
+    return count(v.set isa S for v in values(model.nlp_model.constraints))
 end
 
 function MOI.add_constraint(
