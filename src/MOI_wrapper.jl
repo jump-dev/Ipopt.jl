@@ -772,6 +772,7 @@ function MOI.add_constraint(
     f::F,
     s::S,
 ) where {F<:MOI.VectorOfVariables,S<:VectorNonlinearOracle}
+    model.inner = nothing
     push!(model.vector_nonlinear_oracle_constraints, (f, s))
     n = length(model.vector_nonlinear_oracle_constraints)
     return MOI.ConstraintIndex{F,S}(n)

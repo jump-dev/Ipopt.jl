@@ -880,16 +880,20 @@ function test_vector_nonlinear_oracle()
     @test MOI.dimension(set) == 5
     @test MOI.copy(set) === set
     model = Ipopt.Optimizer()
+    MOI.set(model, MOI.Silent(), true)
     x = MOI.add_variables(model, 3)
     MOI.add_constraints.(model, x, MOI.EqualTo.(1.0:3.0))
     y = MOI.add_variables(model, 2)
+    MOI.optimize!(model)
     f = MOI.VectorOfVariables([x; y])
     F, S = MOI.VectorOfVariables, Ipopt.VectorNonlinearOracle
     @test MOI.supports_constraint(model, F, S)
     @test !((F, S) in MOI.get(model, MOI.ListOfConstraintTypesPresent()))
     @test isempty(MOI.get(model, MOI.ListOfConstraintIndices{F,S}()))
     @test MOI.get(model, MOI.NumberOfConstraints{F,S}()) == 0
+    @test model.inner !== nothing
     c = MOI.add_constraint(model, f, set)
+    @test model.inner === nothing
     @test MOI.is_valid(model, c)
     @test !MOI.is_valid(model, typeof(c)(c.value - 1))
     @test !MOI.is_valid(model, typeof(c)(c.value + 1))
