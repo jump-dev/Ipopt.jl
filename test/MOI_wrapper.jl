@@ -853,6 +853,56 @@ function test_scalar_nonlinear_function_attributes()
     return
 end
 
+function test_vector_nonlinear_oracle()
+    set = Ipopt.VectorNonlinearOracle(;
+        input_dimension = 3,
+        output_dimension = 2,
+        f = (g, x) -> begin
+            g[1] = x[1]^2
+            g[2] = x[2]^2 + x[3]^3
+            return
+        end,
+        jacobian_structure = [(1, 1), (2, 2), (2, 3)],
+        jacobian = (J, x) -> begin
+            J[1] = 2 * x[1]
+            J[2] = 2 * x[2]
+            J[3] = 3 * x[3]^2
+            return
+        end,
+        hessian_lagrangian_structure = [(1, 1), (2, 2), (3, 3)],
+        hessian_lagrangian = (H, x, u) -> begin
+            H[1] = 2 * u[1]
+            H[2] = 2 * u[2]
+            H[3] = 6 * x[3] * u[2]
+            return
+        end,
+    )
+    @test MOI.dimension(set) == 5
+    @test MOI.copy(set) === set
+    model = Ipopt.Optimizer()
+    x = MOI.add_variables(model, 3)
+    MOI.add_constraints.(model, x, MOI.EqualTo.(1.0:3.0))
+    y = MOI.add_variables(model, 2)
+    f = MOI.VectorOfVariables([x; y])
+    F, S = MOI.VectorOfVariables, Ipopt.VectorNonlinearOracle
+    @test MOI.supports_constraint(model, F, S)
+    @test !((F, S) in MOI.get(model, MOI.ListOfConstraintTypesPresent()))
+    @test isempty(MOI.get(model, MOI.ListOfConstraintIndices{F,S}()))
+    @test MOI.get(model, MOI.NumberOfConstraints{F,S}()) == 0
+    c = MOI.add_constraint(model, f, set)
+    @test MOI.is_valid(model, c)
+    @test !MOI.is_valid(model, typeof(c)(c.value - 1))
+    @test !MOI.is_valid(model, typeof(c)(c.value + 1))
+    @test (F, S) in MOI.get(model, MOI.ListOfConstraintTypesPresent())
+    @test MOI.get(model, MOI.ListOfConstraintIndices{F,S}()) == [c]
+    @test MOI.get(model, MOI.NumberOfConstraints{F,S}()) == 1
+    MOI.optimize!(model)
+    x_v = MOI.get.(model, MOI.VariablePrimal(), x)
+    y_v = MOI.get.(model, MOI.VariablePrimal(), y)
+    @test isapprox(y_v, [x_v[1]^2, x_v[2]^2 + x_v[3]^3], atol = 1e-5)
+    return
+end
+
 end  # module TestMOIWrapper
 
 TestMOIWrapper.runtests()
