@@ -1572,7 +1572,11 @@ function row(
     model::Optimizer,
     ci::MOI.ConstraintIndex{MOI.ScalarNonlinearFunction},
 )
-    return length(model.qp_data) + ci.value
+    offset = length(model.qp_data)
+    for v in values(model.vector_nonlinear_oracle_constraints)
+        offset += v.output_dimension
+    end
+    return offset + ci.value
 end
 
 function MOI.get(
