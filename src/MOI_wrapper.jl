@@ -783,7 +783,7 @@ function row(
     ci::MOI.ConstraintIndex{F,S},
 ) where {F<:MOI.VectorOfVariables,S<:VectorNonlinearOracle}
     offset = length(model.qp_data)
-    for i in 1:(ci.value - 1)
+    for i in 1:(ci.value-1)
         _, s = model.vector_nonlinear_oracle_constraints[i]
         offset += s.output_dimension
     end
@@ -818,8 +818,9 @@ function MOI.get(
     _eval_constraint_jacobian(J_val, model.inner.x, 1, f, s)
     dual = zeros(MOI.dimension(s))
     # dual = λ' * J(x)
-    for ((i, j), k) in zip(J, J_val)
-        dual[j] += sign * k * λ[i]
+    col_to_index = Dict(x.value => j for (j, x) in enumerate(f.variables))
+    for ((row, col), J_rc) in zip(J, J_val)
+        dual[col_to_index[col]] += sign * J_rc * λ[row]
     end
     return dual
 end
