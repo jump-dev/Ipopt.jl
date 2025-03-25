@@ -998,7 +998,7 @@ function test_vector_nonlinear_oracle_optimization()
     c = MOI.add_constraint(model, f, set)
     log_x = MOI.ScalarNonlinearFunction(:log, Any[x[1]])
     log_x_minus_t = MOI.ScalarNonlinearFunction(:-, Any[log_x, t])
-    MOI.add_constraint(model, log_x_minus_t, MOI.GreaterThan(0.0))
+    c_snf = MOI.add_constraint(model, log_x_minus_t, MOI.GreaterThan(0.0))
     MOI.set(model, MOI.ObjectiveSense(), MOI.MAX_SENSE)
     F = MOI.ScalarAffineFunction{Float64}
     MOI.set(model, MOI.ObjectiveFunction{F}(), 1.0 * t)
@@ -1016,6 +1016,8 @@ function test_vector_nonlinear_oracle_optimization()
     @test ≈(c_dual, [-sqrt(2), 0.0, 0.5, -1 / sqrt(2)]; atol)
     @test ≈(MOI.get(model, MOI.ConstraintDual(), c_x3), -0.5; atol)
     @test ≈(MOI.get(model, MOI.ConstraintDual(), c_x4), 1 / sqrt(2); atol)
+    @test ≈(MOI.get(model, MOI.ConstraintPrimal(), c_snf), 0.0; atol)
+    @test ≈(MOI.get(model, MOI.ConstraintDual(), c_snf), 1.0; atol)
     return
 end
 
@@ -1054,7 +1056,7 @@ function test_vector_nonlinear_oracle_optimization_min_sense()
     c = MOI.add_constraint(model, f, set)
     log_x = MOI.ScalarNonlinearFunction(:log, Any[x[1]])
     log_x_minus_t = MOI.ScalarNonlinearFunction(:-, Any[log_x, t])
-    MOI.add_constraint(model, log_x_minus_t, MOI.GreaterThan(0.0))
+    c_snf = MOI.add_constraint(model, log_x_minus_t, MOI.GreaterThan(0.0))
     MOI.set(model, MOI.ObjectiveSense(), MOI.MIN_SENSE)
     F = MOI.ScalarAffineFunction{Float64}
     MOI.set(model, MOI.ObjectiveFunction{F}(), -1.0 * t)
@@ -1072,6 +1074,8 @@ function test_vector_nonlinear_oracle_optimization_min_sense()
     @test ≈(c_dual, [-sqrt(2), 0.0, 0.5, -1 / sqrt(2)]; atol)
     @test ≈(MOI.get(model, MOI.ConstraintDual(), c_x3), -0.5; atol)
     @test ≈(MOI.get(model, MOI.ConstraintDual(), c_x4), 1 / sqrt(2); atol)
+    @test ≈(MOI.get(model, MOI.ConstraintPrimal(), c_snf), 0.0; atol)
+    @test ≈(MOI.get(model, MOI.ConstraintDual(), c_snf), 1.0; atol)
     return
 end
 
@@ -1089,7 +1093,7 @@ function test_vector_nonlinear_oracle_scalar_nonlinear_equivalent()
     c2 = MOI.add_constraint(model, f2, MOI.EqualTo(0.0))
     log_x = MOI.ScalarNonlinearFunction(:log, Any[x[1]])
     log_x_minus_t = MOI.ScalarNonlinearFunction(:-, Any[log_x, t])
-    MOI.add_constraint(model, log_x_minus_t, MOI.GreaterThan(0.0))
+    c_snf = MOI.add_constraint(model, log_x_minus_t, MOI.GreaterThan(0.0))
     MOI.set(model, MOI.ObjectiveSense(), MOI.MAX_SENSE)
     F = MOI.ScalarAffineFunction{Float64}
     MOI.set(model, MOI.ObjectiveFunction{F}(), 1.0 * t)
@@ -1107,6 +1111,8 @@ function test_vector_nonlinear_oracle_scalar_nonlinear_equivalent()
     @test ≈(MOI.get(model, MOI.ConstraintDual(), c2), 1 / sqrt(2); atol)
     @test ≈(MOI.get(model, MOI.ConstraintDual(), c_x3), -0.5; atol)
     @test ≈(MOI.get(model, MOI.ConstraintDual(), c_x4), 1 / sqrt(2); atol)
+    @test ≈(MOI.get(model, MOI.ConstraintPrimal(), c_snf), 0.0; atol)
+    @test ≈(MOI.get(model, MOI.ConstraintDual(), c_snf), 1.0; atol)
     return
 end
 
