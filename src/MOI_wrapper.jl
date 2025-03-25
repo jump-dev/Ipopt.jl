@@ -783,7 +783,7 @@ function row(
     ci::MOI.ConstraintIndex{F,S},
 ) where {F<:MOI.VectorOfVariables,S<:VectorNonlinearOracle}
     offset = length(model.qp_data)
-    for i in 1:ci.value - 1
+    for i in 1:(ci.value - 1)
         _, s = model.vector_nonlinear_oracle_constraints[i]
         offset += s.output_dimension
     end
@@ -1287,8 +1287,9 @@ function _setup_model(model::Optimizer)
     end
     has_quadratic_constraints =
         any(isequal(_kFunctionTypeScalarQuadratic), model.qp_data.function_type)
-    has_nlp_constraints = !isempty(model.nlp_data.constraint_bounds) ||
-                          !isempty(model.vector_nonlinear_oracle_constraints)
+    has_nlp_constraints =
+        !isempty(model.nlp_data.constraint_bounds) ||
+        !isempty(model.vector_nonlinear_oracle_constraints)
     has_hessian = :Hess in MOI.features_available(model.nlp_data.evaluator)
     init_feat = [:Grad]
     if has_hessian
@@ -1624,7 +1625,6 @@ function row(
     end
     return offset + ci.value
 end
-
 
 function MOI.get(
     model::Optimizer,
