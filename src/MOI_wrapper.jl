@@ -778,6 +778,52 @@ function MOI.add_constraint(
     return MOI.ConstraintIndex{F,S}(n)
 end
 
+function row(
+    model::Optimizer,
+    ci::MOI.ConstraintIndex{F,S},
+) where {F<:MOI.VectorOfVariables,S<:VectorNonlinearOracle}
+    offset = length(model.qp_data)
+    for i in 1:ci.value - 1
+        _, s = model.vector_nonlinear_oracle_constraints[i]
+        offset += s.output_dimension
+    end
+    _, s = model.vector_nonlinear_oracle_constraints[ci.value]
+    return offset .+ (1:s.output_dimension)
+end
+
+function MOI.get(
+    model::Optimizer,
+    attr::MOI.ConstraintPrimal,
+    ci::MOI.ConstraintIndex{F,S},
+) where {F<:MOI.VectorOfVariables,S<:VectorNonlinearOracle}
+    MOI.check_result_index_bounds(model, attr)
+    MOI.throw_if_not_valid(model, ci)
+    f, _ = model.vector_nonlinear_oracle_constraints[ci.value]
+    return MOI.get.(model, MOI.VariablePrimal(attr.result_index), f.variables)
+end
+
+function MOI.get(
+    model::Optimizer,
+    attr::MOI.ConstraintDual,
+    ci::MOI.ConstraintIndex{F,S},
+) where {F<:MOI.VectorOfVariables,S<:VectorNonlinearOracle}
+    MOI.check_result_index_bounds(model, attr)
+    MOI.throw_if_not_valid(model, ci)
+    sign = -_dual_multiplier(model)
+    f, s = model.vector_nonlinear_oracle_constraints[ci.value]
+    λ = model.inner.mult_g[row(model, ci)]
+    J = Tuple{Int,Int}[]
+    _jacobian_structure(J, 0, f, s)
+    J_val = zeros(length(J))
+    _eval_constraint_jacobian(J_val, model.inner.x, 1, f, s)
+    dual = zeros(MOI.dimension(s))
+    # dual = λ' * J(x)
+    for ((i, j), k) in zip(J, J_val)
+        dual[j] += sign * k * λ[i]
+    end
+    return dual
+end
+
 ### UserDefinedFunction
 
 MOI.supports(model::Optimizer, ::MOI.UserDefinedFunction) = true
@@ -1573,11 +1619,12 @@ function row(
     ci::MOI.ConstraintIndex{MOI.ScalarNonlinearFunction},
 )
     offset = length(model.qp_data)
-    for v in values(model.vector_nonlinear_oracle_constraints)
-        offset += v.output_dimension
+    for (_, s) in model.vector_nonlinear_oracle_constraints
+        offset += s.output_dimension
     end
     return offset + ci.value
 end
+
 
 function MOI.get(
     model::Optimizer,

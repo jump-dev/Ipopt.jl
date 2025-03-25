@@ -904,6 +904,8 @@ function test_vector_nonlinear_oracle()
     x_v = MOI.get.(model, MOI.VariablePrimal(), x)
     y_v = MOI.get.(model, MOI.VariablePrimal(), y)
     @test isapprox(y_v, [x_v[1]^2, x_v[2]^2 + x_v[3]^3], atol = 1e-5)
+    @test MOI.get(model, MOI.ConstraintPrimal(), c) ≈ [x_v; y_v]
+    @test MOI.get(model, MOI.ConstraintDual(), c) ≈ zeros(5)
     return
 end
 
