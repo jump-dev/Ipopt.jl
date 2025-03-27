@@ -855,25 +855,35 @@ end
 
 function test_vector_nonlinear_oracle()
     set = Ipopt.VectorNonlinearOracle(;
-        input_dimension = 3,
-        output_dimension = 2,
-        f = (g, x) -> begin
-            g[1] = x[1]^2
-            g[2] = x[2]^2 + x[3]^3
+        dimension = 5,
+        l = [0.0, 0.0],
+        u = [0.0, 0.0],
+        f = (ret, x) -> begin
+            @test length(ret) == 2
+            @test length(x) == 5
+            ret[1] = x[1]^2 - x[4]
+            ret[2] = x[2]^2 + x[3]^3 - x[5]
             return
         end,
-        jacobian_structure = [(1, 1), (2, 2), (2, 3)],
-        jacobian = (J, x) -> begin
-            J[1] = 2 * x[1]
-            J[2] = 2 * x[2]
-            J[3] = 3 * x[3]^2
+        jacobian_structure = [(1, 1), (2, 2), (2, 3), (1, 4), (2, 5)],
+        jacobian = (ret, x) -> begin
+            @test length(ret) == 5
+            @test length(x) == 5
+            ret[1] = 2 * x[1]
+            ret[2] = 2 * x[2]
+            ret[3] = 3 * x[3]^2
+            ret[4] = -1.0
+            ret[5] = -1.0
             return
         end,
         hessian_lagrangian_structure = [(1, 1), (2, 2), (3, 3)],
-        hessian_lagrangian = (H, x, u) -> begin
-            H[1] = 2 * u[1]
-            H[2] = 2 * u[2]
-            H[3] = 6 * x[3] * u[2]
+        hessian_lagrangian = (ret, x, u) -> begin
+            @test length(ret) == 3
+            @test length(x) == 5
+            @test length(u) == 2
+            ret[1] = 2 * u[1]
+            ret[2] = 2 * u[2]
+            ret[3] = 6 * x[3] * u[2]
             return
         end,
     )
@@ -911,25 +921,28 @@ end
 
 function test_vector_nonlinear_oracle_two()
     set = Ipopt.VectorNonlinearOracle(;
-        input_dimension = 3,
-        output_dimension = 2,
-        f = (g, x) -> begin
-            g[1] = x[1]^2
-            g[2] = x[2]^2 + x[3]^3
+        dimension = 5,
+        l = [0.0, 0.0],
+        u = [0.0, 0.0],
+        f = (ret, x) -> begin
+            ret[1] = x[1]^2 - x[4]
+            ret[2] = x[2]^2 + x[3]^3 - x[5]
             return
         end,
-        jacobian_structure = [(1, 1), (2, 2), (2, 3)],
-        jacobian = (J, x) -> begin
-            J[1] = 2 * x[1]
-            J[2] = 2 * x[2]
-            J[3] = 3 * x[3]^2
+        jacobian_structure = [(1, 1), (2, 2), (2, 3), (1, 4), (2, 5)],
+        jacobian = (ret, x) -> begin
+            ret[1] = 2 * x[1]
+            ret[2] = 2 * x[2]
+            ret[3] = 3 * x[3]^2
+            ret[4] = -1.0
+            ret[5] = -1.0
             return
         end,
         hessian_lagrangian_structure = [(1, 1), (2, 2), (3, 3)],
-        hessian_lagrangian = (H, x, u) -> begin
-            H[1] = 2 * u[1]
-            H[2] = 2 * u[2]
-            H[3] = 6 * x[3] * u[2]
+        hessian_lagrangian = (ret, x, u) -> begin
+            ret[1] = 2 * u[1]
+            ret[2] = 2 * u[2]
+            ret[3] = 6 * x[3] * u[2]
             return
         end,
     )
@@ -965,25 +978,28 @@ end
 
 function test_vector_nonlinear_oracle_optimization()
     set = Ipopt.VectorNonlinearOracle(;
-        input_dimension = 2,
-        output_dimension = 2,
-        f = (g, x) -> begin
-            g[1] = x[1]^2 + x[2]^2
-            g[2] = x[2] - x[1]
+        dimension = 4,
+        l = [0.0, 0.0],
+        u = [0.0, 0.0],
+        f = (ret, x) -> begin
+            ret[1] = x[1]^2 + x[2]^2 - x[3]
+            ret[2] = x[2] - x[1] - x[4]
             return
         end,
-        jacobian_structure = [(1, 1), (1, 2), (2, 2), (2, 1)],
-        jacobian = (J, x) -> begin
-            J[1] = 2 * x[1]
-            J[2] = 2 * x[2]
-            J[3] = 1.0
-            J[4] = -1.0
+        jacobian_structure = [(1, 1), (1, 2), (2, 2), (2, 1), (1, 3), (2, 4)],
+        jacobian = (ret, x) -> begin
+            ret[1] = 2 * x[1]
+            ret[2] = 2 * x[2]
+            ret[3] = 1.0
+            ret[4] = -1.0
+            ret[5] = -1.0
+            ret[6] = -1.0
             return
         end,
         hessian_lagrangian_structure = [(1, 1), (2, 2)],
-        hessian_lagrangian = (H, x, u) -> begin
-            H[1] = 2 * u[1]
-            H[2] = 2 * u[1]
+        hessian_lagrangian = (ret, x, u) -> begin
+            ret[1] = 2 * u[1]
+            ret[2] = 2 * u[1]
             return
         end,
     )
@@ -1023,25 +1039,28 @@ end
 
 function test_vector_nonlinear_oracle_optimization_min_sense()
     set = Ipopt.VectorNonlinearOracle(;
-        input_dimension = 2,
-        output_dimension = 2,
-        f = (g, x) -> begin
-            g[1] = x[1]^2 + x[2]^2
-            g[2] = x[2] - x[1]
+        dimension = 4,
+        l = [0.0, 0.0],
+        u = [0.0, 0.0],
+        f = (ret, x) -> begin
+            ret[1] = x[1]^2 + x[2]^2 - x[3]
+            ret[2] = x[2] - x[1] - x[4]
             return
         end,
-        jacobian_structure = [(1, 1), (1, 2), (2, 2), (2, 1)],
-        jacobian = (J, x) -> begin
-            J[1] = 2 * x[1]
-            J[2] = 2 * x[2]
-            J[3] = 1.0
-            J[4] = -1.0
+        jacobian_structure = [(1, 1), (1, 2), (2, 2), (2, 1), (1, 3), (2, 4)],
+        jacobian = (ret, x) -> begin
+            ret[1] = 2 * x[1]
+            ret[2] = 2 * x[2]
+            ret[3] = 1.0
+            ret[4] = -1.0
+            ret[5] = -1.0
+            ret[6] = -1.0
             return
         end,
         hessian_lagrangian_structure = [(1, 1), (2, 2)],
-        hessian_lagrangian = (H, x, u) -> begin
-            H[1] = 2 * u[1]
-            H[2] = 2 * u[1]
+        hessian_lagrangian = (ret, x, u) -> begin
+            ret[1] = 2 * u[1]
+            ret[2] = 2 * u[1]
             return
         end,
     )

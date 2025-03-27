@@ -17,49 +17,87 @@ end
 
 """
     VectorNonlinearOracle(;
-        input_dimension::Int,
-        output_dimension::Int,
+        dimension::Int,
+        l::Vector{Float64},
+        u::Vector{Float64},
         f::Function,
         jacobian_structure::Vector{Tuple{Int,Int}},
-        jacobian::Function,
+        eval_jacobian::Function,
         hessian_lagrangian_structure::Vector{Tuple{Int,Int}},
-        hessian_lagrangian::Function,
+        eval_hessian_lagrangian::Function,
     ) <: MOI.AbstractVectorSet
 
-A set for representing the constraint
+The set:
 ```math
-f(x) - y = 0
+S = \\{x \\in \\mathbb{R}^{dimension}: l \\le f(x) \\le u\\}
 ```
-via the MathOptInterface constraint
+where ``f`` is defined by the vectors `l` and `u` and the callback oracles
+`f`, `jacobian`, and `hessian_lagrangian`.
+
+## f
+
+## Jacobian
+
+The `eval_jacobian` function must have the signature
+```julia
+eval_jacobian(ret::AbstractVector, x::AbstractVector)::Nothing
 ```
-[x, y] in VectorNonlinearOracle()
+which fills in the sparse Jacobian ``\\nabla f(x)`` into `ret`.
+
+The one-indexed sparsity structure must be provided in the `jacobian_structure`
+argument.
+
+## Hessian
+
+The `eval_hessian_lagrangian` function must have the signature
+```julia
+eval_hessian_lagrangian(
+    ret::AbstractVector,
+    x::AbstractVector,
+    μ::AbstractVector,
+)::Nothing
 ```
+which fills in the sparse Hessian of the Lagrangian ``\\sum \\mu_i \\nabla^2 f_i(x)``
+into `ret`.
+
+The one-indexed sparsity structure must be provided in the
+`hessian_lagrangian_structure` argument.
 
 ## Example
 
+To model the set:
+```math
+\\begin{align}
+0 \\le & x^2           \\le 1
+0 \\le & y^2 + z^3 - w \\le 0
+\\end{align}
+```
+do
 ```jldoctest
 julia> import Ipopt
 
 julia> set = Ipopt.VectorNonlinearOracle(;
-           input_dimension = 3,
-           output_dimension = 2,
-           f = (g, x) -> begin
-               g[1] = x[1]^2
-               g[2] = x[2]^2 + x[3]^3
+           dimension = 3,
+           l = [0.0, 0.0],
+           u = [1.0, 0.0],
+           f = (ret, x) -> begin
+               ret[1] = x[2]^2
+               ret[2] = x[3]^2 + x[4]^3 - x[1]
                return
            end,
-           jacobian_structure = [(1, 1), (2, 2), (2, 3)],
-           jacobian = (J, x) -> begin
-               J[1] = 2 * x[1]
-               J[2] = 2 * x[2]
-               J[3] = 3 * x[3]^2
+           jacobian_structure = [(1, 2), (2, 1), (2, 3), (2, 4)],
+           jacobian = (ret, x) -> begin
+               ret[1] = 2.0 * x[2]
+               ret[2] = -1.0
+               ret[3] = 2.0 * x[3]
+               ret[4] = 3.0 * x[4]^2
                return
            end,
-           hessian_lagrangian_structure = [(1, 1), (2, 2), (3, 3)],
-           hessian_lagrangian = (H, x, u) -> begin
-               H[1] = 2 * u[1]
-               H[2] = 2 * u[2]
-               H[3] = 6 * x[3] * u[2]
+           hessian_lagrangian_structure = [(2, 2), (3, 3), (4, 4)],
+           hessian_lagrangian = (ret, x, u) -> begin
+               ret[1] = 2.0 * u[1]
+               ret[2] = 2.0 * u[2]
+               ret[3] = 6.0 * x[4] * u[2]
                return
            end,
        );
@@ -68,6 +106,8 @@ julia> set = Ipopt.VectorNonlinearOracle(;
 struct VectorNonlinearOracle <: MOI.AbstractVectorSet
     input_dimension::Int
     output_dimension::Int
+    l::Vector{Float64}
+    u::Vector{Float64}
     f::Function
     jacobian_structure::Vector{Tuple{Int,Int}}
     jacobian::Function
@@ -77,29 +117,33 @@ struct VectorNonlinearOracle <: MOI.AbstractVectorSet
     x::Vector{Float64}
 
     function VectorNonlinearOracle(;
-        input_dimension::Int,
-        output_dimension::Int,
+        dimension::Int,
+        l::Vector{Float64},
+        u::Vector{Float64},
         f::Function,
         jacobian_structure::Vector{Tuple{Int,Int}},
         jacobian::Function,
         hessian_lagrangian_structure::Vector{Tuple{Int,Int}},
         hessian_lagrangian::Function,
     )
+        @assert length(l) == length(u)
         return new(
-            input_dimension,
-            output_dimension,
+            dimension,
+            length(l),
+            l,
+            u,
             f,
             jacobian_structure,
             jacobian,
             hessian_lagrangian_structure,
             hessian_lagrangian,
             # Temporary storage
-            zeros(input_dimension),
+            zeros(dimension),
         )
     end
 end
 
-MOI.dimension(s::VectorNonlinearOracle) = s.input_dimension + s.output_dimension
+MOI.dimension(s::VectorNonlinearOracle) = s.input_dimension
 
 MOI.copy(s::VectorNonlinearOracle) = s
 
@@ -815,7 +859,7 @@ function MOI.get(
     J = Tuple{Int,Int}[]
     _jacobian_structure(J, 0, f, s)
     J_val = zeros(length(J))
-    _eval_constraint_jacobian(J_val, model.inner.x, 1, f, s)
+    _eval_constraint_jacobian(J_val, 0, model.inner.x, f, s)
     dual = zeros(MOI.dimension(s))
     # dual = λ' * J(x)
     col_to_index = Dict(x.value => j for (j, x) in enumerate(f.variables))
@@ -1107,6 +1151,7 @@ end
 
 function _eval_constraint(
     g::AbstractVector,
+    offset::Int,
     x::AbstractVector,
     f::MOI.VectorOfVariables,
     s::VectorNonlinearOracle,
@@ -1114,21 +1159,18 @@ function _eval_constraint(
     for i in 1:s.input_dimension
         s.x[i] = x[f.variables[i].value]
     end
-    # (g(x) = f(x) - y) == 0
-    s.f(g, s.x)
-    for j in 1:s.output_dimension
-        g[j] -= x[f.variables[s.input_dimension+j].value]
-    end
-    return s.output_dimension
+    ret = view(g, offset.+(1:s.output_dimension))
+    s.f(ret, s.x)
+    return offset + s.output_dimension
 end
 
 function MOI.eval_constraint(model::Optimizer, g, x)
     MOI.eval_constraint(model.qp_data, g, x)
-    offset = length(model.qp_data) + 1
+    offset = length(model.qp_data)
     for (f, s) in model.vector_nonlinear_oracle_constraints
-        offset += _eval_constraint(view(g, offset:length(g)), x, f, s)
+        offset = _eval_constraint(g, offset, x, f, s)
     end
-    g_nlp = view(g, offset:length(g))
+    g_nlp = view(g, (offset+1):length(g))
     MOI.eval_constraint(model.nlp_data.evaluator, g_nlp, x)
     return
 end
@@ -1136,27 +1178,22 @@ end
 ### Eval_Jac_G_CB
 
 function _jacobian_structure(
-    J::AbstractVector,
+    ret::AbstractVector,
     row_offset::Int,
     f::MOI.VectorOfVariables,
     s::VectorNonlinearOracle,
 )
     for (i, j) in s.jacobian_structure
-        push!(J, (row_offset + i, f.variables[j].value))
+        push!(ret, (row_offset + i, f.variables[j].value))
     end
-    for i in 1:s.output_dimension
-        r = row_offset + i
-        c = f.variables[s.input_dimension+i].value
-        push!(J, (r, c))
-    end
-    return s.output_dimension
+    return row_offset + s.output_dimension
 end
 
 function MOI.jacobian_structure(model::Optimizer)
     J = MOI.jacobian_structure(model.qp_data)
     offset = length(model.qp_data)
     for (f, s) in model.vector_nonlinear_oracle_constraints
-        offset += _jacobian_structure(J, offset, f, s)
+        offset = _jacobian_structure(J, offset, f, s)
     end
     if length(model.nlp_data.constraint_bounds) > 0
         J_nlp = MOI.jacobian_structure(
@@ -1170,28 +1207,27 @@ function MOI.jacobian_structure(model::Optimizer)
 end
 
 function _eval_constraint_jacobian(
-    J::AbstractVector,
-    x::AbstractVector,
+    values::AbstractVector,
     offset::Int,
+    x::AbstractVector,
     f::MOI.VectorOfVariables,
     s::VectorNonlinearOracle,
 )
     for i in 1:s.input_dimension
         s.x[i] = x[f.variables[i].value]
     end
-    s.jacobian(view(J, offset:length(J)), s.x)
-    for i in 1:s.output_dimension
-        J[offset+length(s.jacobian_structure)+i-1] = -1.0
-    end
-    return length(s.jacobian_structure) + s.output_dimension
+    nnz = length(s.jacobian_structure)
+    s.jacobian(view(values, offset.+(1:nnz)), s.x)
+    return offset + nnz
 end
 
 function MOI.eval_constraint_jacobian(model::Optimizer, values, x)
     offset = MOI.eval_constraint_jacobian(model.qp_data, values, x)
+    offset -= 1  # .qp_data returns one-indexed offset
     for (f, s) in model.vector_nonlinear_oracle_constraints
-        offset += _eval_constraint_jacobian(values, x, offset, f, s)
+        offset = _eval_constraint_jacobian(values, offset, x, f, s)
     end
-    nlp_values = view(values, offset:length(values))
+    nlp_values = view(values, (offset+1):length(values))
     MOI.eval_constraint_jacobian(model.nlp_data.evaluator, nlp_values, x)
     return
 end
@@ -1199,12 +1235,12 @@ end
 ### Eval_H_CB
 
 function _hessian_lagrangian_structure(
-    H::AbstractVector,
+    ret::AbstractVector,
     f::MOI.VectorOfVariables,
     s::VectorNonlinearOracle,
 )
     for (i, j) in s.hessian_lagrangian_structure
-        push!(H, (f.variables[i].value, f.variables[j].value))
+        push!(ret, (f.variables[i].value, f.variables[j].value))
     end
     return
 end
@@ -1230,23 +1266,23 @@ function _eval_hessian_lagrangian(
     for i in 1:s.input_dimension
         s.x[i] = x[f.variables[i].value]
     end
-    H_view = view(H, H_offset:length(H))
-    μ_view = view(μ, μ_offset:length(μ))
+    H_nnz, μ_nnz = length(s.hessian_lagrangian_structure), s.output_dimension
+    H_view = view(H, H_offset.+(1:H_nnz))
+    μ_view = view(μ, μ_offset.+(1:μ_nnz))
     s.hessian_lagrangian(H_view, s.x, μ_view)
-    H_offset += length(s.hessian_lagrangian_structure)
-    μ_offset += s.output_dimension
-    return H_offset, μ_offset
+    return H_offset + H_nnz, μ_offset + μ_nnz
 end
 
 function MOI.eval_hessian_lagrangian(model::Optimizer, H, x, σ, μ)
     offset = MOI.eval_hessian_lagrangian(model.qp_data, H, x, σ, μ)
-    μ_offset = length(model.qp_data) + 1
+    offset -= 1  # .qp_data returns one-indexed offset
+    μ_offset = length(model.qp_data)
     for (f, s) in model.vector_nonlinear_oracle_constraints
         offset, μ_offset =
             _eval_hessian_lagrangian(H, offset, x, μ, μ_offset, f, s)
     end
-    H_nlp = view(H, offset:length(H))
-    μ_nlp = view(μ, μ_offset:length(μ))
+    H_nlp = view(H, (offset+1):length(H))
+    μ_nlp = view(μ, (μ_offset+1):length(μ))
     MOI.eval_hessian_lagrangian(model.nlp_data.evaluator, H_nlp, x, σ, μ_nlp)
     return
 end
@@ -1331,8 +1367,8 @@ function _setup_model(model::Optimizer)
     end
     g_L, g_U = copy(model.qp_data.g_L), copy(model.qp_data.g_U)
     for (_, s) in model.vector_nonlinear_oracle_constraints
-        append!(g_L, zeros(s.output_dimension))
-        append!(g_U, zeros(s.output_dimension))
+        append!(g_L, s.l)
+        append!(g_U, s.u)
     end
     for bound in model.nlp_data.constraint_bounds
         push!(g_L, bound.lower)
