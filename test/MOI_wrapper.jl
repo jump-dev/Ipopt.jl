@@ -853,6 +853,321 @@ function test_scalar_nonlinear_function_attributes()
     return
 end
 
+function test_vector_nonlinear_oracle()
+    set = Ipopt._VectorNonlinearOracle(;
+        dimension = 5,
+        l = [0.0, 0.0],
+        u = [0.0, 0.0],
+        eval_f = (ret, x) -> begin
+            @test length(ret) == 2
+            @test length(x) == 5
+            ret[1] = x[1]^2 - x[4]
+            ret[2] = x[2]^2 + x[3]^3 - x[5]
+            return
+        end,
+        jacobian_structure = [(1, 1), (2, 2), (2, 3), (1, 4), (2, 5)],
+        eval_jacobian = (ret, x) -> begin
+            @test length(ret) == 5
+            @test length(x) == 5
+            ret[1] = 2 * x[1]
+            ret[2] = 2 * x[2]
+            ret[3] = 3 * x[3]^2
+            ret[4] = -1.0
+            ret[5] = -1.0
+            return
+        end,
+        hessian_lagrangian_structure = [(1, 1), (2, 2), (3, 3)],
+        eval_hessian_lagrangian = (ret, x, u) -> begin
+            @test length(ret) == 3
+            @test length(x) == 5
+            @test length(u) == 2
+            ret[1] = 2 * u[1]
+            ret[2] = 2 * u[2]
+            ret[3] = 6 * x[3] * u[2]
+            return
+        end,
+    )
+    @test MOI.dimension(set) == 5
+    @test MOI.copy(set) === set
+    model = Ipopt.Optimizer()
+    MOI.set(model, MOI.Silent(), true)
+    x = MOI.add_variables(model, 3)
+    MOI.add_constraints.(model, x, MOI.EqualTo.(1.0:3.0))
+    y = MOI.add_variables(model, 2)
+    MOI.optimize!(model)
+    f = MOI.VectorOfVariables([x; y])
+    F, S = MOI.VectorOfVariables, Ipopt._VectorNonlinearOracle
+    @test MOI.supports_constraint(model, F, S)
+    @test !((F, S) in MOI.get(model, MOI.ListOfConstraintTypesPresent()))
+    @test isempty(MOI.get(model, MOI.ListOfConstraintIndices{F,S}()))
+    @test MOI.get(model, MOI.NumberOfConstraints{F,S}()) == 0
+    @test model.inner !== nothing
+    c = MOI.add_constraint(model, f, set)
+    @test model.inner === nothing
+    @test MOI.is_valid(model, c)
+    @test !MOI.is_valid(model, typeof(c)(c.value - 1))
+    @test !MOI.is_valid(model, typeof(c)(c.value + 1))
+    @test (F, S) in MOI.get(model, MOI.ListOfConstraintTypesPresent())
+    @test MOI.get(model, MOI.ListOfConstraintIndices{F,S}()) == [c]
+    @test MOI.get(model, MOI.NumberOfConstraints{F,S}()) == 1
+    MOI.optimize!(model)
+    x_v = MOI.get.(model, MOI.VariablePrimal(), x)
+    y_v = MOI.get.(model, MOI.VariablePrimal(), y)
+    @test isapprox(y_v, [x_v[1]^2, x_v[2]^2 + x_v[3]^3], atol = 1e-5)
+    @test MOI.get(model, MOI.ConstraintPrimal(), c) ≈ [x_v; y_v]
+    @test MOI.get(model, MOI.ConstraintDual(), c) ≈ zeros(5)
+    return
+end
+
+function test_vector_nonlinear_oracle_two()
+    set = Ipopt._VectorNonlinearOracle(;
+        dimension = 5,
+        l = [0.0, 0.0],
+        u = [0.0, 0.0],
+        eval_f = (ret, x) -> begin
+            ret[1] = x[1]^2 - x[4]
+            ret[2] = x[2]^2 + x[3]^3 - x[5]
+            return
+        end,
+        jacobian_structure = [(1, 1), (2, 2), (2, 3), (1, 4), (2, 5)],
+        eval_jacobian = (ret, x) -> begin
+            ret[1] = 2 * x[1]
+            ret[2] = 2 * x[2]
+            ret[3] = 3 * x[3]^2
+            ret[4] = -1.0
+            ret[5] = -1.0
+            return
+        end,
+        hessian_lagrangian_structure = [(1, 1), (2, 2), (3, 3)],
+        eval_hessian_lagrangian = (ret, x, u) -> begin
+            ret[1] = 2 * u[1]
+            ret[2] = 2 * u[2]
+            ret[3] = 6 * x[3] * u[2]
+            return
+        end,
+    )
+    model = Ipopt.Optimizer()
+    MOI.set(model, MOI.Silent(), true)
+    x = MOI.add_variables(model, 3)
+    MOI.add_constraints.(model, x, MOI.EqualTo.(1.0:3.0))
+    y = MOI.add_variables(model, 2)
+    z = MOI.add_variables(model, 2)
+    MOI.optimize!(model)
+    f_y = MOI.VectorOfVariables([x; y])
+    c_y = MOI.add_constraint(model, f_y, set)
+    f_z = MOI.VectorOfVariables([reverse(x); z])
+    c_z = MOI.add_constraint(model, f_z, set)
+    @test MOI.is_valid(model, c_y)
+    @test MOI.is_valid(model, c_z)
+    F, S = MOI.VectorOfVariables, Ipopt._VectorNonlinearOracle
+    @test (F, S) in MOI.get(model, MOI.ListOfConstraintTypesPresent())
+    @test MOI.get(model, MOI.ListOfConstraintIndices{F,S}()) == [c_y, c_z]
+    @test MOI.get(model, MOI.NumberOfConstraints{F,S}()) == 2
+    MOI.optimize!(model)
+    x_v = MOI.get.(model, MOI.VariablePrimal(), x)
+    y_v = MOI.get.(model, MOI.VariablePrimal(), y)
+    z_v = MOI.get.(model, MOI.VariablePrimal(), z)
+    @test isapprox(y_v, [x_v[1]^2, x_v[2]^2 + x_v[3]^3], atol = 1e-5)
+    @test isapprox(z_v, [x_v[3]^2, x_v[2]^2 + x_v[1]^3], atol = 1e-5)
+    @test MOI.get(model, MOI.ConstraintPrimal(), c_y) ≈ [x_v; y_v]
+    @test MOI.get(model, MOI.ConstraintPrimal(), c_z) ≈ [reverse(x_v); z_v]
+    @test MOI.get(model, MOI.ConstraintDual(), c_y) ≈ zeros(5)
+    @test MOI.get(model, MOI.ConstraintDual(), c_z) ≈ zeros(5)
+    return
+end
+
+function test_vector_nonlinear_oracle_optimization()
+    set = Ipopt._VectorNonlinearOracle(;
+        dimension = 4,
+        l = [0.0, 0.0],
+        u = [0.0, 0.0],
+        eval_f = (ret, x) -> begin
+            ret[1] = x[1]^2 + x[2]^2 - x[3]
+            ret[2] = x[2] - x[1] - x[4]
+            return
+        end,
+        jacobian_structure = [(1, 1), (1, 2), (2, 2), (2, 1), (1, 3), (2, 4)],
+        eval_jacobian = (ret, x) -> begin
+            ret[1] = 2 * x[1]
+            ret[2] = 2 * x[2]
+            ret[3] = 1.0
+            ret[4] = -1.0
+            ret[5] = -1.0
+            ret[6] = -1.0
+            return
+        end,
+        hessian_lagrangian_structure = [(1, 1), (2, 2)],
+        eval_hessian_lagrangian = (ret, x, u) -> begin
+            ret[1] = 2 * u[1]
+            ret[2] = 2 * u[1]
+            return
+        end,
+    )
+    model = Ipopt.Optimizer()
+    MOI.set(model, MOI.Silent(), true)
+    x = MOI.add_variables(model, 4)
+    t = MOI.add_variable(model)
+    MOI.add_constraint(model, x[1], MOI.GreaterThan(0.1))
+    c_x3 = MOI.add_constraint(model, x[3], MOI.LessThan(1.0))
+    c_x4 = MOI.add_constraint(model, x[4], MOI.GreaterThan(0.0))
+    f = MOI.VectorOfVariables(x)
+    c = MOI.add_constraint(model, f, set)
+    log_x = MOI.ScalarNonlinearFunction(:log, Any[x[1]])
+    log_x_minus_t = MOI.ScalarNonlinearFunction(:-, Any[log_x, t])
+    c_snf = MOI.add_constraint(model, log_x_minus_t, MOI.GreaterThan(0.0))
+    MOI.set(model, MOI.ObjectiveSense(), MOI.MAX_SENSE)
+    F = MOI.ScalarAffineFunction{Float64}
+    MOI.set(model, MOI.ObjectiveFunction{F}(), 1.0 * t)
+    MOI.optimize!(model)
+    @test MOI.get(model, MOI.TerminationStatus()) == MOI.LOCALLY_SOLVED
+    @test MOI.get(model, MOI.PrimalStatus()) == MOI.FEASIBLE_POINT
+    @test MOI.get(model, MOI.DualStatus()) == MOI.FEASIBLE_POINT
+    atol = 1e-6
+    x_sol = MOI.get.(model, MOI.VariablePrimal(), x)
+    @test ≈(x_sol, [1 / sqrt(2), 1 / sqrt(2), 1.0, 0.0]; atol)
+    @test ≈(MOI.get(model, MOI.VariablePrimal(), t), -log(sqrt(2)); atol)
+    c_sol = MOI.get(model, MOI.ConstraintPrimal(), c)
+    @test ≈(c_sol, [1 / sqrt(2), 1 / sqrt(2), 1.0, 0.0]; atol)
+    c_dual = MOI.get(model, MOI.ConstraintDual(), c)
+    @test ≈(c_dual, [-sqrt(2), 0.0, 0.5, -1 / sqrt(2)]; atol)
+    @test ≈(MOI.get(model, MOI.ConstraintDual(), c_x3), -0.5; atol)
+    @test ≈(MOI.get(model, MOI.ConstraintDual(), c_x4), 1 / sqrt(2); atol)
+    @test ≈(MOI.get(model, MOI.ConstraintPrimal(), c_snf), 0.0; atol)
+    @test ≈(MOI.get(model, MOI.ConstraintDual(), c_snf), 1.0; atol)
+    return
+end
+
+function test_vector_nonlinear_oracle_optimization_min_sense()
+    set = Ipopt._VectorNonlinearOracle(;
+        dimension = 4,
+        l = [0.0, 0.0],
+        u = [0.0, 0.0],
+        eval_f = (ret, x) -> begin
+            ret[1] = x[1]^2 + x[2]^2 - x[3]
+            ret[2] = x[2] - x[1] - x[4]
+            return
+        end,
+        jacobian_structure = [(1, 1), (1, 2), (2, 2), (2, 1), (1, 3), (2, 4)],
+        eval_jacobian = (ret, x) -> begin
+            ret[1] = 2 * x[1]
+            ret[2] = 2 * x[2]
+            ret[3] = 1.0
+            ret[4] = -1.0
+            ret[5] = -1.0
+            ret[6] = -1.0
+            return
+        end,
+        hessian_lagrangian_structure = [(1, 1), (2, 2)],
+        eval_hessian_lagrangian = (ret, x, u) -> begin
+            ret[1] = 2 * u[1]
+            ret[2] = 2 * u[1]
+            return
+        end,
+    )
+    model = Ipopt.Optimizer()
+    MOI.set(model, MOI.Silent(), true)
+    x = MOI.add_variables(model, 4)
+    t = MOI.add_variable(model)
+    MOI.add_constraint(model, x[1], MOI.GreaterThan(0.1))
+    c_x3 = MOI.add_constraint(model, x[3], MOI.LessThan(1.0))
+    c_x4 = MOI.add_constraint(model, x[4], MOI.GreaterThan(0.0))
+    f = MOI.VectorOfVariables(x)
+    c = MOI.add_constraint(model, f, set)
+    log_x = MOI.ScalarNonlinearFunction(:log, Any[x[1]])
+    log_x_minus_t = MOI.ScalarNonlinearFunction(:-, Any[log_x, t])
+    c_snf = MOI.add_constraint(model, log_x_minus_t, MOI.GreaterThan(0.0))
+    MOI.set(model, MOI.ObjectiveSense(), MOI.MIN_SENSE)
+    F = MOI.ScalarAffineFunction{Float64}
+    MOI.set(model, MOI.ObjectiveFunction{F}(), -1.0 * t)
+    MOI.optimize!(model)
+    @test MOI.get(model, MOI.TerminationStatus()) == MOI.LOCALLY_SOLVED
+    @test MOI.get(model, MOI.PrimalStatus()) == MOI.FEASIBLE_POINT
+    @test MOI.get(model, MOI.DualStatus()) == MOI.FEASIBLE_POINT
+    atol = 1e-6
+    x_sol = MOI.get.(model, MOI.VariablePrimal(), x)
+    @test ≈(x_sol, [1 / sqrt(2), 1 / sqrt(2), 1.0, 0.0]; atol)
+    @test ≈(MOI.get(model, MOI.VariablePrimal(), t), -log(sqrt(2)); atol)
+    c_sol = MOI.get(model, MOI.ConstraintPrimal(), c)
+    @test ≈(c_sol, [1 / sqrt(2), 1 / sqrt(2), 1.0, 0.0]; atol)
+    c_dual = MOI.get(model, MOI.ConstraintDual(), c)
+    @test ≈(c_dual, [-sqrt(2), 0.0, 0.5, -1 / sqrt(2)]; atol)
+    @test ≈(MOI.get(model, MOI.ConstraintDual(), c_x3), -0.5; atol)
+    @test ≈(MOI.get(model, MOI.ConstraintDual(), c_x4), 1 / sqrt(2); atol)
+    @test ≈(MOI.get(model, MOI.ConstraintPrimal(), c_snf), 0.0; atol)
+    @test ≈(MOI.get(model, MOI.ConstraintDual(), c_snf), 1.0; atol)
+    return
+end
+
+function test_vector_nonlinear_oracle_scalar_nonlinear_equivalent()
+    model = Ipopt.Optimizer()
+    MOI.set(model, MOI.Silent(), true)
+    x = MOI.add_variables(model, 4)
+    t = MOI.add_variable(model)
+    MOI.add_constraint(model, x[1], MOI.GreaterThan(0.1))
+    c_x3 = MOI.add_constraint(model, x[3], MOI.LessThan(1.0))
+    c_x4 = MOI.add_constraint(model, x[4], MOI.GreaterThan(0.0))
+    f1 = 1.0 * x[1] * x[1] + 1.0 * x[2] * x[2] - 1.0 * x[3]
+    c1 = MOI.add_constraint(model, f1, MOI.EqualTo(0.0))
+    f2 = 1.0 * x[2] - 1.0 * x[1] - x[4]
+    c2 = MOI.add_constraint(model, f2, MOI.EqualTo(0.0))
+    log_x = MOI.ScalarNonlinearFunction(:log, Any[x[1]])
+    log_x_minus_t = MOI.ScalarNonlinearFunction(:-, Any[log_x, t])
+    c_snf = MOI.add_constraint(model, log_x_minus_t, MOI.GreaterThan(0.0))
+    MOI.set(model, MOI.ObjectiveSense(), MOI.MAX_SENSE)
+    F = MOI.ScalarAffineFunction{Float64}
+    MOI.set(model, MOI.ObjectiveFunction{F}(), 1.0 * t)
+    MOI.optimize!(model)
+    @test MOI.get(model, MOI.TerminationStatus()) == MOI.LOCALLY_SOLVED
+    @test MOI.get(model, MOI.PrimalStatus()) == MOI.FEASIBLE_POINT
+    @test MOI.get(model, MOI.DualStatus()) == MOI.FEASIBLE_POINT
+    atol = 1e-6
+    x_sol = MOI.get.(model, MOI.VariablePrimal(), x)
+    @test ≈(x_sol, [1 / sqrt(2), 1 / sqrt(2), 1.0, 0.0]; atol)
+    @test ≈(MOI.get(model, MOI.VariablePrimal(), t), -log(sqrt(2)); atol)
+    @test ≈(MOI.get(model, MOI.ConstraintPrimal(), c1), 0.0; atol)
+    @test ≈(MOI.get(model, MOI.ConstraintPrimal(), c2), 0.0; atol)
+    @test ≈(MOI.get(model, MOI.ConstraintDual(), c1), -0.5; atol)
+    @test ≈(MOI.get(model, MOI.ConstraintDual(), c2), 1 / sqrt(2); atol)
+    @test ≈(MOI.get(model, MOI.ConstraintDual(), c_x3), -0.5; atol)
+    @test ≈(MOI.get(model, MOI.ConstraintDual(), c_x4), 1 / sqrt(2); atol)
+    @test ≈(MOI.get(model, MOI.ConstraintPrimal(), c_snf), 0.0; atol)
+    @test ≈(MOI.get(model, MOI.ConstraintDual(), c_snf), 1.0; atol)
+    return
+end
+
+function test_vector_nonlinear_oracle_no_hessian()
+    set = Ipopt._VectorNonlinearOracle(;
+        dimension = 5,
+        l = [0.0, 0.0],
+        u = [0.0, 0.0],
+        eval_f = (ret, x) -> begin
+            ret[1] = x[1]^2 - x[4]
+            ret[2] = x[2]^2 + x[3]^3 - x[5]
+            return
+        end,
+        jacobian_structure = [(1, 1), (2, 2), (2, 3), (1, 4), (2, 5)],
+        eval_jacobian = (ret, x) -> begin
+            ret[1] = 2 * x[1]
+            ret[2] = 2 * x[2]
+            ret[3] = 3 * x[3]^2
+            ret[4] = -1.0
+            ret[5] = -1.0
+            return
+        end,
+    )
+    model = Ipopt.Optimizer()
+    MOI.set(model, MOI.Silent(), true)
+    x = MOI.add_variables(model, 3)
+    MOI.add_constraints.(model, x, MOI.EqualTo.(1.0:3.0))
+    y = MOI.add_variables(model, 2)
+    MOI.add_constraint(model, MOI.VectorOfVariables([x; y]), set)
+    MOI.optimize!(model)
+    x_v = MOI.get.(model, MOI.VariablePrimal(), x)
+    y_v = MOI.get.(model, MOI.VariablePrimal(), y)
+    @test isapprox(y_v, [x_v[1]^2, x_v[2]^2 + x_v[3]^3], atol = 1e-5)
+    return
+end
+
 end  # module TestMOIWrapper
 
 TestMOIWrapper.runtests()

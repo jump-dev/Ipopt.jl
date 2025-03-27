@@ -16,6 +16,155 @@ function _is_parameter(term::MOI.ScalarQuadraticTerm)
 end
 
 """
+    _VectorNonlinearOracle(;
+        dimension::Int,
+        l::Vector{Float64},
+        u::Vector{Float64},
+        eval_f::Function,
+        jacobian_structure::Vector{Tuple{Int,Int}},
+        eval_jacobian::Function,
+        hessian_lagrangian_structure::Vector{Tuple{Int,Int}} = Tuple{Int,Int}[],
+        eval_hessian_lagrangian::Union{Nothing,Function} = nothing,
+    ) <: MOI.AbstractVectorSet
+
+The set:
+```math
+S = \\{x \\in \\mathbb{R}^{dimension}: l \\le f(x) \\le u\\}
+```
+where ``f`` is defined by the vectors `l` and `u`, and the callback oracles
+`eval_f`, `eval_jacobian`, and `eval_hessian_lagrangian`.
+
+!!! warning
+    This set is experimental. We will decide by September 30, 2025, whether to
+    convert this into the public `Ipopt.VectorNonlinearOracle`, move it to
+    `MOI.VectorNonlinearOracle`, or remove it completely.
+
+## f
+
+The `eval_f` function must have the signature
+```julia
+eval_f(ret::AbstractVector, x::AbstractVector)::Nothing
+```
+which fills ``f(x)`` into the dense vector `ret`.
+
+## Jacobian
+
+The `eval_jacobian` function must have the signature
+```julia
+eval_jacobian(ret::AbstractVector, x::AbstractVector)::Nothing
+```
+which fills the sparse Jacobian ``\\nabla f(x)`` into `ret`.
+
+The one-indexed sparsity structure must be provided in the `jacobian_structure`
+argument.
+
+## Hessian
+
+The `eval_hessian_lagrangian` function is optional.
+
+If `eval_hessian_lagrangian === nothing`, Ipopt will use a Hessian approximation
+instead of the exact Hessian.
+
+If `eval_hessian_lagrangian` is a function, it must have the signature
+```julia
+eval_hessian_lagrangian(
+    ret::AbstractVector,
+    x::AbstractVector,
+    μ::AbstractVector,
+)::Nothing
+```
+which fills the sparse Hessian of the Lagrangian ``\\sum \\mu_i \\nabla^2 f_i(x)``
+into `ret`.
+
+The one-indexed sparsity structure must be provided in the
+`hessian_lagrangian_structure` argument.
+
+## Example
+
+To model the set:
+```math
+\\begin{align}
+0 \\le & x^2           \\le 1
+0 \\le & y^2 + z^3 - w \\le 0
+\\end{align}
+```
+do
+```jldoctest
+julia> import Ipopt
+
+julia> set = Ipopt._VectorNonlinearOracle(;
+           dimension = 3,
+           l = [0.0, 0.0],
+           u = [1.0, 0.0],
+           eval_f = (ret, x) -> begin
+               ret[1] = x[2]^2
+               ret[2] = x[3]^2 + x[4]^3 - x[1]
+               return
+           end,
+           jacobian_structure = [(1, 2), (2, 1), (2, 3), (2, 4)],
+           eval_jacobian = (ret, x) -> begin
+               ret[1] = 2.0 * x[2]
+               ret[2] = -1.0
+               ret[3] = 2.0 * x[3]
+               ret[4] = 3.0 * x[4]^2
+               return
+           end,
+           hessian_lagrangian_structure = [(2, 2), (3, 3), (4, 4)],
+           eval_hessian_lagrangian = (ret, x, u) -> begin
+               ret[1] = 2.0 * u[1]
+               ret[2] = 2.0 * u[2]
+               ret[3] = 6.0 * x[4] * u[2]
+               return
+           end,
+       );
+```
+"""
+struct _VectorNonlinearOracle <: MOI.AbstractVectorSet
+    input_dimension::Int
+    output_dimension::Int
+    l::Vector{Float64}
+    u::Vector{Float64}
+    eval_f::Function
+    jacobian_structure::Vector{Tuple{Int,Int}}
+    eval_jacobian::Function
+    hessian_lagrangian_structure::Vector{Tuple{Int,Int}}
+    eval_hessian_lagrangian::Union{Nothing,Function}
+    # Temporary storage
+    x::Vector{Float64}
+
+    function _VectorNonlinearOracle(;
+        dimension::Int,
+        l::Vector{Float64},
+        u::Vector{Float64},
+        eval_f::Function,
+        jacobian_structure::Vector{Tuple{Int,Int}},
+        eval_jacobian::Function,
+        # The hessian_lagrangian is optional.
+        hessian_lagrangian_structure::Vector{Tuple{Int,Int}} = Tuple{Int,Int}[],
+        eval_hessian_lagrangian::Union{Nothing,Function} = nothing,
+    )
+        @assert length(l) == length(u)
+        return new(
+            dimension,
+            length(l),
+            l,
+            u,
+            eval_f,
+            jacobian_structure,
+            eval_jacobian,
+            hessian_lagrangian_structure,
+            eval_hessian_lagrangian,
+            # Temporary storage
+            zeros(dimension),
+        )
+    end
+end
+
+MOI.dimension(s::_VectorNonlinearOracle) = s.input_dimension
+
+MOI.copy(s::_VectorNonlinearOracle) = s
+
+"""
     Optimizer()
 
 Create a new Ipopt optimizer.
@@ -45,6 +194,10 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
     barrier_iterations::Int
     ad_backend::MOI.Nonlinear.AbstractAutomaticDifferentiation
 
+    vector_nonlinear_oracle_constraints::Vector{
+        Tuple{MOI.VectorOfVariables,_VectorNonlinearOracle},
+    }
+
     function Optimizer()
         return new(
             nothing,
@@ -68,6 +221,7 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
             nothing,
             0,
             MOI.Nonlinear.SparseReverseMode(),
+            Tuple{MOI.VectorOfVariables,_VectorNonlinearOracle}[],
         )
     end
 end
@@ -109,6 +263,7 @@ function MOI.empty!(model::Optimizer)
     model.qp_data = QPBlockData{Float64}()
     model.callback = nothing
     model.barrier_iterations = 0
+    empty!(model.vector_nonlinear_oracle_constraints)
     return
 end
 
@@ -118,7 +273,8 @@ function MOI.is_empty(model::Optimizer)
            isempty(model.mult_x_L) &&
            isempty(model.mult_x_U) &&
            model.nlp_data.evaluator isa _EmptyNLPEvaluator &&
-           model.sense == MOI.FEASIBILITY_SENSE
+           model.sense == MOI.FEASIBILITY_SENSE &&
+           isempty(model.vector_nonlinear_oracle_constraints)
 end
 
 MOI.supports_incremental_interface(::Optimizer) = true
@@ -245,6 +401,9 @@ function MOI.get(model::Optimizer, attr::MOI.ListOfConstraintTypesPresent)
     ret = MOI.get(model.variables, attr)
     append!(ret, MOI.get(model.qp_data, attr))
     _add_scalar_nonlinear_constraints(ret, model.nlp_model)
+    if !isempty(model.vector_nonlinear_oracle_constraints)
+        push!(ret, (MOI.VectorOfVariables, _VectorNonlinearOracle))
+    end
     return ret
 end
 
@@ -637,6 +796,96 @@ function MOI.set(
     return
 end
 
+### MOI.VectorOfVariables in _VectorNonlinearOracle
+
+function MOI.supports_constraint(
+    ::Optimizer,
+    ::Type{MOI.VectorOfVariables},
+    ::Type{_VectorNonlinearOracle},
+)
+    return true
+end
+
+function MOI.is_valid(
+    model::Optimizer,
+    ci::MOI.ConstraintIndex{MOI.VectorOfVariables,_VectorNonlinearOracle},
+)
+    return 1 <= ci.value <= length(model.vector_nonlinear_oracle_constraints)
+end
+
+function MOI.get(
+    model::Optimizer,
+    attr::MOI.ListOfConstraintIndices{F,S},
+) where {F<:MOI.VectorOfVariables,S<:_VectorNonlinearOracle}
+    n = length(model.vector_nonlinear_oracle_constraints)
+    return MOI.ConstraintIndex{F,S}.(1:n)
+end
+
+function MOI.get(
+    model::Optimizer,
+    attr::MOI.NumberOfConstraints{F,S},
+) where {F<:MOI.VectorOfVariables,S<:_VectorNonlinearOracle}
+    return length(model.vector_nonlinear_oracle_constraints)
+end
+
+function MOI.add_constraint(
+    model::Optimizer,
+    f::F,
+    s::S,
+) where {F<:MOI.VectorOfVariables,S<:_VectorNonlinearOracle}
+    model.inner = nothing
+    push!(model.vector_nonlinear_oracle_constraints, (f, s))
+    n = length(model.vector_nonlinear_oracle_constraints)
+    return MOI.ConstraintIndex{F,S}(n)
+end
+
+function row(
+    model::Optimizer,
+    ci::MOI.ConstraintIndex{F,S},
+) where {F<:MOI.VectorOfVariables,S<:_VectorNonlinearOracle}
+    offset = length(model.qp_data)
+    for i in 1:(ci.value-1)
+        _, s = model.vector_nonlinear_oracle_constraints[i]
+        offset += s.output_dimension
+    end
+    _, s = model.vector_nonlinear_oracle_constraints[ci.value]
+    return offset .+ (1:s.output_dimension)
+end
+
+function MOI.get(
+    model::Optimizer,
+    attr::MOI.ConstraintPrimal,
+    ci::MOI.ConstraintIndex{F,S},
+) where {F<:MOI.VectorOfVariables,S<:_VectorNonlinearOracle}
+    MOI.check_result_index_bounds(model, attr)
+    MOI.throw_if_not_valid(model, ci)
+    f, _ = model.vector_nonlinear_oracle_constraints[ci.value]
+    return MOI.get.(model, MOI.VariablePrimal(attr.result_index), f.variables)
+end
+
+function MOI.get(
+    model::Optimizer,
+    attr::MOI.ConstraintDual,
+    ci::MOI.ConstraintIndex{F,S},
+) where {F<:MOI.VectorOfVariables,S<:_VectorNonlinearOracle}
+    MOI.check_result_index_bounds(model, attr)
+    MOI.throw_if_not_valid(model, ci)
+    sign = -_dual_multiplier(model)
+    f, s = model.vector_nonlinear_oracle_constraints[ci.value]
+    λ = model.inner.mult_g[row(model, ci)]
+    J = Tuple{Int,Int}[]
+    _jacobian_structure(J, 0, f, s)
+    J_val = zeros(length(J))
+    _eval_constraint_jacobian(J_val, 0, model.inner.x, f, s)
+    dual = zeros(MOI.dimension(s))
+    # dual = λ' * J(x)
+    col_to_index = Dict(x.value => j for (j, x) in enumerate(f.variables))
+    for ((row, col), J_rc) in zip(J, J_val)
+        dual[col_to_index[col]] += sign * J_rc * λ[row]
+    end
+    return dual
+end
+
 ### UserDefinedFunction
 
 MOI.supports(model::Optimizer, ::MOI.UserDefinedFunction) = true
@@ -917,18 +1166,52 @@ end
 
 ### Eval_G_CB
 
+function _eval_constraint(
+    g::AbstractVector,
+    offset::Int,
+    x::AbstractVector,
+    f::MOI.VectorOfVariables,
+    s::_VectorNonlinearOracle,
+)
+    for i in 1:s.input_dimension
+        s.x[i] = x[f.variables[i].value]
+    end
+    ret = view(g, offset .+ (1:s.output_dimension))
+    s.eval_f(ret, s.x)
+    return offset + s.output_dimension
+end
+
 function MOI.eval_constraint(model::Optimizer, g, x)
     MOI.eval_constraint(model.qp_data, g, x)
-    g_nlp = view(g, (length(model.qp_data)+1):length(g))
+    offset = length(model.qp_data)
+    for (f, s) in model.vector_nonlinear_oracle_constraints
+        offset = _eval_constraint(g, offset, x, f, s)
+    end
+    g_nlp = view(g, (offset+1):length(g))
     MOI.eval_constraint(model.nlp_data.evaluator, g_nlp, x)
     return
 end
 
 ### Eval_Jac_G_CB
 
+function _jacobian_structure(
+    ret::AbstractVector,
+    row_offset::Int,
+    f::MOI.VectorOfVariables,
+    s::_VectorNonlinearOracle,
+)
+    for (i, j) in s.jacobian_structure
+        push!(ret, (row_offset + i, f.variables[j].value))
+    end
+    return row_offset + s.output_dimension
+end
+
 function MOI.jacobian_structure(model::Optimizer)
     J = MOI.jacobian_structure(model.qp_data)
     offset = length(model.qp_data)
+    for (f, s) in model.vector_nonlinear_oracle_constraints
+        offset = _jacobian_structure(J, offset, f, s)
+    end
     if length(model.nlp_data.constraint_bounds) > 0
         J_nlp = MOI.jacobian_structure(
             model.nlp_data.evaluator,
@@ -940,25 +1223,83 @@ function MOI.jacobian_structure(model::Optimizer)
     return J
 end
 
+function _eval_constraint_jacobian(
+    values::AbstractVector,
+    offset::Int,
+    x::AbstractVector,
+    f::MOI.VectorOfVariables,
+    s::_VectorNonlinearOracle,
+)
+    for i in 1:s.input_dimension
+        s.x[i] = x[f.variables[i].value]
+    end
+    nnz = length(s.jacobian_structure)
+    s.eval_jacobian(view(values, offset .+ (1:nnz)), s.x)
+    return offset + nnz
+end
+
 function MOI.eval_constraint_jacobian(model::Optimizer, values, x)
     offset = MOI.eval_constraint_jacobian(model.qp_data, values, x)
-    nlp_values = view(values, offset:length(values))
+    offset -= 1  # .qp_data returns one-indexed offset
+    for (f, s) in model.vector_nonlinear_oracle_constraints
+        offset = _eval_constraint_jacobian(values, offset, x, f, s)
+    end
+    nlp_values = view(values, (offset+1):length(values))
     MOI.eval_constraint_jacobian(model.nlp_data.evaluator, nlp_values, x)
     return
 end
 
 ### Eval_H_CB
 
+function _hessian_lagrangian_structure(
+    ret::AbstractVector,
+    f::MOI.VectorOfVariables,
+    s::_VectorNonlinearOracle,
+)
+    for (i, j) in s.hessian_lagrangian_structure
+        push!(ret, (f.variables[i].value, f.variables[j].value))
+    end
+    return
+end
+
 function MOI.hessian_lagrangian_structure(model::Optimizer)
     H = MOI.hessian_lagrangian_structure(model.qp_data)
+    for (f, s) in model.vector_nonlinear_oracle_constraints
+        _hessian_lagrangian_structure(H, f, s)
+    end
     append!(H, MOI.hessian_lagrangian_structure(model.nlp_data.evaluator))
     return H
 end
 
+function _eval_hessian_lagrangian(
+    H::AbstractVector,
+    H_offset::Int,
+    x::AbstractVector,
+    μ::AbstractVector,
+    μ_offset::Int,
+    f::MOI.VectorOfVariables,
+    s::_VectorNonlinearOracle,
+)
+    for i in 1:s.input_dimension
+        s.x[i] = x[f.variables[i].value]
+    end
+    H_nnz = length(s.hessian_lagrangian_structure)
+    H_view = view(H, H_offset .+ (1:H_nnz))
+    μ_view = view(μ, μ_offset .+ (1:s.output_dimension))
+    s.eval_hessian_lagrangian(H_view, s.x, μ_view)
+    return H_offset + H_nnz, μ_offset + s.output_dimension
+end
+
 function MOI.eval_hessian_lagrangian(model::Optimizer, H, x, σ, μ)
     offset = MOI.eval_hessian_lagrangian(model.qp_data, H, x, σ, μ)
-    H_nlp = view(H, offset:length(H))
-    μ_nlp = view(μ, (length(model.qp_data)+1):length(μ))
+    offset -= 1  # .qp_data returns one-indexed offset
+    μ_offset = length(model.qp_data)
+    for (f, s) in model.vector_nonlinear_oracle_constraints
+        offset, μ_offset =
+            _eval_hessian_lagrangian(H, offset, x, μ, μ_offset, f, s)
+    end
+    H_nlp = view(H, (offset+1):length(H))
+    μ_nlp = view(μ, (μ_offset+1):length(μ))
     MOI.eval_hessian_lagrangian(model.nlp_data.evaluator, H_nlp, x, σ, μ_nlp)
     return
 end
@@ -1000,8 +1341,16 @@ function _setup_model(model::Optimizer)
     end
     has_quadratic_constraints =
         any(isequal(_kFunctionTypeScalarQuadratic), model.qp_data.function_type)
-    has_nlp_constraints = !isempty(model.nlp_data.constraint_bounds)
+    has_nlp_constraints =
+        !isempty(model.nlp_data.constraint_bounds) ||
+        !isempty(model.vector_nonlinear_oracle_constraints)
     has_hessian = :Hess in MOI.features_available(model.nlp_data.evaluator)
+    for (_, s) in model.vector_nonlinear_oracle_constraints
+        if s.eval_hessian_lagrangian === nothing
+            has_hessian = false
+            break
+        end
+    end
     init_feat = [:Grad]
     if has_hessian
         push!(init_feat, :Hess)
@@ -1040,6 +1389,10 @@ function _setup_model(model::Optimizer)
         return
     end
     g_L, g_U = copy(model.qp_data.g_L), copy(model.qp_data.g_U)
+    for (_, s) in model.vector_nonlinear_oracle_constraints
+        append!(g_L, s.l)
+        append!(g_U, s.u)
+    end
     for bound in model.nlp_data.constraint_bounds
         push!(g_L, bound.lower)
         push!(g_U, bound.upper)
@@ -1326,7 +1679,11 @@ function row(
     model::Optimizer,
     ci::MOI.ConstraintIndex{MOI.ScalarNonlinearFunction},
 )
-    return length(model.qp_data) + ci.value
+    offset = length(model.qp_data)
+    for (_, s) in model.vector_nonlinear_oracle_constraints
+        offset += s.output_dimension
+    end
+    return offset + ci.value
 end
 
 function MOI.get(
