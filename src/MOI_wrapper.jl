@@ -22,42 +22,48 @@ end
         u::Vector{Float64},
         f::Function,
         jacobian_structure::Vector{Tuple{Int,Int}},
-        eval_jacobian::Function,
+        jacobian::Function,
         hessian_lagrangian_structure::Vector{Tuple{Int,Int}},
-        eval_hessian_lagrangian::Function,
+        hessian_lagrangian::Function,
     ) <: MOI.AbstractVectorSet
 
 The set:
 ```math
 S = \\{x \\in \\mathbb{R}^{dimension}: l \\le f(x) \\le u\\}
 ```
-where ``f`` is defined by the vectors `l` and `u` and the callback oracles
+where ``f`` is defined by the vectors `l` and `u`, and the callback oracles
 `f`, `jacobian`, and `hessian_lagrangian`.
 
 ## f
 
+The `f` function must have the signature
+```julia
+f(ret::AbstractVector, x::AbstractVector)::Nothing
+```
+which fills ``f(x)`` into the dense vector `ret`.
+
 ## Jacobian
 
-The `eval_jacobian` function must have the signature
+The `jacobian` function must have the signature
 ```julia
-eval_jacobian(ret::AbstractVector, x::AbstractVector)::Nothing
+jacobian(ret::AbstractVector, x::AbstractVector)::Nothing
 ```
-which fills in the sparse Jacobian ``\\nabla f(x)`` into `ret`.
+which fills the sparse Jacobian ``\\nabla f(x)`` into `ret`.
 
 The one-indexed sparsity structure must be provided in the `jacobian_structure`
 argument.
 
 ## Hessian
 
-The `eval_hessian_lagrangian` function must have the signature
+The `hessian_lagrangian` function must have the signature
 ```julia
-eval_hessian_lagrangian(
+hessian_lagrangian(
     ret::AbstractVector,
     x::AbstractVector,
     μ::AbstractVector,
 )::Nothing
 ```
-which fills in the sparse Hessian of the Lagrangian ``\\sum \\mu_i \\nabla^2 f_i(x)``
+which fills the sparse Hessian of the Lagrangian ``\\sum \\mu_i \\nabla^2 f_i(x)``
 into `ret`.
 
 The one-indexed sparsity structure must be provided in the
