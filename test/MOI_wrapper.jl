@@ -858,7 +858,7 @@ function test_vector_nonlinear_oracle()
         dimension = 5,
         l = [0.0, 0.0],
         u = [0.0, 0.0],
-        f = (ret, x) -> begin
+        eval_f = (ret, x) -> begin
             @test length(ret) == 2
             @test length(x) == 5
             ret[1] = x[1]^2 - x[4]
@@ -866,7 +866,7 @@ function test_vector_nonlinear_oracle()
             return
         end,
         jacobian_structure = [(1, 1), (2, 2), (2, 3), (1, 4), (2, 5)],
-        jacobian = (ret, x) -> begin
+        eval_jacobian = (ret, x) -> begin
             @test length(ret) == 5
             @test length(x) == 5
             ret[1] = 2 * x[1]
@@ -877,7 +877,7 @@ function test_vector_nonlinear_oracle()
             return
         end,
         hessian_lagrangian_structure = [(1, 1), (2, 2), (3, 3)],
-        hessian_lagrangian = (ret, x, u) -> begin
+        eval_hessian_lagrangian = (ret, x, u) -> begin
             @test length(ret) == 3
             @test length(x) == 5
             @test length(u) == 2
@@ -924,13 +924,13 @@ function test_vector_nonlinear_oracle_two()
         dimension = 5,
         l = [0.0, 0.0],
         u = [0.0, 0.0],
-        f = (ret, x) -> begin
+        eval_f = (ret, x) -> begin
             ret[1] = x[1]^2 - x[4]
             ret[2] = x[2]^2 + x[3]^3 - x[5]
             return
         end,
         jacobian_structure = [(1, 1), (2, 2), (2, 3), (1, 4), (2, 5)],
-        jacobian = (ret, x) -> begin
+        eval_jacobian = (ret, x) -> begin
             ret[1] = 2 * x[1]
             ret[2] = 2 * x[2]
             ret[3] = 3 * x[3]^2
@@ -939,7 +939,7 @@ function test_vector_nonlinear_oracle_two()
             return
         end,
         hessian_lagrangian_structure = [(1, 1), (2, 2), (3, 3)],
-        hessian_lagrangian = (ret, x, u) -> begin
+        eval_hessian_lagrangian = (ret, x, u) -> begin
             ret[1] = 2 * u[1]
             ret[2] = 2 * u[2]
             ret[3] = 6 * x[3] * u[2]
@@ -981,13 +981,13 @@ function test_vector_nonlinear_oracle_optimization()
         dimension = 4,
         l = [0.0, 0.0],
         u = [0.0, 0.0],
-        f = (ret, x) -> begin
+        eval_f = (ret, x) -> begin
             ret[1] = x[1]^2 + x[2]^2 - x[3]
             ret[2] = x[2] - x[1] - x[4]
             return
         end,
         jacobian_structure = [(1, 1), (1, 2), (2, 2), (2, 1), (1, 3), (2, 4)],
-        jacobian = (ret, x) -> begin
+        eval_jacobian = (ret, x) -> begin
             ret[1] = 2 * x[1]
             ret[2] = 2 * x[2]
             ret[3] = 1.0
@@ -997,7 +997,7 @@ function test_vector_nonlinear_oracle_optimization()
             return
         end,
         hessian_lagrangian_structure = [(1, 1), (2, 2)],
-        hessian_lagrangian = (ret, x, u) -> begin
+        eval_hessian_lagrangian = (ret, x, u) -> begin
             ret[1] = 2 * u[1]
             ret[2] = 2 * u[1]
             return
@@ -1042,13 +1042,13 @@ function test_vector_nonlinear_oracle_optimization_min_sense()
         dimension = 4,
         l = [0.0, 0.0],
         u = [0.0, 0.0],
-        f = (ret, x) -> begin
+        eval_f = (ret, x) -> begin
             ret[1] = x[1]^2 + x[2]^2 - x[3]
             ret[2] = x[2] - x[1] - x[4]
             return
         end,
         jacobian_structure = [(1, 1), (1, 2), (2, 2), (2, 1), (1, 3), (2, 4)],
-        jacobian = (ret, x) -> begin
+        eval_jacobian = (ret, x) -> begin
             ret[1] = 2 * x[1]
             ret[2] = 2 * x[2]
             ret[3] = 1.0
@@ -1058,7 +1058,7 @@ function test_vector_nonlinear_oracle_optimization_min_sense()
             return
         end,
         hessian_lagrangian_structure = [(1, 1), (2, 2)],
-        hessian_lagrangian = (ret, x, u) -> begin
+        eval_hessian_lagrangian = (ret, x, u) -> begin
             ret[1] = 2 * u[1]
             ret[2] = 2 * u[1]
             return
@@ -1140,13 +1140,13 @@ function test_vector_nonlinear_oracle_no_hessian()
         dimension = 5,
         l = [0.0, 0.0],
         u = [0.0, 0.0],
-        f = (ret, x) -> begin
+        eval_f = (ret, x) -> begin
             ret[1] = x[1]^2 - x[4]
             ret[2] = x[2]^2 + x[3]^3 - x[5]
             return
         end,
         jacobian_structure = [(1, 1), (2, 2), (2, 3), (1, 4), (2, 5)],
-        jacobian = (ret, x) -> begin
+        eval_jacobian = (ret, x) -> begin
             ret[1] = 2 * x[1]
             ret[2] = 2 * x[2]
             ret[3] = 3 * x[3]^2

@@ -20,11 +20,11 @@ end
         dimension::Int,
         l::Vector{Float64},
         u::Vector{Float64},
-        f::Function,
+        eval_f::Function,
         jacobian_structure::Vector{Tuple{Int,Int}},
-        jacobian::Function,
+        eval_jacobian::Function,
         hessian_lagrangian_structure::Vector{Tuple{Int,Int}} = Tuple{Int,Int}[],
-        hessian_lagrangian::Union{Nothing,Function} = nothing,
+        eval_hessian_lagrangian::Union{Nothing,Function} = nothing,
     ) <: MOI.AbstractVectorSet
 
 The set:
@@ -41,17 +41,17 @@ where ``f`` is defined by the vectors `l` and `u`, and the callback oracles
 
 ## f
 
-The `f` function must have the signature
+The `eval_f` function must have the signature
 ```julia
-f(ret::AbstractVector, x::AbstractVector)::Nothing
+eval_f(ret::AbstractVector, x::AbstractVector)::Nothing
 ```
 which fills ``f(x)`` into the dense vector `ret`.
 
 ## Jacobian
 
-The `jacobian` function must have the signature
+The `eval_jacobian` function must have the signature
 ```julia
-jacobian(ret::AbstractVector, x::AbstractVector)::Nothing
+eval_jacobian(ret::AbstractVector, x::AbstractVector)::Nothing
 ```
 which fills the sparse Jacobian ``\\nabla f(x)`` into `ret`.
 
@@ -60,14 +60,14 @@ argument.
 
 ## Hessian
 
-The `hessian_lagrangian` function is optional.
+The `eval_hessian_lagrangian` function is optional.
 
-If `hessian_lagrangian === nothing`, Ipopt will use a Hessian approximation
+If `eval_hessian_lagrangian === nothing`, Ipopt will use a Hessian approximation
 instead of the exact Hessian.
 
-If `hessian_lagrangian` is a function, it must have the signature
+If `eval_hessian_lagrangian` is a function, it must have the signature
 ```julia
-hessian_lagrangian(
+eval_hessian_lagrangian(
     ret::AbstractVector,
     x::AbstractVector,
     μ::AbstractVector,
@@ -96,13 +96,13 @@ julia> set = Ipopt._VectorNonlinearOracle(;
            dimension = 3,
            l = [0.0, 0.0],
            u = [1.0, 0.0],
-           f = (ret, x) -> begin
+           eval_f = (ret, x) -> begin
                ret[1] = x[2]^2
                ret[2] = x[3]^2 + x[4]^3 - x[1]
                return
            end,
            jacobian_structure = [(1, 2), (2, 1), (2, 3), (2, 4)],
-           jacobian = (ret, x) -> begin
+           eval_jacobian = (ret, x) -> begin
                ret[1] = 2.0 * x[2]
                ret[2] = -1.0
                ret[3] = 2.0 * x[3]
@@ -110,7 +110,7 @@ julia> set = Ipopt._VectorNonlinearOracle(;
                return
            end,
            hessian_lagrangian_structure = [(2, 2), (3, 3), (4, 4)],
-           hessian_lagrangian = (ret, x, u) -> begin
+           eval_hessian_lagrangian = (ret, x, u) -> begin
                ret[1] = 2.0 * u[1]
                ret[2] = 2.0 * u[2]
                ret[3] = 6.0 * x[4] * u[2]
@@ -136,12 +136,12 @@ struct _VectorNonlinearOracle <: MOI.AbstractVectorSet
         dimension::Int,
         l::Vector{Float64},
         u::Vector{Float64},
-        f::Function,
+        eval_f::Function,
         jacobian_structure::Vector{Tuple{Int,Int}},
-        jacobian::Function,
+        eval_jacobian::Function,
         # The hessian_lagrangian is optional.
         hessian_lagrangian_structure::Vector{Tuple{Int,Int}} = Tuple{Int,Int}[],
-        hessian_lagrangian::Union{Nothing,Function} = nothing,
+        eval_hessian_lagrangian::Union{Nothing,Function} = nothing,
     )
         @assert length(l) == length(u)
         return new(
@@ -149,11 +149,11 @@ struct _VectorNonlinearOracle <: MOI.AbstractVectorSet
             length(l),
             l,
             u,
-            f,
+            eval_f,
             jacobian_structure,
-            jacobian,
+            eval_jacobian,
             hessian_lagrangian_structure,
-            hessian_lagrangian,
+            eval_hessian_lagrangian,
             # Temporary storage
             zeros(dimension),
         )
