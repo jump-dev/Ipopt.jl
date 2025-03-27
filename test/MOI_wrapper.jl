@@ -1135,6 +1135,39 @@ function test_vector_nonlinear_oracle_scalar_nonlinear_equivalent()
     return
 end
 
+function test_vector_nonlinear_oracle_no_hessian()
+    set = Ipopt.VectorNonlinearOracle(;
+        dimension = 5,
+        l = [0.0, 0.0],
+        u = [0.0, 0.0],
+        f = (ret, x) -> begin
+            ret[1] = x[1]^2 - x[4]
+            ret[2] = x[2]^2 + x[3]^3 - x[5]
+            return
+        end,
+        jacobian_structure = [(1, 1), (2, 2), (2, 3), (1, 4), (2, 5)],
+        jacobian = (ret, x) -> begin
+            ret[1] = 2 * x[1]
+            ret[2] = 2 * x[2]
+            ret[3] = 3 * x[3]^2
+            ret[4] = -1.0
+            ret[5] = -1.0
+            return
+        end,
+    )
+    model = Ipopt.Optimizer()
+    MOI.set(model, MOI.Silent(), true)
+    x = MOI.add_variables(model, 3)
+    MOI.add_constraints.(model, x, MOI.EqualTo.(1.0:3.0))
+    y = MOI.add_variables(model, 2)
+    MOI.add_constraint(model, MOI.VectorOfVariables([x; y]), set)
+    MOI.optimize!(model)
+    x_v = MOI.get.(model, MOI.VariablePrimal(), x)
+    y_v = MOI.get.(model, MOI.VariablePrimal(), y)
+    @test isapprox(y_v, [x_v[1]^2, x_v[2]^2 + x_v[3]^3], atol = 1e-5)
+    return
+end
+
 end  # module TestMOIWrapper
 
 TestMOIWrapper.runtests()

@@ -23,8 +23,8 @@ end
         f::Function,
         jacobian_structure::Vector{Tuple{Int,Int}},
         jacobian::Function,
-        hessian_lagrangian_structure::Vector{Tuple{Int,Int}},
-        hessian_lagrangian::Function,
+        hessian_lagrangian_structure::Vector{Tuple{Int,Int}} = Tuple{Int,Int}[],
+        hessian_lagrangian::Union{Nothing,Function} = nothing,
     ) <: MOI.AbstractVectorSet
 
 The set:
@@ -55,7 +55,12 @@ argument.
 
 ## Hessian
 
-The `hessian_lagrangian` function must have the signature
+The `hessian_lagrangian` function is optional.
+
+If `hessian_lagrangian === nothing`, Ipopt will use a Hessian approximation
+instead of the exact Hessian.
+
+If `hessian_lagrangian` is a function, it must have the signature
 ```julia
 hessian_lagrangian(
     ret::AbstractVector,
@@ -114,11 +119,11 @@ struct VectorNonlinearOracle <: MOI.AbstractVectorSet
     output_dimension::Int
     l::Vector{Float64}
     u::Vector{Float64}
-    f::Function
+    eval_f::Function
     jacobian_structure::Vector{Tuple{Int,Int}}
-    jacobian::Function
+    eval_jacobian::Function
     hessian_lagrangian_structure::Vector{Tuple{Int,Int}}
-    hessian_lagrangian::Function
+    eval_hessian_lagrangian::Union{Nothing,Function}
     # Temporary storage
     x::Vector{Float64}
 
@@ -129,8 +134,9 @@ struct VectorNonlinearOracle <: MOI.AbstractVectorSet
         f::Function,
         jacobian_structure::Vector{Tuple{Int,Int}},
         jacobian::Function,
-        hessian_lagrangian_structure::Vector{Tuple{Int,Int}},
-        hessian_lagrangian::Function,
+        # The hessian_lagrangian is optional.
+        hessian_lagrangian_structure::Vector{Tuple{Int,Int}} = Tuple{Int,Int}[],
+        hessian_lagrangian::Union{Nothing,Function} = nothing,
     )
         @assert length(l) == length(u)
         return new(
@@ -1166,7 +1172,7 @@ function _eval_constraint(
         s.x[i] = x[f.variables[i].value]
     end
     ret = view(g, offset .+ (1:s.output_dimension))
-    s.f(ret, s.x)
+    s.eval_f(ret, s.x)
     return offset + s.output_dimension
 end
 
@@ -1223,7 +1229,7 @@ function _eval_constraint_jacobian(
         s.x[i] = x[f.variables[i].value]
     end
     nnz = length(s.jacobian_structure)
-    s.jacobian(view(values, offset .+ (1:nnz)), s.x)
+    s.eval_jacobian(view(values, offset .+ (1:nnz)), s.x)
     return offset + nnz
 end
 
@@ -1275,7 +1281,7 @@ function _eval_hessian_lagrangian(
     H_nnz, μ_nnz = length(s.hessian_lagrangian_structure), s.output_dimension
     H_view = view(H, H_offset .+ (1:H_nnz))
     μ_view = view(μ, μ_offset .+ (1:μ_nnz))
-    s.hessian_lagrangian(H_view, s.x, μ_view)
+    s.eval_hessian_lagrangian(H_view, s.x, μ_view)
     return H_offset + H_nnz, μ_offset + μ_nnz
 end
 
@@ -1334,6 +1340,12 @@ function _setup_model(model::Optimizer)
         !isempty(model.nlp_data.constraint_bounds) ||
         !isempty(model.vector_nonlinear_oracle_constraints)
     has_hessian = :Hess in MOI.features_available(model.nlp_data.evaluator)
+    for (_, s) in model.vector_nonlinear_oracle_constraints
+        if s.eval_hessian_lagrangian === nothing
+            has_hessian = false
+            break
+        end
+    end
     init_feat = [:Grad]
     if has_hessian
         push!(init_feat, :Hess)
