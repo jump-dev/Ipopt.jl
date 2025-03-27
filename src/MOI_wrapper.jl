@@ -32,7 +32,7 @@ The set:
 S = \\{x \\in \\mathbb{R}^{dimension}: l \\le f(x) \\le u\\}
 ```
 where ``f`` is defined by the vectors `l` and `u`, and the callback oracles
-`f`, `jacobian`, and `hessian_lagrangian`.
+`eval_f`, `eval_jacobian`, and `eval_hessian_lagrangian`.
 
 !!! warning
     This set is experimental. We will decide by September 30, 2025, whether to
