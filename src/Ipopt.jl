@@ -22,6 +22,13 @@ end
 
 include("C_wrapper.jl")
 
+"""
+    Optimizer()
+
+Create a new Ipopt optimizer.
+"""
+function Optimizer end
+
 export IpoptProblem,
     CreateIpoptProblem,
     FreeIpoptProblem,
