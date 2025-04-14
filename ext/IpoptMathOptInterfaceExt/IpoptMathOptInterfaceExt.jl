@@ -10,9 +10,6 @@ import MathOptInterface as MOI
 import PrecompileTools
 
 function __init__()
-    if ccall(:jl_generating_output, Cint, ()) == 1
-        return  # Skip if precompiling
-    end
     @eval Ipopt begin
         const Optimizer = $Optimizer
         const CallbackFunction = $CallbackFunction
