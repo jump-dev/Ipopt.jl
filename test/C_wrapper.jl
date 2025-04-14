@@ -10,6 +10,17 @@ using Test
 
 import Ipopt_jll
 
+function runtests()
+    for name in names(@__MODULE__; all = true)
+        if startswith("$(name)", "test_")
+            @testset "$(name)" begin
+                getfield(@__MODULE__, name)()
+            end
+        end
+    end
+    return
+end
+
 function test_hs071()
     # hs071
     # min x1 * x4 * (x1 + x2 + x3) + x3
@@ -480,4 +491,4 @@ end
 
 end  # TestCWrapper
 
-runtests(TestCWrapper)
+TestCWrapper.runtests()
