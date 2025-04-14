@@ -5,18 +5,6 @@
 
 using Test
 
-function runtests(mod)
-    for name in names(mod; all = true)
-        if !startswith("$(name)", "test_")
-            continue
-        end
-        @testset "$(name)" begin
-            getfield(mod, name)()
-        end
-    end
-    return
-end
-
 @testset "C" begin
     include("C_wrapper.jl")
 end
