@@ -1530,29 +1530,30 @@ function MOI.optimize!(model::Optimizer)
     return
 end
 
-# From Ipopt/src/Interfaces/IpReturnCodes_inc.h
 #!format:off
-const _STATUS_CODES = Dict{Int,Tuple{Symbol,MOI.TerminationStatusCode,MOI.ResultStatusCode}}(
-    0 => (:Solve_Succeeded, MOI.LOCALLY_SOLVED, MOI.FEASIBLE_POINT),
-    1 => (:Solved_To_Acceptable_Level, MOI.ALMOST_LOCALLY_SOLVED, MOI.NEARLY_FEASIBLE_POINT),
-    2 => (:Infeasible_Problem_Detected, MOI.LOCALLY_INFEASIBLE, MOI.INFEASIBLE_POINT),
-    3 => (:Search_Direction_Becomes_Too_Small, MOI.SLOW_PROGRESS, MOI.UNKNOWN_RESULT_STATUS),
-    4 => (:Diverging_Iterates, MOI.NORM_LIMIT, MOI.UNKNOWN_RESULT_STATUS),
-    5 => (:User_Requested_Stop, MOI.INTERRUPTED, MOI.UNKNOWN_RESULT_STATUS),
-    6 => (:Feasible_Point_Found, MOI.LOCALLY_SOLVED, MOI.FEASIBLE_POINT),
-    -1 => (:Maximum_Iterations_Exceeded, MOI.ITERATION_LIMIT, MOI.UNKNOWN_RESULT_STATUS),
-    -2 => (:Restoration_Failed, MOI.OTHER_ERROR, MOI.UNKNOWN_RESULT_STATUS),
-    -3 => (:Error_In_Step_Computation, MOI.NUMERICAL_ERROR, MOI.UNKNOWN_RESULT_STATUS),
-    -4 => (:Maximum_CpuTime_Exceeded, MOI.TIME_LIMIT, MOI.UNKNOWN_RESULT_STATUS),
-    -5 => (:Maximum_WallTime_Exceeded, MOI.TIME_LIMIT, MOI.UNKNOWN_RESULT_STATUS),
-    -10 => (:Not_Enough_Degrees_Of_Freedom, MOI.INVALID_MODEL, MOI.UNKNOWN_RESULT_STATUS),
-    -11 => (:Invalid_Problem_Definition, MOI.INVALID_MODEL, MOI.UNKNOWN_RESULT_STATUS),
-    -12 => (:Invalid_Option, MOI.INVALID_OPTION, MOI.UNKNOWN_RESULT_STATUS),
-    -13 => (:Invalid_Number_Detected, MOI.INVALID_MODEL, MOI.UNKNOWN_RESULT_STATUS),
-    -100 => (:Unrecoverable_Exception, MOI.OTHER_ERROR, MOI.UNKNOWN_RESULT_STATUS),
-    -101 => (:NonIpopt_Exception_Thrown, MOI.OTHER_ERROR, MOI.UNKNOWN_RESULT_STATUS),
-    -102 => (:Insufficient_Memory, MOI.MEMORY_LIMIT, MOI.UNKNOWN_RESULT_STATUS),
-    -199 => (:Internal_Error, MOI.OTHER_ERROR, MOI.UNKNOWN_RESULT_STATUS),
+const _STATUS_CODES = Dict{
+    ApplicationReturnStatus,         Tuple{MOI.TerminationStatusCode, MOI.ResultStatusCode}
+}(
+    Solve_Succeeded                    => (MOI.LOCALLY_SOLVED,        MOI.FEASIBLE_POINT),
+    Solved_To_Acceptable_Level         => (MOI.ALMOST_LOCALLY_SOLVED, MOI.NEARLY_FEASIBLE_POINT),
+    Infeasible_Problem_Detected        => (MOI.LOCALLY_INFEASIBLE,    MOI.INFEASIBLE_POINT),
+    Search_Direction_Becomes_Too_Small => (MOI.SLOW_PROGRESS,         MOI.UNKNOWN_RESULT_STATUS),
+    Diverging_Iterates                 => (MOI.NORM_LIMIT,            MOI.UNKNOWN_RESULT_STATUS),
+    User_Requested_Stop                => (MOI.INTERRUPTED,           MOI.UNKNOWN_RESULT_STATUS),
+    Feasible_Point_Found               => (MOI.LOCALLY_SOLVED,        MOI.FEASIBLE_POINT),
+    Maximum_Iterations_Exceeded        => (MOI.ITERATION_LIMIT,       MOI.UNKNOWN_RESULT_STATUS),
+    Restoration_Failed                 => (MOI.OTHER_ERROR,           MOI.UNKNOWN_RESULT_STATUS),
+    Error_In_Step_Computation          => (MOI.NUMERICAL_ERROR,       MOI.UNKNOWN_RESULT_STATUS),
+    Maximum_CpuTime_Exceeded           => (MOI.TIME_LIMIT,            MOI.UNKNOWN_RESULT_STATUS),
+    Maximum_WallTime_Exceeded          => (MOI.TIME_LIMIT,            MOI.UNKNOWN_RESULT_STATUS),
+    Not_Enough_Degrees_Of_Freedom      => (MOI.INVALID_MODEL,         MOI.UNKNOWN_RESULT_STATUS),
+    Invalid_Problem_Definition         => (MOI.INVALID_MODEL,         MOI.UNKNOWN_RESULT_STATUS),
+    Invalid_Option                     => (MOI.INVALID_OPTION,        MOI.UNKNOWN_RESULT_STATUS),
+    Invalid_Number_Detected            => (MOI.INVALID_MODEL,         MOI.UNKNOWN_RESULT_STATUS),
+    Unrecoverable_Exception            => (MOI.OTHER_ERROR,           MOI.UNKNOWN_RESULT_STATUS),
+    NonIpopt_Exception_Thrown          => (MOI.OTHER_ERROR,           MOI.UNKNOWN_RESULT_STATUS),
+    Insufficient_Memory                => (MOI.MEMORY_LIMIT,          MOI.UNKNOWN_RESULT_STATUS),
+    Internal_Error                     => (MOI.OTHER_ERROR,           MOI.UNKNOWN_RESULT_STATUS),
 )
 #!format:on
 
@@ -1571,7 +1572,7 @@ function MOI.get(model::Optimizer, ::MOI.TerminationStatus)
     elseif model.inner === nothing
         return MOI.OPTIMIZE_NOT_CALLED
     end
-    return _STATUS_CODES[model.inner.status][2]
+    return _STATUS_CODES[ApplicationReturnStatus(model.inner.status)][1]
 end
 
 ### MOI.RawStatusString
@@ -1582,7 +1583,7 @@ function MOI.get(model::Optimizer, ::MOI.RawStatusString)
     elseif model.inner === nothing
         return "Optimize not called"
     else
-        return string(_STATUS_CODES[model.inner.status][1])
+        return string(ApplicationReturnStatus(model.inner.status))
     end
 end
 
@@ -1617,7 +1618,7 @@ function MOI.get(model::Optimizer, attr::MOI.PrimalStatus)
     if !(1 <= attr.result_index <= MOI.get(model, MOI.ResultCount()))
         return MOI.NO_SOLUTION
     end
-    status = _STATUS_CODES[model.inner.status][3]
+    _, status = _STATUS_CODES[ApplicationReturnStatus(model.inner.status)]
     if status == MOI.UNKNOWN_RESULT_STATUS
         # Not sure. RestorationFailure can terminate at a feasible (but
         # non-stationary) point.
@@ -1632,7 +1633,8 @@ function MOI.get(model::Optimizer, attr::MOI.DualStatus)
     if !(1 <= attr.result_index <= MOI.get(model, MOI.ResultCount()))
         return MOI.NO_SOLUTION
     end
-    return _STATUS_CODES[model.inner.status][3]
+    _, status = _STATUS_CODES[ApplicationReturnStatus(model.inner.status)]
+    return status
 end
 
 ### MOI.SolveTimeSec
