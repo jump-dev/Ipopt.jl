@@ -480,6 +480,8 @@ function GetIpoptCurrentViolations(
     return
 end
 
+# https://github.com/coin-or/Ipopt/blob/8f2b8efcd53d93518984597808db05dce43e348f/src/Interfaces/IpReturnCodes_inc.h#L13-L38
+#!format:off
 @enum(
    ApplicationReturnStatus,
    Solve_Succeeded                    = 0,
@@ -506,3 +508,4 @@ end
    Insufficient_Memory                = -102,
    Internal_Error                     = -199
 )
+#!format:on
