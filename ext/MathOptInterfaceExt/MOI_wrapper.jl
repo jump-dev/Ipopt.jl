@@ -170,7 +170,7 @@ MOI.copy(s::_VectorNonlinearOracle) = s
 Create a new Ipopt optimizer.
 """
 mutable struct Optimizer <: MOI.AbstractOptimizer
-    inner::Union{Nothing,IpoptProblem}
+    inner::Union{Nothing,Ipopt.IpoptProblem}
     name::String
     invalid_model::Bool
     silent::Bool
@@ -233,12 +233,7 @@ const _SETS = Union{
     MOI.Interval{Float64},
 }
 
-function MOI.get(::Optimizer, ::MOI.SolverVersion)
-    if VERSION >= v"1.9"
-        return string(pkgversion(Ipopt_jll))
-    end
-    return "unknown"
-end
+MOI.get(::Optimizer, ::MOI.SolverVersion) = Ipopt._version_string()
 
 ### _EmptyNLPEvaluator
 
@@ -1402,7 +1397,7 @@ function _setup_model(model::Optimizer)
         push!(g_L, bound.lower)
         push!(g_U, bound.upper)
     end
-    model.inner = CreateIpoptProblem(
+    model.inner = Ipopt.CreateIpoptProblem(
         length(vars),
         model.variables.lower,
         model.variables.upper,
@@ -1418,32 +1413,32 @@ function _setup_model(model::Optimizer)
         has_hessian ? eval_h_cb : nothing,
     )
     if model.sense == MOI.MIN_SENSE
-        AddIpoptNumOption(model.inner, "obj_scaling_factor", 1.0)
+        Ipopt.AddIpoptNumOption(model.inner, "obj_scaling_factor", 1.0)
     elseif model.sense == MOI.MAX_SENSE
-        AddIpoptNumOption(model.inner, "obj_scaling_factor", -1.0)
+        Ipopt.AddIpoptNumOption(model.inner, "obj_scaling_factor", -1.0)
     end
     # Ipopt crashes by default if NaN/Inf values are returned from the
     # evaluation callbacks. This option tells Ipopt to explicitly check for them
     # and return Invalid_Number_Detected instead. This setting may result in a
     # minor performance loss and can be overwritten by specifying
     # check_derivatives_for_naninf="no".
-    AddIpoptStrOption(model.inner, "check_derivatives_for_naninf", "yes")
+    Ipopt.AddIpoptStrOption(model.inner, "check_derivatives_for_naninf", "yes")
     if !has_hessian
-        AddIpoptStrOption(
+        Ipopt.AddIpoptStrOption(
             model.inner,
             "hessian_approximation",
             "limited-memory",
         )
     end
     if !has_nlp_constraints && !has_quadratic_constraints
-        AddIpoptStrOption(model.inner, "jac_c_constant", "yes")
-        AddIpoptStrOption(model.inner, "jac_d_constant", "yes")
+        Ipopt.AddIpoptStrOption(model.inner, "jac_c_constant", "yes")
+        Ipopt.AddIpoptStrOption(model.inner, "jac_d_constant", "yes")
         if !model.nlp_data.has_objective
             # We turn on this option if all constraints are linear and the
             # objective is linear or quadratic. From the documentation, it's
             # unclear if it may also apply if the constraints are at most
             # quadratic.
-            AddIpoptStrOption(model.inner, "hessian_constant", "yes")
+            Ipopt.AddIpoptStrOption(model.inner, "hessian_constant", "yes")
         end
     end
     return
@@ -1469,17 +1464,17 @@ function MOI.optimize!(model::Optimizer)
         return
     end
     copy_parameters(model)
-    inner = model.inner::IpoptProblem
+    inner = model.inner::Ipopt.IpoptProblem
     # The default print level is `5`
-    AddIpoptIntOption(inner, "print_level", model.silent ? 0 : 5)
+    Ipopt.AddIpoptIntOption(inner, "print_level", model.silent ? 0 : 5)
     # Other misc options that over-ride the ones set above.
     for (name, value) in model.options
         if value isa String
-            AddIpoptStrOption(inner, name, value)
+            Ipopt.AddIpoptStrOption(inner, name, value)
         elseif value isa Integer
-            AddIpoptIntOption(inner, name, value)
+            Ipopt.AddIpoptIntOption(inner, name, value)
         elseif value isa Float64
-            AddIpoptNumOption(inner, name, value)
+            Ipopt.AddIpoptNumOption(inner, name, value)
         else
             error(
                 "Unable to add option `\"$name\"` with the value " *
@@ -1524,8 +1519,8 @@ function MOI.optimize!(model::Optimizer)
         end
         return true
     end
-    SetIntermediateCallback(inner, _moi_callback)
-    IpoptSolve(inner)
+    Ipopt.SetIntermediateCallback(inner, _moi_callback)
+    Ipopt.IpoptSolve(inner)
     model.solve_time = time() - start_time
     return
 end
