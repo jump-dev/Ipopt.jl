@@ -22,12 +22,10 @@ end
 
 include("C_wrapper.jl")
 
-"""
-    Optimizer()
-
-Create a new Ipopt optimizer.
-"""
+# Functions needed by the MOI extension
 function Optimizer end
+function _VectorNonlinearOracle end
+function CallbackFunction end
 
 export IpoptProblem,
     CreateIpoptProblem,

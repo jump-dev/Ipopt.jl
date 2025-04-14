@@ -1785,7 +1785,7 @@ function MOI.get(model::Optimizer, attr::MOI.NLPBlockDual)
     return s .* model.inner.mult_g[(length(model.qp_data)+1):end]
 end
 
-### Ipopt.CallbackFunction
+### CallbackFunction
 
 """
     CallbackFunction()
