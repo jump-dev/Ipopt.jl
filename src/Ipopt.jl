@@ -9,7 +9,7 @@ import Ipopt_jll
 import Ipopt_jll: libipopt
 import LinearAlgebra
 import OpenBLAS32_jll
-import PrecompileTools  # Needed for MathOptInterfaceExt
+import PrecompileTools  # Needed for IpoptMathOptInterfaceExt
 
 function __init__()
     config = LinearAlgebra.BLAS.lbt_get_config()
@@ -33,7 +33,7 @@ export IpoptProblem,
     IpoptSolve
 
 # This function is needed for MOI.SolverVersion, but we don't want to expose
-# Ipopt_jll to MathOptInterfaceExt.
+# Ipopt_jll to IpoptMathOptInterfaceExt.
 _version_string() = string(pkgversion(Ipopt_jll))
 
 end  # module Ipopt

@@ -3,7 +3,7 @@
 # Use of this source code is governed by an MIT-style license that can be found
 # in the LICENSE.md file or at https://opensource.org/licenses/MIT.
 
-module MathOptInterfaceExt
+module IpoptMathOptInterfaceExt
 
 import Ipopt
 import MathOptInterface as MOI
@@ -83,4 +83,4 @@ PrecompileTools.@setup_workload begin
     end
 end
 
-end  # module MathOptInterfaceExt
+end  # module IpoptMathOptInterfaceExt

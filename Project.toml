@@ -13,7 +13,7 @@ PrecompileTools = "aea7be01-6a6a-4083-8856-8a6e6704d82a"
 MathOptInterface = "b8f27783-ece8-5eb3-8dc8-9495eed66fee"
 
 [extensions]
-MathOptInterfaceExt = ["MathOptInterface", "PrecompileTools"]
+IpoptMathOptInterfaceExt = ["MathOptInterface", "PrecompileTools"]
 
 [compat]
 HSL_jll = "3, 4, 2023, 2024"
