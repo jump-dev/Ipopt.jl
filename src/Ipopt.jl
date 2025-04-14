@@ -32,14 +32,6 @@ export IpoptProblem,
     SetIntermediateCallback,
     IpoptSolve
 
-# These contants are listed here because they are populated by
-# MathOptInterfaceExt. They were previously exposed with the `Ipopt.`, and we
-# don't want to make a breaking change.
-global Optimizer
-global CallbackFunction
-global column
-global _VectorNonlinearOracle
-
 # This function is needed for MOI.SolverVersion, but we don't want to expose
 # Ipopt_jll to MathOptInterfaceExt.
 _version_string() = string(pkgversion(Ipopt_jll))

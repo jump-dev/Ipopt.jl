@@ -10,10 +10,15 @@ import MathOptInterface as MOI
 import PrecompileTools
 
 function __init__()
-    setglobal!(Ipopt, :Optimizer, Optimizer)
-    setglobal!(Ipopt, :CallbackFunction, CallbackFunction)
-    setglobal!(Ipopt, :column, column)
-    setglobal!(Ipopt, :_VectorNonlinearOracle, _VectorNonlinearOracle)
+    if ccall(:jl_generating_output, Cint, ()) == 1
+        return  # Skip if precompiling
+    end
+    @eval Ipopt begin
+        const Optimizer = $Optimizer
+        const CallbackFunction = $CallbackFunction
+        const column = $column
+        const _VectorNonlinearOracle = $_VectorNonlinearOracle
+    end
     return
 end
 
@@ -24,7 +29,7 @@ PrecompileTools.@setup_workload begin
     PrecompileTools.@compile_workload begin
         model = MOI.Utilities.CachingOptimizer(
             MOI.Utilities.UniversalFallback(MOI.Utilities.Model{Float64}()),
-            MOI.instantiate(Ipopt.Optimizer; with_bridge_type = Float64),
+            MOI.instantiate(Optimizer; with_bridge_type = Float64),
         )
         # We don't want to advertise this option, but it's required so that
         # we don't print the banner during precompilation.
