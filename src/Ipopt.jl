@@ -9,6 +9,7 @@ import Ipopt_jll
 import Ipopt_jll: libipopt
 import LinearAlgebra
 import OpenBLAS32_jll
+import PrecompileTools  # Needed for MathOptInterfaceExt
 
 function __init__()
     config = LinearAlgebra.BLAS.lbt_get_config()
