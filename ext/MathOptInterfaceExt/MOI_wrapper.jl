@@ -468,11 +468,11 @@ end
 ### Variables
 
 """
-    column(x::MOI.VariableIndex)
+    Ipopt.column(x::MOI.VariableIndex)
 
 Return the column associated with a variable.
 """
-column(x::MOI.VariableIndex) = x.value
+Ipopt.column(x::MOI.VariableIndex) = x.value
 
 function MOI.add_variable(model::Optimizer)
     push!(model.variable_primal_start, nothing)
@@ -927,7 +927,7 @@ function MOI.get(
         throw(MOI.GetAttributeNotAllowed(attr, "Variable is a Parameter"))
     end
     MOI.throw_if_not_valid(model, vi)
-    return model.variable_primal_start[column(vi)]
+    return model.variable_primal_start[Ipopt.column(vi)]
 end
 
 function MOI.set(
@@ -940,7 +940,7 @@ function MOI.set(
         throw(MOI.SetAttributeNotAllowed(attr, "Variable is a Parameter"))
     end
     MOI.throw_if_not_valid(model, vi)
-    model.variable_primal_start[column(vi)] = value
+    model.variable_primal_start[Ipopt.column(vi)] = value
     # No need to reset model.inner, because this gets handled in optimize!.
     return
 end
@@ -1660,7 +1660,7 @@ function MOI.get(
         p = model.parameters[vi]
         return model.nlp_model[p]
     end
-    return model.inner.x[column(vi)]
+    return model.inner.x[Ipopt.column(vi)]
 end
 
 ### MOI.ConstraintPrimal
@@ -1832,5 +1832,5 @@ function MOI.get(
     ::MOI.CallbackVariablePrimal,
     x::MOI.VariableIndex,
 )
-    return model.inner.x[column(x)]
+    return model.inner.x[Ipopt.column(x)]
 end

@@ -16,7 +16,6 @@ function __init__()
     @eval Ipopt begin
         const Optimizer = $Optimizer
         const CallbackFunction = $CallbackFunction
-        const column = $column
         const _VectorNonlinearOracle = $_VectorNonlinearOracle
     end
     return
@@ -25,7 +24,6 @@ end
 include("MOI_wrapper.jl")
 
 PrecompileTools.@setup_workload begin
-    __init__()
     PrecompileTools.@compile_workload begin
         model = MOI.Utilities.CachingOptimizer(
             MOI.Utilities.UniversalFallback(MOI.Utilities.Model{Float64}()),
