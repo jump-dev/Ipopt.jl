@@ -479,3 +479,12 @@ function GetIpoptCurrentViolations(
     end
     return
 end
+
+function IpoptVersion()
+    ipopt_jll_version = pkgversion(Ipopt_jll)
+    major = ipopt_jll_version.major ÷ 100
+    minor = ipopt_jll_version.minor ÷ 100
+    patch = ipopt_jll_version.patch ÷ 100
+    ipopt_version = "$major.$minor.$patch"
+    return ipopt_version
+end

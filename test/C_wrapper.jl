@@ -10,6 +10,9 @@ using Test
 
 import Ipopt_jll
 
+# code coverage
+ipopt_version = IpoptVersion()
+
 function test_hs071()
     # hs071
     # min x1 * x4 * (x1 + x2 + x3) + x3

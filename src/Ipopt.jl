@@ -33,7 +33,8 @@ export IpoptProblem,
     OpenIpoptOutputFile,
     SetIpoptProblemScaling,
     SetIntermediateCallback,
-    IpoptSolve
+    IpoptSolve,
+    IpoptVersion
 
 import PrecompileTools
 
