@@ -4,7 +4,7 @@ task:
   name: FreeBSD
   env:
     matrix:
-      - JULIA_VERSION: 1.6
+      - JULIA_VERSION: 1.10
       - JULIA_VERSION: 1
   install_script: |
     sh -c "$(fetch https://raw.githubusercontent.com/ararslan/CirrusCI.jl/master/bin/install.sh -o -)"

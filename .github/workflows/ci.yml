@@ -15,7 +15,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        version: ['1.6', '1']  # Test against LTS and current minor release
+        version: ['lts', '1']  # Test against LTS and current minor release
         os: [ubuntu-latest, macOS-latest, windows-latest]
         arch: [x64]
         include:
@@ -24,7 +24,7 @@ jobs:
             os: ubuntu-24.04-arm
             arch: arm64
           # Also test against 32-bit Linux on LTS.
-          - version: '1.6'
+          - version: 'lts'
             os: ubuntu-latest
             arch: x86
           - version: '1'
