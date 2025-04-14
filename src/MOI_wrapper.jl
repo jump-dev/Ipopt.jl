@@ -233,7 +233,12 @@ const _SETS = Union{
     MOI.Interval{Float64},
 }
 
-MOI.get(::Optimizer, ::MOI.SolverVersion) = "3.14.4"
+function MOI.get(::Optimizer, ::MOI.SolverVersion)
+    if VERSION >= v"1.9"
+        return string(pkgversion(Ipopt_jll))
+    end
+    return "unknown"
+end
 
 ### _EmptyNLPEvaluator
 
