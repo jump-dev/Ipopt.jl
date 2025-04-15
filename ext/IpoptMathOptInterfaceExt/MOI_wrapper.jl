@@ -170,7 +170,7 @@ MOI.copy(s::_VectorNonlinearOracle) = s
 Create a new Ipopt optimizer.
 """
 mutable struct Optimizer <: MOI.AbstractOptimizer
-    inner::Union{Nothing,IpoptProblem}
+    inner::Union{Nothing,Ipopt.IpoptProblem}
     name::String
     invalid_model::Bool
     silent::Bool
@@ -233,12 +233,7 @@ const _SETS = Union{
     MOI.Interval{Float64},
 }
 
-function MOI.get(::Optimizer, ::MOI.SolverVersion)
-    if VERSION >= v"1.9"
-        return string(pkgversion(Ipopt_jll))
-    end
-    return "unknown"
-end
+MOI.get(::Optimizer, ::MOI.SolverVersion) = Ipopt._version_string()
 
 ### _EmptyNLPEvaluator
 
@@ -473,11 +468,11 @@ end
 ### Variables
 
 """
-    column(x::MOI.VariableIndex)
+    Ipopt.column(x::MOI.VariableIndex)
 
 Return the column associated with a variable.
 """
-column(x::MOI.VariableIndex) = x.value
+Ipopt.column(x::MOI.VariableIndex) = x.value
 
 function MOI.add_variable(model::Optimizer)
     push!(model.variable_primal_start, nothing)
@@ -932,7 +927,7 @@ function MOI.get(
         throw(MOI.GetAttributeNotAllowed(attr, "Variable is a Parameter"))
     end
     MOI.throw_if_not_valid(model, vi)
-    return model.variable_primal_start[column(vi)]
+    return model.variable_primal_start[Ipopt.column(vi)]
 end
 
 function MOI.set(
@@ -945,7 +940,7 @@ function MOI.set(
         throw(MOI.SetAttributeNotAllowed(attr, "Variable is a Parameter"))
     end
     MOI.throw_if_not_valid(model, vi)
-    model.variable_primal_start[column(vi)] = value
+    model.variable_primal_start[Ipopt.column(vi)] = value
     # No need to reset model.inner, because this gets handled in optimize!.
     return
 end
@@ -1402,7 +1397,7 @@ function _setup_model(model::Optimizer)
         push!(g_L, bound.lower)
         push!(g_U, bound.upper)
     end
-    model.inner = CreateIpoptProblem(
+    model.inner = Ipopt.CreateIpoptProblem(
         length(vars),
         model.variables.lower,
         model.variables.upper,
@@ -1418,32 +1413,32 @@ function _setup_model(model::Optimizer)
         has_hessian ? eval_h_cb : nothing,
     )
     if model.sense == MOI.MIN_SENSE
-        AddIpoptNumOption(model.inner, "obj_scaling_factor", 1.0)
+        Ipopt.AddIpoptNumOption(model.inner, "obj_scaling_factor", 1.0)
     elseif model.sense == MOI.MAX_SENSE
-        AddIpoptNumOption(model.inner, "obj_scaling_factor", -1.0)
+        Ipopt.AddIpoptNumOption(model.inner, "obj_scaling_factor", -1.0)
     end
     # Ipopt crashes by default if NaN/Inf values are returned from the
     # evaluation callbacks. This option tells Ipopt to explicitly check for them
     # and return Invalid_Number_Detected instead. This setting may result in a
     # minor performance loss and can be overwritten by specifying
     # check_derivatives_for_naninf="no".
-    AddIpoptStrOption(model.inner, "check_derivatives_for_naninf", "yes")
+    Ipopt.AddIpoptStrOption(model.inner, "check_derivatives_for_naninf", "yes")
     if !has_hessian
-        AddIpoptStrOption(
+        Ipopt.AddIpoptStrOption(
             model.inner,
             "hessian_approximation",
             "limited-memory",
         )
     end
     if !has_nlp_constraints && !has_quadratic_constraints
-        AddIpoptStrOption(model.inner, "jac_c_constant", "yes")
-        AddIpoptStrOption(model.inner, "jac_d_constant", "yes")
+        Ipopt.AddIpoptStrOption(model.inner, "jac_c_constant", "yes")
+        Ipopt.AddIpoptStrOption(model.inner, "jac_d_constant", "yes")
         if !model.nlp_data.has_objective
             # We turn on this option if all constraints are linear and the
             # objective is linear or quadratic. From the documentation, it's
             # unclear if it may also apply if the constraints are at most
             # quadratic.
-            AddIpoptStrOption(model.inner, "hessian_constant", "yes")
+            Ipopt.AddIpoptStrOption(model.inner, "hessian_constant", "yes")
         end
     end
     return
@@ -1469,17 +1464,17 @@ function MOI.optimize!(model::Optimizer)
         return
     end
     copy_parameters(model)
-    inner = model.inner::IpoptProblem
+    inner = model.inner::Ipopt.IpoptProblem
     # The default print level is `5`
-    AddIpoptIntOption(inner, "print_level", model.silent ? 0 : 5)
+    Ipopt.AddIpoptIntOption(inner, "print_level", model.silent ? 0 : 5)
     # Other misc options that over-ride the ones set above.
     for (name, value) in model.options
         if value isa String
-            AddIpoptStrOption(inner, name, value)
+            Ipopt.AddIpoptStrOption(inner, name, value)
         elseif value isa Integer
-            AddIpoptIntOption(inner, name, value)
+            Ipopt.AddIpoptIntOption(inner, name, value)
         elseif value isa Float64
-            AddIpoptNumOption(inner, name, value)
+            Ipopt.AddIpoptNumOption(inner, name, value)
         else
             error(
                 "Unable to add option `\"$name\"` with the value " *
@@ -1524,36 +1519,36 @@ function MOI.optimize!(model::Optimizer)
         end
         return true
     end
-    SetIntermediateCallback(inner, _moi_callback)
-    IpoptSolve(inner)
+    Ipopt.SetIntermediateCallback(inner, _moi_callback)
+    Ipopt.IpoptSolve(inner)
     model.solve_time = time() - start_time
     return
 end
 
 #!format:off
 const _STATUS_CODES = Dict{
-    ApplicationReturnStatus,         Tuple{MOI.TerminationStatusCode, MOI.ResultStatusCode}
+    Ipopt.ApplicationReturnStatus,         Tuple{MOI.TerminationStatusCode, MOI.ResultStatusCode}
 }(
-    Solve_Succeeded                    => (MOI.LOCALLY_SOLVED,        MOI.FEASIBLE_POINT),
-    Solved_To_Acceptable_Level         => (MOI.ALMOST_LOCALLY_SOLVED, MOI.NEARLY_FEASIBLE_POINT),
-    Infeasible_Problem_Detected        => (MOI.LOCALLY_INFEASIBLE,    MOI.INFEASIBLE_POINT),
-    Search_Direction_Becomes_Too_Small => (MOI.SLOW_PROGRESS,         MOI.UNKNOWN_RESULT_STATUS),
-    Diverging_Iterates                 => (MOI.NORM_LIMIT,            MOI.UNKNOWN_RESULT_STATUS),
-    User_Requested_Stop                => (MOI.INTERRUPTED,           MOI.UNKNOWN_RESULT_STATUS),
-    Feasible_Point_Found               => (MOI.LOCALLY_SOLVED,        MOI.FEASIBLE_POINT),
-    Maximum_Iterations_Exceeded        => (MOI.ITERATION_LIMIT,       MOI.UNKNOWN_RESULT_STATUS),
-    Restoration_Failed                 => (MOI.OTHER_ERROR,           MOI.UNKNOWN_RESULT_STATUS),
-    Error_In_Step_Computation          => (MOI.NUMERICAL_ERROR,       MOI.UNKNOWN_RESULT_STATUS),
-    Maximum_CpuTime_Exceeded           => (MOI.TIME_LIMIT,            MOI.UNKNOWN_RESULT_STATUS),
-    Maximum_WallTime_Exceeded          => (MOI.TIME_LIMIT,            MOI.UNKNOWN_RESULT_STATUS),
-    Not_Enough_Degrees_Of_Freedom      => (MOI.INVALID_MODEL,         MOI.UNKNOWN_RESULT_STATUS),
-    Invalid_Problem_Definition         => (MOI.INVALID_MODEL,         MOI.UNKNOWN_RESULT_STATUS),
-    Invalid_Option                     => (MOI.INVALID_OPTION,        MOI.UNKNOWN_RESULT_STATUS),
-    Invalid_Number_Detected            => (MOI.INVALID_MODEL,         MOI.UNKNOWN_RESULT_STATUS),
-    Unrecoverable_Exception            => (MOI.OTHER_ERROR,           MOI.UNKNOWN_RESULT_STATUS),
-    NonIpopt_Exception_Thrown          => (MOI.OTHER_ERROR,           MOI.UNKNOWN_RESULT_STATUS),
-    Insufficient_Memory                => (MOI.MEMORY_LIMIT,          MOI.UNKNOWN_RESULT_STATUS),
-    Internal_Error                     => (MOI.OTHER_ERROR,           MOI.UNKNOWN_RESULT_STATUS),
+    Ipopt.Solve_Succeeded                    => (MOI.LOCALLY_SOLVED,        MOI.FEASIBLE_POINT),
+    Ipopt.Solved_To_Acceptable_Level         => (MOI.ALMOST_LOCALLY_SOLVED, MOI.NEARLY_FEASIBLE_POINT),
+    Ipopt.Infeasible_Problem_Detected        => (MOI.LOCALLY_INFEASIBLE,    MOI.INFEASIBLE_POINT),
+    Ipopt.Search_Direction_Becomes_Too_Small => (MOI.SLOW_PROGRESS,         MOI.UNKNOWN_RESULT_STATUS),
+    Ipopt.Diverging_Iterates                 => (MOI.NORM_LIMIT,            MOI.UNKNOWN_RESULT_STATUS),
+    Ipopt.User_Requested_Stop                => (MOI.INTERRUPTED,           MOI.UNKNOWN_RESULT_STATUS),
+    Ipopt.Feasible_Point_Found               => (MOI.LOCALLY_SOLVED,        MOI.FEASIBLE_POINT),
+    Ipopt.Maximum_Iterations_Exceeded        => (MOI.ITERATION_LIMIT,       MOI.UNKNOWN_RESULT_STATUS),
+    Ipopt.Restoration_Failed                 => (MOI.OTHER_ERROR,           MOI.UNKNOWN_RESULT_STATUS),
+    Ipopt.Error_In_Step_Computation          => (MOI.NUMERICAL_ERROR,       MOI.UNKNOWN_RESULT_STATUS),
+    Ipopt.Maximum_CpuTime_Exceeded           => (MOI.TIME_LIMIT,            MOI.UNKNOWN_RESULT_STATUS),
+    Ipopt.Maximum_WallTime_Exceeded          => (MOI.TIME_LIMIT,            MOI.UNKNOWN_RESULT_STATUS),
+    Ipopt.Not_Enough_Degrees_Of_Freedom      => (MOI.INVALID_MODEL,         MOI.UNKNOWN_RESULT_STATUS),
+    Ipopt.Invalid_Problem_Definition         => (MOI.INVALID_MODEL,         MOI.UNKNOWN_RESULT_STATUS),
+    Ipopt.Invalid_Option                     => (MOI.INVALID_OPTION,        MOI.UNKNOWN_RESULT_STATUS),
+    Ipopt.Invalid_Number_Detected            => (MOI.INVALID_MODEL,         MOI.UNKNOWN_RESULT_STATUS),
+    Ipopt.Unrecoverable_Exception            => (MOI.OTHER_ERROR,           MOI.UNKNOWN_RESULT_STATUS),
+    Ipopt.NonIpopt_Exception_Thrown          => (MOI.OTHER_ERROR,           MOI.UNKNOWN_RESULT_STATUS),
+    Ipopt.Insufficient_Memory                => (MOI.MEMORY_LIMIT,          MOI.UNKNOWN_RESULT_STATUS),
+    Ipopt.Internal_Error                     => (MOI.OTHER_ERROR,           MOI.UNKNOWN_RESULT_STATUS),
 )
 #!format:on
 
@@ -1572,7 +1567,8 @@ function MOI.get(model::Optimizer, ::MOI.TerminationStatus)
     elseif model.inner === nothing
         return MOI.OPTIMIZE_NOT_CALLED
     end
-    return _STATUS_CODES[ApplicationReturnStatus(model.inner.status)][1]
+    status, _ = _STATUS_CODES[Ipopt.ApplicationReturnStatus(model.inner.status)]
+    return status
 end
 
 ### MOI.RawStatusString
@@ -1582,9 +1578,8 @@ function MOI.get(model::Optimizer, ::MOI.RawStatusString)
         return "The model has no variable"
     elseif model.inner === nothing
         return "Optimize not called"
-    else
-        return string(ApplicationReturnStatus(model.inner.status))
     end
+    return string(Ipopt.ApplicationReturnStatus(model.inner.status))
 end
 
 ### MOI.PrimalStatus
@@ -1618,7 +1613,7 @@ function MOI.get(model::Optimizer, attr::MOI.PrimalStatus)
     if !(1 <= attr.result_index <= MOI.get(model, MOI.ResultCount()))
         return MOI.NO_SOLUTION
     end
-    _, status = _STATUS_CODES[ApplicationReturnStatus(model.inner.status)]
+    _, status = _STATUS_CODES[Ipopt.ApplicationReturnStatus(model.inner.status)]
     if status == MOI.UNKNOWN_RESULT_STATUS
         # Not sure. RestorationFailure can terminate at a feasible (but
         # non-stationary) point.
@@ -1633,7 +1628,7 @@ function MOI.get(model::Optimizer, attr::MOI.DualStatus)
     if !(1 <= attr.result_index <= MOI.get(model, MOI.ResultCount()))
         return MOI.NO_SOLUTION
     end
-    _, status = _STATUS_CODES[ApplicationReturnStatus(model.inner.status)]
+    _, status = _STATUS_CODES[Ipopt.ApplicationReturnStatus(model.inner.status)]
     return status
 end
 
@@ -1665,7 +1660,7 @@ function MOI.get(
         p = model.parameters[vi]
         return model.nlp_model[p]
     end
-    return model.inner.x[column(vi)]
+    return model.inner.x[Ipopt.column(vi)]
 end
 
 ### MOI.ConstraintPrimal
@@ -1837,5 +1832,5 @@ function MOI.get(
     ::MOI.CallbackVariablePrimal,
     x::MOI.VariableIndex,
 )
-    return model.inner.x[column(x)]
+    return model.inner.x[Ipopt.column(x)]
 end

@@ -6,23 +6,28 @@ version = "1.9.0"
 [deps]
 Ipopt_jll = "9cc047cb-c261-5740-88fc-0cf96f7bdcc7"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
-MathOptInterface = "b8f27783-ece8-5eb3-8dc8-9495eed66fee"
 OpenBLAS32_jll = "656ef2d0-ae68-5445-9ca0-591084a874a2"
 PrecompileTools = "aea7be01-6a6a-4083-8856-8a6e6704d82a"
+
+[weakdeps]
+MathOptInterface = "b8f27783-ece8-5eb3-8dc8-9495eed66fee"
+
+[extensions]
+IpoptMathOptInterfaceExt = ["MathOptInterface", "PrecompileTools"]
 
 [compat]
 HSL_jll = "3, 4, 2023, 2024, 2025"
 Ipopt_jll = "=300.1400.400, =300.1400.1400, =300.1400.1600,=300.1400.1700"
-LinearAlgebra = "<0.0.1, 1.6"
+LinearAlgebra = "1"
 MathOptInterface = "1.25"
 OpenBLAS32_jll = "0.3.10"
 PrecompileTools = "1"
-Test = "<0.0.1, 1.6"
-julia = "1.6"
+Test = "1"
+julia = "1.9"
 
 [extras]
 HSL_jll = "017b0a0e-03f4-516a-9b91-836bbd1904dd"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
-test = ["HSL_jll", "Test"]
+test = ["HSL_jll", "MathOptInterface", "Test"]

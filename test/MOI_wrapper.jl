@@ -593,9 +593,7 @@ function test_ListOfSupportedNonlinearOperators()
 end
 
 function test_SPRAL()
-    if VERSION < v"1.9" ||
-       !haskey(ENV, "OMP_CANCELLATION") ||
-       !haskey(ENV, "OMP_PROC_BIND")
+    if !haskey(ENV, "OMP_CANCELLATION") || !haskey(ENV, "OMP_PROC_BIND")
         return
     end
     model = Ipopt.Optimizer()
@@ -708,6 +706,7 @@ function test_VariablePrimalStart()
 end
 
 function test_manually_evaluated_primal_status()
+    Ext = Base.get_extension(Ipopt, :IpoptMathOptInterfaceExt)
     model = Ipopt.Optimizer()
     MOI.set(model, MOI.Silent(), true)
     x = MOI.add_variable(model)
@@ -727,7 +726,7 @@ function test_manually_evaluated_primal_status()
         1.0 => MOI.FEASIBLE_POINT,
     )
         model.inner.x[1] = xi
-        @test Ipopt._manually_evaluated_primal_status(model) == status
+        @test Ext._manually_evaluated_primal_status(model) == status
     end
     model.inner.x .= x_star
     for (gi, status) in (
@@ -741,7 +740,7 @@ function test_manually_evaluated_primal_status()
         [1.1, -1.0] => MOI.FEASIBLE_POINT,
     )
         model.inner.g .= gi
-        @test Ipopt._manually_evaluated_primal_status(model) == status
+        @test Ext._manually_evaluated_primal_status(model) == status
     end
     return
 end
