@@ -52,6 +52,35 @@ set_attribute(model, "max_cpu_time", 60.0)
 set_attribute(model, "print_level", 0)
 ```
 
+### Type stability
+
+Ipopt.jl v1.10.0 moved the `Ipopt.Optimizer` object to a package extension. As a
+consequence, `Ipopt.Optimizer` is now type unstable, and it will be inferred as
+`Ipopt.Optimizer()::Any`.
+
+In most cases, this should not impact performance. If it does, there are two
+work-arounds.
+
+First, you can use a function barrier:
+```julia
+using JuMP, Ipopt
+function main(optimizer::T) where {T}
+   model = Model(optimizer)
+   return
+end
+main(Ipopt.Optimizer)
+```
+Although the outer `Ipopt.Optimizer` is type unstable, the `optimizer` inside
+`main` will be properly inferred.
+
+Second, you may explicitly get and use the extension module:
+```julia
+using JuMP, Ipopt
+const IpoptMathOptInterfaceExt =
+   Base.get_extension(Ipopt, :IpoptMathOptInterfaceExt)
+model = Model(IpoptMathOptInterfaceExt.Optimizer)
+```
+
 ## MathOptInterface API
 
 The Ipopt optimizer supports the following constraints and attributes.
