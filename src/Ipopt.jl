@@ -40,4 +40,8 @@ _version_string() = string(pkgversion(Ipopt_jll))
 # Ipopt.column, so we keep it here for backwards compatibility.
 function column end
 
+global Optimizer
+global CallbackFunction
+global _VectorNonlinearOracle
+
 end  # module Ipopt

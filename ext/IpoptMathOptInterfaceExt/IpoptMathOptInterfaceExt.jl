@@ -10,11 +10,9 @@ import MathOptInterface as MOI
 import PrecompileTools
 
 function __init__()
-    @eval Ipopt begin
-        const Optimizer = $Optimizer
-        const CallbackFunction = $CallbackFunction
-        const _VectorNonlinearOracle = $_VectorNonlinearOracle
-    end
+    setglobal!(Ipopt, :Optimizer, Optimizer)
+    setglobal!(Ipopt, :CallbackFunction, CallbackFunction)
+    setglobal!(Ipopt, :_VectorNonlinearOracle, _VectorNonlinearOracle)
     return
 end
 
