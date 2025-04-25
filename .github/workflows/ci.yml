@@ -19,6 +19,10 @@ jobs:
         os: [ubuntu-latest, macOS-latest, windows-latest]
         arch: [x64]
         include:
+          # Test Julia v1.9
+          - version: '1.9'
+            os: ubuntu-latest
+            arch: x64
           # Test again linux ARM
           - version: '1'
             os: ubuntu-24.04-arm
