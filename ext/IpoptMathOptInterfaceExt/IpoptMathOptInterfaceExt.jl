@@ -51,13 +51,13 @@ PrecompileTools.@setup_workload begin
         MOI.add_constraint(model, f, MOI.EqualTo(0.0))
         y, _ = MOI.add_constrained_variables(model, MOI.Nonnegatives(2))
         MOI.set(model, MOI.ObjectiveSense(), MOI.MAX_SENSE)
+        f = MOI.ScalarNonlinearFunction(
+            :+,
+            Any[MOI.ScalarNonlinearFunction(:sin, Any[x[i]]) for i in 1:3],
+        )
         MOI.supports(model, MOI.ObjectiveFunction{typeof(f)}())
         MOI.set(model, MOI.ObjectiveFunction{typeof(f)}(), f)
-        MOI.set(
-            model,
-            MOI.NLPBlock(),
-            MOI.NLPBlockData([], _EmptyNLPEvaluator(), false),
-        )
+        MOI.add_constraint(model, f, MOI.EqualTo(0.0))
         MOI.optimize!(model)
         MOI.get(model, MOI.TerminationStatus())
         MOI.get(model, MOI.PrimalStatus())
