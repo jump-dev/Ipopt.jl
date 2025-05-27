@@ -177,14 +177,12 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
     options::Dict{String,Any}
     solve_time::Float64
     sense::MOI.OptimizationSense
-
     parameters::Dict{MOI.VariableIndex,MOI.Nonlinear.ParameterIndex}
     variables::MOI.Utilities.VariablesContainer{Float64}
     list_of_variable_indices::Vector{MOI.VariableIndex}
     variable_primal_start::Vector{Union{Nothing,Float64}}
     mult_x_L::Vector{Union{Nothing,Float64}}
     mult_x_U::Vector{Union{Nothing,Float64}}
-
     nlp_data::MOI.NLPBlockData
     nlp_dual_start::Union{Nothing,Vector{Float64}}
     mult_g_nlp::Dict{MOI.Nonlinear.ConstraintIndex,Float64}
@@ -193,7 +191,6 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
     callback::Union{Nothing,Function}
     barrier_iterations::Int
     ad_backend::MOI.Nonlinear.AbstractAutomaticDifferentiation
-
     vector_nonlinear_oracle_constraints::Vector{
         Tuple{MOI.VectorOfVariables,_VectorNonlinearOracle},
     }
@@ -249,7 +246,11 @@ MOI.eval_hessian_lagrangian(::_EmptyNLPEvaluator, H, x, σ, μ) = nothing
 
 function MOI.empty!(model::Optimizer)
     model.inner = nothing
+    # SKIP: model.name
     model.invalid_model = false
+    # SKIP: model.silent
+    # SKIP: model.options
+    model.solve_time = 0.0
     model.sense = MOI.FEASIBILITY_SENSE
     empty!(model.parameters)
     MOI.empty!(model.variables)
@@ -259,10 +260,12 @@ function MOI.empty!(model::Optimizer)
     empty!(model.mult_x_U)
     model.nlp_data = MOI.NLPBlockData([], _EmptyNLPEvaluator(), false)
     model.nlp_dual_start = nothing
-    model.nlp_model = nothing
+    empty!(model.mult_g_nlp)
     model.qp_data = QPBlockData{Float64}()
+    model.nlp_model = nothing
     model.callback = nothing
     model.barrier_iterations = 0
+    # SKIP: model.ad_backend
     empty!(model.vector_nonlinear_oracle_constraints)
     return
 end
