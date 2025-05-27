@@ -1167,6 +1167,40 @@ function test_vector_nonlinear_oracle_no_hessian()
     return
 end
 
+function test_issue_491()
+    model = Ipopt.Optimizer()
+    x = MOI.add_variables(model, 2)
+    g = [MOI.ScalarNonlinearFunction(:log, Any[x[i]]) for i in 1:2]
+    c = MOI.add_constraint.(model, g, MOI.LessThan(1.0))
+    MOI.set.(model, MOI.ConstraintDualStart(), c, 0.5)
+    @test length(model.mult_g_nlp) == 2
+    MOI.empty!(model)
+    @test isempty(model.mult_g_nlp)
+    return
+end
+
+function test_issue_491_model_example()
+    model = MOI.instantiate(Ipopt.Optimizer; with_cache_type = Float64)
+    MOI.set(model, MOI.Silent(), true)
+    x = MOI.add_variables(model, 2)
+    MOI.add_constraint.(model, x, MOI.Interval(1.0, 4.0))
+    g = [MOI.ScalarNonlinearFunction(:log, Any[x[i]]) for i in 1:2]
+    c = MOI.add_constraint.(model, g, MOI.LessThan(1.0))
+    MOI.set(model, MOI.ObjectiveSense(), MOI.MAX_SENSE)
+    f = 1.0 * x[1] + 1.0 * x[2]
+    MOI.set(model, MOI.ObjectiveFunction{typeof(f)}(), f)
+    MOI.set.(model, MOI.ConstraintDualStart(), c, 0.5)
+    MOI.optimize!(model)
+    @test MOI.get(model, MOI.TerminationStatus()) == MOI.LOCALLY_SOLVED
+    @test ≈(MOI.get.(model, MOI.VariablePrimal(), x), exp.([1, 1]); atol = 1e-6)
+    MOI.delete(model, c[1])
+    MOI.set(model, MOI.ConstraintDualStart(), c[2], 0.5)
+    MOI.optimize!(model)
+    @test MOI.get(model, MOI.TerminationStatus()) == MOI.LOCALLY_SOLVED
+    @test ≈(MOI.get.(model, MOI.VariablePrimal(), x), [4, exp(1)]; atol = 1e-6)
+    return
+end
+
 end  # module TestMOIWrapper
 
 TestMOIWrapper.runtests()
