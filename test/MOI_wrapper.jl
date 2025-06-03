@@ -1201,6 +1201,18 @@ function test_issue_491_model_example()
     return
 end
 
+function test_issue_494()
+    model = Ipopt.Optimizer()
+    x, c_x = MOI.add_constrained_variable(model, MOI.Interval(0.0, 1.0))
+    @test MOI.supports(model, MOI.ConstraintDualStart(), typeof(c_x))
+    @test MOI.get(model, MOI.ConstraintDualStart(), c_x) === nothing
+    MOI.set(model, MOI.ConstraintDualStart(), c_x, 2.0)
+    @test MOI.get(model, MOI.ConstraintDualStart(), c_x) === 2.0
+    MOI.set(model, MOI.ConstraintDualStart(), c_x, nothing)
+    @test MOI.get(model, MOI.ConstraintDualStart(), c_x) === nothing
+    return
+end
+
 end  # module TestMOIWrapper
 
 TestMOIWrapper.runtests()

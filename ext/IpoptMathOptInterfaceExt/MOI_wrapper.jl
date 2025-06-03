@@ -1009,9 +1009,9 @@ end
 function MOI.set(
     model::Optimizer,
     ::MOI.ConstraintDualStart,
-    ci::MOI.ConstraintIndex{MOI.VariableIndex,MOI.EqualTo{Float64}},
+    ci::MOI.ConstraintIndex{MOI.VariableIndex,S},
     value::Union{Real,Nothing},
-)
+) where {S<:Union{MOI.EqualTo{Float64},MOI.Interval{Float64}}}
     MOI.throw_if_not_valid(model, ci)
     if value === nothing
         model.mult_x_L[ci.value] = nothing
@@ -1030,8 +1030,8 @@ end
 function MOI.get(
     model::Optimizer,
     ::MOI.ConstraintDualStart,
-    ci::MOI.ConstraintIndex{MOI.VariableIndex,MOI.EqualTo{Float64}},
-)
+    ci::MOI.ConstraintIndex{MOI.VariableIndex,S},
+) where {S<:Union{MOI.EqualTo{Float64},MOI.Interval{Float64}}}
     MOI.throw_if_not_valid(model, ci)
     l = model.mult_x_L[ci.value]
     u = model.mult_x_U[ci.value]
