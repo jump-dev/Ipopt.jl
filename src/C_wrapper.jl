@@ -42,6 +42,12 @@ function _Eval_F_CB(
     return Cint(1)
 end
 
+const _eval_f_cb = @cfunction(
+    _Eval_F_CB,
+    Cint,
+    (Cint, Ptr{Float64}, Cint, Ptr{Float64}, Ptr{Cvoid}),
+)
+
 function _Eval_Grad_F_CB(
     n::Cint,
     x_ptr::Ptr{Float64},
@@ -56,6 +62,12 @@ function _Eval_Grad_F_CB(
     prob.eval_grad_f(x, new_grad_f)
     return Cint(1)
 end
+
+const _eval_grad_f_cb = @cfunction(
+    _Eval_Grad_F_CB,
+    Cint,
+    (Cint, Ptr{Float64}, Cint, Ptr{Float64}, Ptr{Cvoid}),
+)
 
 function _Eval_G_CB(
     n::Cint,
@@ -74,6 +86,12 @@ function _Eval_G_CB(
     prob.eval_g(x, new_g)
     return Cint(1)
 end
+
+const _eval_g_cb = @cfunction(
+    _Eval_G_CB,
+    Cint,
+    (Cint, Ptr{Float64}, Cint, Cint, Ptr{Float64}, Ptr{Cvoid}),
+)
 
 function _Eval_Jac_G_CB(
     n::Cint,
@@ -98,6 +116,22 @@ function _Eval_Jac_G_CB(
     end
     return Cint(1)
 end
+
+const _eval_jac_g_cb = @cfunction(
+    _Eval_Jac_G_CB,
+    Cint,
+    (
+        Cint,
+        Ptr{Float64},
+        Cint,
+        Cint,
+        Cint,
+        Ptr{Cint},
+        Ptr{Cint},
+        Ptr{Float64},
+        Ptr{Cvoid},
+    ),
+)
 
 function _Eval_H_CB(
     n::Cint,
@@ -130,6 +164,25 @@ function _Eval_H_CB(
     end
     return Cint(1)  # Return TRUE for success.
 end
+
+const _eval_h_cb = @cfunction(
+    _Eval_H_CB,
+    Cint,
+    (
+        Cint,
+        Ptr{Float64},
+        Cint,
+        Float64,
+        Cint,
+        Ptr{Float64},
+        Cint,
+        Cint,
+        Ptr{Cint},
+        Ptr{Cint},
+        Ptr{Float64},
+        Ptr{Cvoid},
+    ),
+)
 
 function _Intermediate_CB(
     alg_mod::Cint,
@@ -170,6 +223,25 @@ function _Intermediate_CB(
     end
 end
 
+const _intermediate_cb = @cfunction(
+    _Intermediate_CB,
+    Cint,
+    (
+        Cint,
+        Cint,
+        Float64,
+        Float64,
+        Float64,
+        Float64,
+        Float64,
+        Float64,
+        Float64,
+        Float64,
+        Cint,
+        Ptr{Cvoid},
+    ),
+)
+
 function CreateIpoptProblem(
     n::Int,
     x_L::Vector{Float64},
@@ -187,54 +259,6 @@ function CreateIpoptProblem(
 )
     @assert n == length(x_L) == length(x_U)
     @assert m == length(g_L) == length(g_U)
-    eval_f_cb = @cfunction(
-        _Eval_F_CB,
-        Cint,
-        (Cint, Ptr{Float64}, Cint, Ptr{Float64}, Ptr{Cvoid}),
-    )
-    eval_g_cb = @cfunction(
-        _Eval_G_CB,
-        Cint,
-        (Cint, Ptr{Float64}, Cint, Cint, Ptr{Float64}, Ptr{Cvoid}),
-    )
-    eval_grad_f_cb = @cfunction(
-        _Eval_Grad_F_CB,
-        Cint,
-        (Cint, Ptr{Float64}, Cint, Ptr{Float64}, Ptr{Cvoid}),
-    )
-    eval_jac_g_cb = @cfunction(
-        _Eval_Jac_G_CB,
-        Cint,
-        (
-            Cint,
-            Ptr{Float64},
-            Cint,
-            Cint,
-            Cint,
-            Ptr{Cint},
-            Ptr{Cint},
-            Ptr{Float64},
-            Ptr{Cvoid},
-        ),
-    )
-    eval_h_cb = @cfunction(
-        _Eval_H_CB,
-        Cint,
-        (
-            Cint,
-            Ptr{Float64},
-            Cint,
-            Float64,
-            Cint,
-            Ptr{Float64},
-            Cint,
-            Cint,
-            Ptr{Cint},
-            Ptr{Cint},
-            Ptr{Float64},
-            Ptr{Cvoid},
-        ),
-    )
     ipopt_problem = @ccall libipopt.CreateIpoptProblem(
         n::Cint,
         x_L::Ptr{Cdouble},
@@ -245,11 +269,11 @@ function CreateIpoptProblem(
         nele_jac::Cint,
         nele_hess::Cint,
         1::Cint,  # 1 = Fortran style indexing
-        eval_f_cb::Ptr{Cvoid},
-        eval_g_cb::Ptr{Cvoid},
-        eval_grad_f_cb::Ptr{Cvoid},
-        eval_jac_g_cb::Ptr{Cvoid},
-        eval_h_cb::Ptr{Cvoid},
+        _eval_f_cb::Ptr{Cvoid},
+        _eval_g_cb::Ptr{Cvoid},
+        _eval_grad_f_cb::Ptr{Cvoid},
+        _eval_jac_g_cb::Ptr{Cvoid},
+        _eval_h_cb::Ptr{Cvoid},
     )::Ptr{Cvoid}
     if ipopt_problem == C_NULL
         if n == 0
@@ -374,27 +398,9 @@ function SetIpoptProblemScaling(
 end
 
 function SetIntermediateCallback(prob::IpoptProblem, intermediate::Function)
-    intermediate_cb = @cfunction(
-        _Intermediate_CB,
-        Cint,
-        (
-            Cint,
-            Cint,
-            Float64,
-            Float64,
-            Float64,
-            Float64,
-            Float64,
-            Float64,
-            Float64,
-            Float64,
-            Cint,
-            Ptr{Cvoid},
-        ),
-    )
     ret = @ccall libipopt.SetIntermediateCallback(
         prob::Ptr{Cvoid},
-        intermediate_cb::Ptr{Cvoid},
+        _intermediate_cb::Ptr{Cvoid},
     )::Bool
     @assert ret  # The C++ code has `return true`
     prob.intermediate = intermediate
