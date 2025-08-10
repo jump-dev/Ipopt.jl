@@ -1,0 +1,24 @@
+name: CompatCI
+on:
+  push:
+    branches: [master]
+  pull_request:
+    types: [opened, synchronize, reopened]
+jobs:
+  test:
+    strategy:
+      matrix:
+        julia-version: ['1.10', '1']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: ${{ matrix.julia-version }}
+      - uses: julia-actions/julia-downgrade-compat@v2
+        with:
+          mode: 'deps'
+      - uses: julia-actions/julia-buildpkg@v1
+      - uses: julia-actions/julia-runtest@v1
+        env:
+          OMP_CANCELLATION: "TRUE"
+          OMP_PROC_BIND: "TRUE"
