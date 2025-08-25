@@ -1243,7 +1243,8 @@ function _eval_constraint_jacobian(
         s.x[i] = x[f.variables[i].value]
     end
     nnz = length(s.jacobian_structure)
-    s.eval_jacobian_timer += @elapsed s.eval_jacobian(view(values, offset .+ (1:nnz)), s.x)
+    s.eval_jacobian_timer +=
+        @elapsed s.eval_jacobian(view(values, offset .+ (1:nnz)), s.x)
     return offset + nnz
 end
 
@@ -1295,7 +1296,8 @@ function _eval_hessian_lagrangian(
     H_nnz = length(s.hessian_lagrangian_structure)
     H_view = view(H, H_offset .+ (1:H_nnz))
     μ_view = view(μ, μ_offset .+ (1:s.output_dimension))
-    s.eval_hessian_lagrangian_timer += @elapsed s.eval_hessian_lagrangian(H_view, s.x, μ_view)
+    s.eval_hessian_lagrangian_timer +=
+        @elapsed s.eval_hessian_lagrangian(H_view, s.x, μ_view)
     return H_offset + H_nnz, μ_offset + s.output_dimension
 end
 
