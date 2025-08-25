@@ -899,7 +899,7 @@ function MOI.get(
     _jacobian_structure(J, 0, f, s)
     J_val = zeros(length(J))
     _eval_constraint_jacobian(J_val, 0, model.inner.x, f, s)
-    dual = zeros(MOI.dimension(s))
+    dual = zeros(MOI.dimension(s.set))
     # dual = λ' * J(x)
     col_to_index = Dict(x.value => j for (j, x) in enumerate(f.variables))
     for ((row, col), J_rc) in zip(J, J_val)
@@ -1414,8 +1414,8 @@ function _setup_model(model::Optimizer)
     end
     g_L, g_U = copy(model.qp_data.g_L), copy(model.qp_data.g_U)
     for (_, s) in model.vector_nonlinear_oracle_constraints
-        append!(g_L, s.l)
-        append!(g_U, s.u)
+        append!(g_L, s.set.l)
+        append!(g_U, s.set.u)
     end
     for bound in model.nlp_data.constraint_bounds
         push!(g_L, bound.lower)
@@ -1713,7 +1713,7 @@ function row(
 )
     offset = length(model.qp_data)
     for (_, s) in model.vector_nonlinear_oracle_constraints
-        offset += s.output_dimension
+        offset += s.set.output_dimension
     end
     return offset + ci.value
 end
