@@ -129,8 +129,6 @@ struct _VectorNonlinearOracle <: MOI.AbstractVectorSet
     eval_jacobian::Function
     hessian_lagrangian_structure::Vector{Tuple{Int,Int}}
     eval_hessian_lagrangian::Union{Nothing,Function}
-    # Temporary storage
-    x::Vector{Float64}
 
     function _VectorNonlinearOracle(;
         dimension::Int,
@@ -154,8 +152,6 @@ struct _VectorNonlinearOracle <: MOI.AbstractVectorSet
             eval_jacobian,
             hessian_lagrangian_structure,
             eval_hessian_lagrangian,
-            # Temporary storage
-            zeros(dimension),
         )
     end
 end
@@ -172,6 +168,18 @@ function Base.show(io::IO, s::_VectorNonlinearOracle)
     println(io, "    ...,")
     print(io, ")")
     return
+end
+
+mutable struct _VectorNonlinearOracleCache
+    set::_VectorNonlinearOracle
+    x::Vector{Float64}
+    eval_f_timer::Float64
+    eval_jacobian_timer::Float64
+    eval_hessian_lagrangian_timer::Float64
+
+    function _VectorNonlinearOracleCache(s::_VectorNonlinearOracle)
+        return new(set, zeros(s.input_dimension), 0.0, 0.0, 0.0)
+    end
 end
 
 """
@@ -202,7 +210,7 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
     barrier_iterations::Int
     ad_backend::MOI.Nonlinear.AbstractAutomaticDifferentiation
     vector_nonlinear_oracle_constraints::Vector{
-        Tuple{MOI.VectorOfVariables,_VectorNonlinearOracle},
+        Tuple{MOI.VectorOfVariables,_VectorNonlinearOracleCache},
     }
 
     function Optimizer()
@@ -228,7 +236,7 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
             nothing,
             0,
             MOI.Nonlinear.SparseReverseMode(),
-            Tuple{MOI.VectorOfVariables,_VectorNonlinearOracle}[],
+            Tuple{MOI.VectorOfVariables,_VectorNonlinearOracleCache}[],
         )
     end
 end
@@ -847,7 +855,8 @@ function MOI.add_constraint(
     s::S,
 ) where {F<:MOI.VectorOfVariables,S<:_VectorNonlinearOracle}
     model.inner = nothing
-    push!(model.vector_nonlinear_oracle_constraints, (f, s))
+    cache = _VectorNonlinearOracleCache(s)
+    push!(model.vector_nonlinear_oracle_constraints, (f, cache))
     n = length(model.vector_nonlinear_oracle_constraints)
     return MOI.ConstraintIndex{F,S}(n)
 end
@@ -859,10 +868,10 @@ function row(
     offset = length(model.qp_data)
     for i in 1:(ci.value-1)
         _, s = model.vector_nonlinear_oracle_constraints[i]
-        offset += s.output_dimension
+        offset += s.set.output_dimension
     end
     _, s = model.vector_nonlinear_oracle_constraints[ci.value]
-    return offset .+ (1:s.output_dimension)
+    return offset .+ (1:s.set.output_dimension)
 end
 
 function MOI.get(
@@ -1184,14 +1193,14 @@ function _eval_constraint(
     offset::Int,
     x::AbstractVector,
     f::MOI.VectorOfVariables,
-    s::_VectorNonlinearOracle,
+    s::_VectorNonlinearOracleCache,
 )
-    for i in 1:s.input_dimension
+    for i in 1:s.set.input_dimension
         s.x[i] = x[f.variables[i].value]
     end
-    ret = view(g, offset .+ (1:s.output_dimension))
-    s.eval_f(ret, s.x)
-    return offset + s.output_dimension
+    ret = view(g, offset .+ (1:s.set.output_dimension))
+    s.eval_f_timer += @elapsed s.set.eval_f(ret, s.x)
+    return offset + s.set.output_dimension
 end
 
 function MOI.eval_constraint(model::Optimizer, g, x)
@@ -1211,12 +1220,12 @@ function _jacobian_structure(
     ret::AbstractVector,
     row_offset::Int,
     f::MOI.VectorOfVariables,
-    s::_VectorNonlinearOracle,
+    s::_VectorNonlinearOracleCache,
 )
-    for (i, j) in s.jacobian_structure
+    for (i, j) in s.set.jacobian_structure
         push!(ret, (row_offset + i, f.variables[j].value))
     end
-    return row_offset + s.output_dimension
+    return row_offset + s.set.output_dimension
 end
 
 function MOI.jacobian_structure(model::Optimizer)
@@ -1241,13 +1250,14 @@ function _eval_constraint_jacobian(
     offset::Int,
     x::AbstractVector,
     f::MOI.VectorOfVariables,
-    s::_VectorNonlinearOracle,
+    s::_VectorNonlinearOracleCache,
 )
-    for i in 1:s.input_dimension
+    for i in 1:s.set.input_dimension
         s.x[i] = x[f.variables[i].value]
     end
-    nnz = length(s.jacobian_structure)
-    s.eval_jacobian(view(values, offset .+ (1:nnz)), s.x)
+    nnz = length(s.set.jacobian_structure)
+    s.eval_jacobian_timer +=
+        @elapsed s.set.eval_jacobian(view(values, offset .+ (1:nnz)), s.x)
     return offset + nnz
 end
 
@@ -1267,9 +1277,9 @@ end
 function _hessian_lagrangian_structure(
     ret::AbstractVector,
     f::MOI.VectorOfVariables,
-    s::_VectorNonlinearOracle,
+    s::_VectorNonlinearOracleCache,
 )
-    for (i, j) in s.hessian_lagrangian_structure
+    for (i, j) in s.set.hessian_lagrangian_structure
         push!(ret, (f.variables[i].value, f.variables[j].value))
     end
     return
@@ -1291,16 +1301,17 @@ function _eval_hessian_lagrangian(
     μ::AbstractVector,
     μ_offset::Int,
     f::MOI.VectorOfVariables,
-    s::_VectorNonlinearOracle,
+    s::_VectorNonlinearOracleCache,
 )
-    for i in 1:s.input_dimension
+    for i in 1:s.set.input_dimension
         s.x[i] = x[f.variables[i].value]
     end
-    H_nnz = length(s.hessian_lagrangian_structure)
+    H_nnz = length(s.set.hessian_lagrangian_structure)
     H_view = view(H, H_offset .+ (1:H_nnz))
-    μ_view = view(μ, μ_offset .+ (1:s.output_dimension))
-    s.eval_hessian_lagrangian(H_view, s.x, μ_view)
-    return H_offset + H_nnz, μ_offset + s.output_dimension
+    μ_view = view(μ, μ_offset .+ (1:s.set.output_dimension))
+    s.eval_hessian_lagrangian_timer +=
+        @elapsed s.set.eval_hessian_lagrangian(H_view, s.x, μ_view)
+    return H_offset + H_nnz, μ_offset + s.set.output_dimension
 end
 
 function MOI.eval_hessian_lagrangian(model::Optimizer, H, x, σ, μ)
@@ -1359,7 +1370,7 @@ function _setup_model(model::Optimizer)
         !isempty(model.vector_nonlinear_oracle_constraints)
     has_hessian = :Hess in MOI.features_available(model.nlp_data.evaluator)
     for (_, s) in model.vector_nonlinear_oracle_constraints
-        if s.eval_hessian_lagrangian === nothing
+        if s.set.eval_hessian_lagrangian === nothing
             has_hessian = false
             break
         end
@@ -1531,6 +1542,12 @@ function MOI.optimize!(model::Optimizer)
             return model.callback(args...)
         end
         return true
+    end
+    # Clear timers
+    for (_, s) in model.vector_nonlinear_oracle_constraints
+        s.eval_f_timer = 0.0
+        s.eval_jacobian_timer = 0.0
+        s.eval_hessian_lagrangian_timer = 0.0
     end
     Ipopt.SetIntermediateCallback(inner, _moi_callback)
     Ipopt.IpoptSolve(inner)
