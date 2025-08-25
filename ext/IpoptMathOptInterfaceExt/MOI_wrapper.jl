@@ -164,6 +164,16 @@ MOI.dimension(s::_VectorNonlinearOracle) = s.input_dimension
 
 MOI.copy(s::_VectorNonlinearOracle) = s
 
+function Base.show(io::IO, s::_VectorNonlinearOracle)
+    println(io, "Ipopt._VectorNonlinearOracle(;")
+    println(io, "    dimension = ", s.input_dimension, ",")
+    println(io, "    l = ", s.l, ",")
+    println(io, "    u = ", s.u, ",")
+    println(io, "    ...,")
+    print(io, ")")
+    return
+end
+
 """
     Optimizer()
 

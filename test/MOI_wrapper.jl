@@ -886,6 +886,7 @@ function test_vector_nonlinear_oracle()
             return
         end,
     )
+    @test occursin("Ipopt._VectorNonlinearOracle(;", sprint(show, set))
     @test MOI.dimension(set) == 5
     @test MOI.copy(set) === set
     model = Ipopt.Optimizer()
