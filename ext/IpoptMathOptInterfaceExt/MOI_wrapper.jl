@@ -177,8 +177,8 @@ mutable struct _VectorNonlinearOracleCache
     eval_jacobian_timer::Float64
     eval_hessian_lagrangian_timer::Float64
 
-    function _VectorNonlinearOracleCache(s::_VectorNonlinearOracle)
-        return new(set, zeros(s.input_dimension), 0.0, 0.0, 0.0)
+    function _VectorNonlinearOracleCache(set::_VectorNonlinearOracle)
+        return new(set, zeros(set.input_dimension), 0.0, 0.0, 0.0)
     end
 end
 
