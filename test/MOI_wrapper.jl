@@ -858,6 +858,7 @@ function test_vector_nonlinear_oracle()
         l = [0.0, 0.0],
         u = [0.0, 0.0],
         eval_f = (ret, x) -> begin
+            sleep(0.5)  # to make timing test more robust
             @test length(ret) == 2
             @test length(x) == 5
             ret[1] = x[1]^2 - x[4]
@@ -866,6 +867,7 @@ function test_vector_nonlinear_oracle()
         end,
         jacobian_structure = [(1, 1), (2, 2), (2, 3), (1, 4), (2, 5)],
         eval_jacobian = (ret, x) -> begin
+            sleep(0.5)  # to make timing test more robust
             @test length(ret) == 5
             @test length(x) == 5
             ret[1] = 2 * x[1]
@@ -877,6 +879,7 @@ function test_vector_nonlinear_oracle()
         end,
         hessian_lagrangian_structure = [(1, 1), (2, 2), (3, 3)],
         eval_hessian_lagrangian = (ret, x, u) -> begin
+            sleep(1.0)  # to make timing test more robust
             @test length(ret) == 3
             @test length(x) == 5
             @test length(u) == 2
@@ -916,6 +919,22 @@ function test_vector_nonlinear_oracle()
     @test isapprox(y_v, [x_v[1]^2, x_v[2]^2 + x_v[3]^3], atol = 1e-5)
     @test MOI.get(model, MOI.ConstraintPrimal(), c) ≈ [x_v; y_v]
     @test MOI.get(model, MOI.ConstraintDual(), c) ≈ zeros(5)
+    # Test timers with plenty of buffer to avoid a flakey test
+    for (_, cache) in model.vector_nonlinear_oracle_constraints
+        @show cache.eval_f_timer
+        @test 0.9 < cache.eval_f_timer < 2
+        @test 0.9 < cache.eval_jacobian_timer < 4
+        @test 0.9 < cache.eval_hessian_lagrangian_timer < 2
+    end
+    # Test that optimize! resets the timers. Upper bounds are chosen such that
+    # they're violated if times from both solves were added together.
+    MOI.optimize!(model)
+    for (_, cache) in model.vector_nonlinear_oracle_constraints
+        @show cache.eval_f_timer
+        @test 0.9 < cache.eval_f_timer < 2
+        @test 0.9 < cache.eval_jacobian_timer < 4
+        @test 0.9 < cache.eval_hessian_lagrangian_timer < 2
+    end
     return
 end
 
