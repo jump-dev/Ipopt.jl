@@ -35,6 +35,9 @@ export IpoptProblem,
 # This function is needed for MOI.SolverVersion, but we don't want to expose
 # Ipopt_jll to IpoptMathOptInterfaceExt.
 function _version_string()
+    major = Ref{Cint}()
+    minor = Ref{Cint}()
+    patch = Ref{Cint}()
     @ccall libipopt.GetIpoptVersion(major::Ptr{Cint}, minor::Ptr{Cint}, patch::Ptr{Cint})::Cvoid
     return string(major[], ".", minor[], ".", patch[])
 end
