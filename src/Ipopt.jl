@@ -35,16 +35,8 @@ export IpoptProblem,
 # This function is needed for MOI.SolverVersion, but we don't want to expose
 # Ipopt_jll to IpoptMathOptInterfaceExt.
 function _version_string()
-    jll_version = pkgversion(Ipopt_jll)
-    if jll_version ≥ v"300.1400.1900"
-        major = Ref{Cint}()
-        minor = Ref{Cint}()
-        patch = Ref{Cint}()
-        @ccall libipopt.GetIpoptVersion(major::Ptr{Cint}, minor::Ptr{Cint}, patch::Ptr{Cint})::Cvoid
-        return string(major[], ".", minor[], ".", patch[])
-    else
-        return string(jll_version)
-    end
+    @ccall libipopt.GetIpoptVersion(major::Ptr{Cint}, minor::Ptr{Cint}, patch::Ptr{Cint})::Cvoid
+    return string(major[], ".", minor[], ".", patch[])
 end
 
 # This function is needed by the MOI wrapper. It was previously exposed as
