@@ -487,7 +487,7 @@ function GetIpoptVersion()
         minor::Ptr{Cint},
         patch::Ptr{Cint},
     )::Cvoid
-    return string(major[], ".", minor[], ".", patch[])
+    return VersionNumber(major[], minor[], patch[])
 end
 
 # https://github.com/coin-or/Ipopt/blob/8f2b8efcd53d93518984597808db05dce43e348f/src/Interfaces/IpReturnCodes_inc.h#L13-L38
