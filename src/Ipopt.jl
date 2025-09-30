@@ -30,11 +30,8 @@ export IpoptProblem,
     OpenIpoptOutputFile,
     SetIpoptProblemScaling,
     SetIntermediateCallback,
+    GetIpoptVersion,
     IpoptSolve
-
-# This function is needed for MOI.SolverVersion, but we don't want to expose
-# Ipopt_jll to IpoptMathOptInterfaceExt.
-_version_string() = string(pkgversion(Ipopt_jll))
 
 # This function is needed by the MOI wrapper. It was previously exposed as
 # Ipopt.column, so we keep it here for backwards compatibility.
