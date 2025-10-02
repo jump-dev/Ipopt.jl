@@ -714,7 +714,7 @@ end
 function row(
     model::Optimizer,
     ci::MOI.ConstraintIndex{F,S},
-) where {F<:MOI.VectorOfVariables,S<:MOI.VectorNonlinearOracle}
+) where {F<:MOI.VectorOfVariables,S<:MOI.VectorNonlinearOracle{Float64}}
     offset = length(model.qp_data)
     for i in 1:(ci.value-1)
         _, s = model.vector_nonlinear_oracle_constraints[i]
