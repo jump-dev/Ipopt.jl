@@ -12,7 +12,11 @@ import PrecompileTools
 function __init__()
     setglobal!(Ipopt, :Optimizer, Optimizer)
     setglobal!(Ipopt, :CallbackFunction, CallbackFunction)
-    setglobal!(Ipopt, :_VectorNonlinearOracle, _VectorNonlinearOracle)
+    setglobal!(
+        Ipopt,
+        :_VectorNonlinearOracle,
+        MOI.VectorNonlinearOracle{Float64},
+    )
     return
 end
 

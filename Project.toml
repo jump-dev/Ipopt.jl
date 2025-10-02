@@ -27,7 +27,11 @@ julia = "1.9"
 
 [extras]
 HSL_jll = "017b0a0e-03f4-516a-9b91-836bbd1904dd"
+MathOptInterface = "b8f27783-ece8-5eb3-8dc8-9495eed66fee"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
 test = ["HSL_jll", "MathOptInterface", "Test"]
+
+[sources]
+MathOptInterface = {url="https://github.com/jump-dev/MathOptInterface.jl", rev = "od/VectorNonlinearOracle"}
