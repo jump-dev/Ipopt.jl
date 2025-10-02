@@ -891,7 +891,8 @@ function test_vector_nonlinear_oracle()
     )
     @test occursin("VectorNonlinearOracle{Float64}(;", sprint(show, set))
     @test MOI.dimension(set) == 5
-    @test MOI.copy(set) === set
+    @test MOI.copy(set) == set
+    @test MOI.copy(set) !== set
     model = Ipopt.Optimizer()
     MOI.set(model, MOI.Silent(), true)
     x = MOI.add_variables(model, 3)
@@ -1234,7 +1235,8 @@ function test_issue_494()
 end
 
 function test__VectorNonlinearOracle()
-    @test MOI.VectorNonlinearOracle{Float64} === Ipopt._VectorNonlinearOracle
+    # We want to test the constructor, not the type.
+    @test MOI.VectorNonlinearOracle === Ipopt._VectorNonlinearOracle
     return
 end
 
