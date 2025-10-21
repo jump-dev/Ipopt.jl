@@ -115,6 +115,7 @@ List of supported constraint types:
  * [`MOI.VariableIndex`](@ref) in [`MOI.GreaterThan{Float64}`](@ref)
  * [`MOI.VariableIndex`](@ref) in [`MOI.Interval{Float64}`](@ref)
  * [`MOI.VariableIndex`](@ref) in [`MOI.LessThan{Float64}`](@ref)
+ * [`MOI.VectorOfVariables`](@ref) in [`MOI.VectorNonlinearOracle{Float64}`](@ref)
 
 List of supported model attributes:
 
