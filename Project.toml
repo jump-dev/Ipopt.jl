@@ -19,7 +19,7 @@ IpoptMathOptInterfaceExt = "MathOptInterface"
 HSL_jll = "3, 4, 2023, 2024, 2025"
 Ipopt_jll = "=300.1400.1900"
 LinearAlgebra = "1"
-MathOptInterface = "1.25"
+MathOptInterface = "1.46"
 OpenBLAS32_jll = "0.3.10"
 PrecompileTools = "1"
 Test = "1"
@@ -32,6 +32,3 @@ Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
 test = ["HSL_jll", "MathOptInterface", "Test"]
-
-[sources]
-MathOptInterface = {url="https://github.com/jump-dev/MathOptInterface.jl", rev = "master"}
