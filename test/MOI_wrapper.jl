@@ -1240,6 +1240,15 @@ function test__VectorNonlinearOracle()
     return
 end
 
+function test_default_objective_function()
+    model = Ipopt.Optimizer()
+    F = MOI.get(model, MOI.ObjectiveFunctionType())
+    @test F == MOI.ScalarAffineFunction{Float64}
+    f = MOI.get(model, MOI.ObjectiveFunction{F}())
+    @test f ≈ zero(F)
+    return
+end
+
 end  # module TestMOIWrapper
 
 TestMOIWrapper.runtests()
