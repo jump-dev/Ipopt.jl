@@ -936,6 +936,9 @@ function test_vector_nonlinear_oracle()
         @test 0.9 < cache.eval_jacobian_timer < 4
         @test 0.9 < cache.eval_hessian_lagrangian_timer < 2
     end
+    MOI.set(model, MOI.RawOptimizerAttribute("max_iter"), 0)
+    MOI.optimize!(model)
+    @test MOI.get(model, MOI.PrimalStatus()) == MOI.INFEASIBLE_POINT
     return
 end
 
