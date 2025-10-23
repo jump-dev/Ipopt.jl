@@ -894,7 +894,7 @@ function test_vector_nonlinear_oracle()
     @test MOI.copy(set) == set
     @test MOI.copy(set) !== set
     model = Ipopt.Optimizer()
-    # MOI.set(model, MOI.Silent(), true)
+    MOI.set(model, MOI.Silent(), true)
     x = MOI.add_variables(model, 3)
     MOI.add_constraints.(model, x, MOI.EqualTo.(1.0:3.0))
     y = MOI.add_variables(model, 2)
