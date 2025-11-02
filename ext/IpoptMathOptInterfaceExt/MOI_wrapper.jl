@@ -1285,6 +1285,7 @@ function _setup_model(model::Optimizer)
         eval_grad_f_cb,
         eval_jac_g_cb,
         has_hessian ? eval_h_cb : nothing,
+        nothing,  # we could use the model in the future but it is a breaking change for the signature of the callback
     )
     if model.sense == MOI.MIN_SENSE
         Ipopt.AddIpoptNumOption(model.inner, "obj_scaling_factor", 1.0)
