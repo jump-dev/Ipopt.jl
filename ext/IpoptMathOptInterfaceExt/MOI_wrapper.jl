@@ -1248,7 +1248,7 @@ function _setup_inner(model::Optimizer)
     function eval_h_cb(x, rows, cols, obj_factor, lambda, values)
         return _eval_h_cb(model, x, rows, cols, obj_factor, lambda, values)
     end
-    has_hessian = model.hessian_sparsity === nothing
+    has_hessian = model.hessian_sparsity !== nothing
     model.inner = Ipopt.CreateIpoptProblem(
         length(model.variables.lower),
         model.variables.lower,
@@ -1257,13 +1257,13 @@ function _setup_inner(model::Optimizer)
         g_L,
         g_U,
         length(model.jacobian_sparsity),
-        has_hessian ? 0 : length(model.hessian_sparsity),
+        has_hessian ? length(model.hessian_sparsity) : 0,
         (x) -> MOI.eval_objective(model, x),
         (x, g) -> MOI.eval_constraint(model, g, x),
         (x, grad_f) -> MOI.eval_objective_gradient(model, grad_f, x),
         (x, rows, cols, values) ->
             _eval_jac_g_cb(model, x, rows, cols, values),
-        has_hessian ? nothing : eval_h_cb,
+        has_hessian ? eval_h_cb : nothing,
     )
     if model.sense == MOI.MIN_SENSE
         Ipopt.AddIpoptNumOption(model.inner, "obj_scaling_factor", 1.0)
@@ -1331,6 +1331,7 @@ function _setup_model(model::Optimizer)
     if has_hessian
         model.hessian_sparsity = MOI.hessian_lagrangian_structure(model)
     end
+    @show model.hessian_sparsity
     model.is_linear = !has_nlp_constraints && !has_quadratic_constraints
     model.needs_new_inner = true
     return
