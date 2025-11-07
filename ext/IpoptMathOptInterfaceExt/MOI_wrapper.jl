@@ -1290,6 +1290,15 @@ function _setup_inner(model::Optimizer)
             Ipopt.AddIpoptStrOption(model.inner, "hessian_constant", "yes")
         end
     end
+    function _moi_callback(args...)
+        # iter_count is args[2]
+        model.barrier_iterations = args[2]
+        if model.callback !== nothing
+            return model.callback(args...)
+        end
+        return true
+    end
+    Ipopt.SetIntermediateCallback(inner, _moi_callback)
     model.needs_new_inner = false
     return
 end
@@ -1379,13 +1388,12 @@ function MOI.optimize!(model::Optimizer)
         end
     end
     # Initialize the starting point, projecting variables from 0 onto their
-    # bounds if VariablePrimalStart  is not provided.
+    # bounds if VariablePrimalStart is not provided.
     for i in 1:length(model.variable_primal_start)
-        inner.x[i] = if model.variable_primal_start[i] !== nothing
-            model.variable_primal_start[i]
-        else
-            clamp(0.0, model.variables.lower[i], model.variables.upper[i])
-        end
+        inner.x[i] = something(
+            model.variable_primal_start[i],
+            clamp(0.0, model.variables.lower[i], model.variables.upper[i]),
+        )
     end
     for (i, start) in enumerate(model.qp_data.mult_g)
         inner.mult_g[i] = _dual_start(model, start, -1)
@@ -1405,22 +1413,13 @@ function MOI.optimize!(model::Optimizer)
         inner.mult_x_L[i] = _dual_start(model, model.mult_x_L[i])
         inner.mult_x_U[i] = _dual_start(model, model.mult_x_U[i], -1)
     end
+    # Reset timers
     model.barrier_iterations = 0
-    function _moi_callback(args...)
-        # iter_count is args[2]
-        model.barrier_iterations = args[2]
-        if model.callback !== nothing
-            return model.callback(args...)
-        end
-        return true
-    end
-    # Clear timers
     for (_, s) in model.vector_nonlinear_oracle_constraints
         s.eval_f_timer = 0.0
         s.eval_jacobian_timer = 0.0
         s.eval_hessian_lagrangian_timer = 0.0
     end
-    Ipopt.SetIntermediateCallback(inner, _moi_callback)
     Ipopt.IpoptSolve(inner)
     model.solve_time = time() - start_time
     return
