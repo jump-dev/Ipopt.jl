@@ -1249,7 +1249,7 @@ function _setup_inner(model::Optimizer)
         return _eval_h_cb(model, x, rows, cols, obj_factor, lambda, values)
     end
     has_hessian = model.hessian_sparsity !== nothing
-    model.inner = Ipopt.CreateIpoptProblem(
+    inner = model.inner = Ipopt.CreateIpoptProblem(
         length(model.variables.lower),
         model.variables.lower,
         model.variables.upper,
@@ -1266,28 +1266,28 @@ function _setup_inner(model::Optimizer)
         has_hessian ? eval_h_cb : nothing,
     )
     if model.sense == MOI.MIN_SENSE
-        Ipopt.AddIpoptNumOption(model.inner, "obj_scaling_factor", 1.0)
+        Ipopt.AddIpoptNumOption(inner, "obj_scaling_factor", 1.0)
     elseif model.sense == MOI.MAX_SENSE
-        Ipopt.AddIpoptNumOption(model.inner, "obj_scaling_factor", -1.0)
+        Ipopt.AddIpoptNumOption(inner, "obj_scaling_factor", -1.0)
     end
     # Ipopt crashes by default if NaN/Inf values are returned from the
     # evaluation callbacks. This option tells Ipopt to explicitly check for them
     # and return Invalid_Number_Detected instead. This setting may result in a
     # minor performance loss and can be overwritten by specifying
     # check_derivatives_for_naninf="no".
-    Ipopt.AddIpoptStrOption(model.inner, "check_derivatives_for_naninf", "yes")
+    Ipopt.AddIpoptStrOption(inner, "check_derivatives_for_naninf", "yes")
     if !has_hessian
         Ipopt.AddIpoptStrOption(
-            model.inner,
+            inner,
             "hessian_approximation",
             "limited-memory",
         )
     end
     if model.is_linear
-        Ipopt.AddIpoptStrOption(model.inner, "jac_c_constant", "yes")
-        Ipopt.AddIpoptStrOption(model.inner, "jac_d_constant", "yes")
+        Ipopt.AddIpoptStrOption(inner, "jac_c_constant", "yes")
+        Ipopt.AddIpoptStrOption(inner, "jac_d_constant", "yes")
         if !model.nlp_data.has_objective
-            Ipopt.AddIpoptStrOption(model.inner, "hessian_constant", "yes")
+            Ipopt.AddIpoptStrOption(inner, "hessian_constant", "yes")
         end
     end
     function _moi_callback(args...)
