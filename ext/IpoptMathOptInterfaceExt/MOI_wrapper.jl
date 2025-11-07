@@ -1226,8 +1226,8 @@ end
 
 function _eval_h_cb(model, x, rows, cols, obj_factor, lambda, values)
     if values === nothing
-        for i in 1:length(model.hessian_sparsity)
-            rows[i], cols[i] = model.hessian_sparsity[i]
+        for (i, v) in enumerate(model.hessian_sparsity::Vector{Tuple{Int,Int}})
+            rows[i], cols[i] = v
         end
     else
         MOI.eval_hessian_lagrangian(model, values, x, obj_factor, lambda)
@@ -1235,7 +1235,10 @@ function _eval_h_cb(model, x, rows, cols, obj_factor, lambda, values)
     return
 end
 
-function _setup_inner(model::Optimizer)
+function _setup_inner(model::Optimizer)::Ipopt.IpoptProblem
+    if !model.needs_new_inner
+        return model.inner
+    end
     g_L, g_U = copy(model.qp_data.g_L), copy(model.qp_data.g_U)
     for (_, s) in model.vector_nonlinear_oracle_constraints
         append!(g_L, s.set.l)
@@ -1301,7 +1304,7 @@ function _setup_inner(model::Optimizer)
     end
     Ipopt.SetIntermediateCallback(inner, _moi_callback)
     model.needs_new_inner = false
-    return
+    return model.inner
 end
 
 function _setup_model(model::Optimizer)
@@ -1346,17 +1349,6 @@ function _setup_model(model::Optimizer)
     return
 end
 
-function copy_parameters(model::Optimizer)
-    if model.nlp_model === nothing
-        return
-    end
-    empty!(model.qp_data.parameters)
-    for (p, index) in model.parameters
-        model.qp_data.parameters[p.value] = model.nlp_model[index]
-    end
-    return
-end
-
 function MOI.optimize!(model::Optimizer)
     start_time = time()
     if model.inner === nothing
@@ -1365,11 +1357,13 @@ function MOI.optimize!(model::Optimizer)
     if model.invalid_model
         return
     end
-    if model.needs_new_inner
-        _setup_inner(model)
+    inner = _setup_inner(model)
+    if model.nlp_model !== nothing
+        empty!(model.qp_data.parameters)
+        for (p, index) in model.parameters
+            model.qp_data.parameters[p.value] = model.nlp_model[index]
+        end
     end
-    copy_parameters(model)
-    inner = model.inner::Ipopt.IpoptProblem
     # The default print level is `5`
     Ipopt.AddIpoptIntOption(inner, "print_level", model.silent ? 0 : 5)
     # Other misc options that over-ride the ones set above.
