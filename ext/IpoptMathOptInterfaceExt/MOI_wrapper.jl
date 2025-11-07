@@ -1249,7 +1249,7 @@ function _setup_inner(model::Optimizer)
         return _eval_h_cb(model, x, rows, cols, obj_factor, lambda, values)
     end
     has_hessian = model.hessian_sparsity !== nothing
-    inner = model.inner = Ipopt.CreateIpoptProblem(
+    model.inner = Ipopt.CreateIpoptProblem(
         length(model.variables.lower),
         model.variables.lower,
         model.variables.upper,
@@ -1265,6 +1265,7 @@ function _setup_inner(model::Optimizer)
             _eval_jac_g_cb(model, x, rows, cols, values),
         has_hessian ? eval_h_cb : nothing,
     )
+    inner = model.inner::Ipopt.IpoptProblem
     if model.sense == MOI.MIN_SENSE
         Ipopt.AddIpoptNumOption(inner, "obj_scaling_factor", 1.0)
     elseif model.sense == MOI.MAX_SENSE
