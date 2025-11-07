@@ -1331,7 +1331,6 @@ function _setup_model(model::Optimizer)
     if has_hessian
         model.hessian_sparsity = MOI.hessian_lagrangian_structure(model)
     end
-    @show model.hessian_sparsity
     model.is_linear = !has_nlp_constraints && !has_quadratic_constraints
     model.needs_new_inner = true
     return
