@@ -62,7 +62,7 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
     jacobian_sparsity::Vector{Tuple{Int,Int}}
     hessian_sparsity::Union{Nothing,Vector{Tuple{Int,Int}}}
     needs_new_inner::Bool
-    is_linear::Bool
+    has_only_linear_constraints::Bool
 
     function Optimizer()
         return new(
@@ -143,7 +143,7 @@ function MOI.empty!(model::Optimizer)
     empty!(model.jacobian_sparsity)
     model.hessian_sparsity = nothing
     model.needs_new_inner = true
-    model.is_linear = true
+    model.has_only_linear_constraints = true
     return
 end
 
@@ -1287,7 +1287,7 @@ function _setup_inner(model::Optimizer)::Ipopt.IpoptProblem
             "limited-memory",
         )
     end
-    if model.is_linear
+    if model.has_only_linear_constraints
         Ipopt.AddIpoptStrOption(inner, "jac_c_constant", "yes")
         Ipopt.AddIpoptStrOption(inner, "jac_d_constant", "yes")
         if !model.nlp_data.has_objective
@@ -1344,7 +1344,8 @@ function _setup_model(model::Optimizer)
     if has_hessian
         model.hessian_sparsity = MOI.hessian_lagrangian_structure(model)
     end
-    model.is_linear = !has_nlp_constraints && !has_quadratic_constraints
+    model.has_only_linear_constraints =
+        !has_nlp_constraints && !has_quadratic_constraints
     model.needs_new_inner = true
     return
 end
