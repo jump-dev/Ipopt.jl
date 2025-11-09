@@ -59,6 +59,10 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
     vector_nonlinear_oracle_constraints::Vector{
         Tuple{MOI.VectorOfVariables,_VectorNonlinearOracleCache},
     }
+    jacobian_sparsity::Vector{Tuple{Int,Int}}
+    hessian_sparsity::Union{Nothing,Vector{Tuple{Int,Int}}}
+    needs_new_inner::Bool
+    has_only_linear_constraints::Bool
 
     function Optimizer()
         return new(
@@ -84,6 +88,10 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
             0,
             MOI.Nonlinear.SparseReverseMode(),
             Tuple{MOI.VectorOfVariables,_VectorNonlinearOracleCache}[],
+            Tuple{Int,Int}[],
+            nothing,
+            true,
+            false,
         )
     end
 end
@@ -132,6 +140,10 @@ function MOI.empty!(model::Optimizer)
     model.barrier_iterations = 0
     # SKIP: model.ad_backend
     empty!(model.vector_nonlinear_oracle_constraints)
+    empty!(model.jacobian_sparsity)
+    model.hessian_sparsity = nothing
+    model.needs_new_inner = true
+    model.has_only_linear_constraints = true
     return
 end
 
@@ -405,7 +417,7 @@ function MOI.set(
     set::S,
 ) where {S<:_SETS}
     MOI.set(model.variables, MOI.ConstraintSet(), ci, set)
-    model.inner = nothing
+    model.needs_new_inner = true
     return
 end
 
@@ -484,7 +496,7 @@ function MOI.set(
     S<:_SETS,
 }
     MOI.set(model.qp_data, MOI.ConstraintSet(), ci, set)
-    model.inner = nothing
+    model.needs_new_inner = true
     return
 end
 
@@ -625,7 +637,7 @@ function MOI.set(
     index = MOI.Nonlinear.ConstraintIndex(ci.value)
     func = model.nlp_model[index].expression
     model.nlp_model.constraints[index] = MOI.Nonlinear.Constraint(func, set)
-    model.inner = nothing
+    model.needs_new_inner = true
     return
 end
 
@@ -950,7 +962,7 @@ function MOI.set(
     sense::MOI.OptimizationSense,
 )
     model.sense = sense
-    model.inner = nothing
+    model.needs_new_inner = true
     return
 end
 
@@ -1201,14 +1213,108 @@ end
 
 ### MOI.optimize!
 
+function _eval_jac_g_cb(model, x, rows, cols, values)
+    if values === nothing
+        for i in 1:length(model.jacobian_sparsity)
+            rows[i], cols[i] = model.jacobian_sparsity[i]
+        end
+    else
+        MOI.eval_constraint_jacobian(model, values, x)
+    end
+    return
+end
+
+function _eval_h_cb(model, x, rows, cols, obj_factor, lambda, values)
+    if values === nothing
+        for (i, v) in enumerate(model.hessian_sparsity::Vector{Tuple{Int,Int}})
+            rows[i], cols[i] = v
+        end
+    else
+        MOI.eval_hessian_lagrangian(model, values, x, obj_factor, lambda)
+    end
+    return
+end
+
+function _setup_inner(model::Optimizer)::Ipopt.IpoptProblem
+    if !model.needs_new_inner
+        return model.inner
+    end
+    g_L, g_U = copy(model.qp_data.g_L), copy(model.qp_data.g_U)
+    for (_, s) in model.vector_nonlinear_oracle_constraints
+        append!(g_L, s.set.l)
+        append!(g_U, s.set.u)
+    end
+    for bound in model.nlp_data.constraint_bounds
+        push!(g_L, bound.lower)
+        push!(g_U, bound.upper)
+    end
+    function eval_h_cb(x, rows, cols, obj_factor, lambda, values)
+        return _eval_h_cb(model, x, rows, cols, obj_factor, lambda, values)
+    end
+    has_hessian = model.hessian_sparsity !== nothing
+    model.inner = Ipopt.CreateIpoptProblem(
+        length(model.variables.lower),
+        model.variables.lower,
+        model.variables.upper,
+        length(g_L),
+        g_L,
+        g_U,
+        length(model.jacobian_sparsity),
+        has_hessian ? length(model.hessian_sparsity) : 0,
+        (x) -> MOI.eval_objective(model, x),
+        (x, g) -> MOI.eval_constraint(model, g, x),
+        (x, grad_f) -> MOI.eval_objective_gradient(model, grad_f, x),
+        (x, rows, cols, values) ->
+            _eval_jac_g_cb(model, x, rows, cols, values),
+        has_hessian ? eval_h_cb : nothing,
+    )
+    inner = model.inner::Ipopt.IpoptProblem
+    if model.sense == MOI.MIN_SENSE
+        Ipopt.AddIpoptNumOption(inner, "obj_scaling_factor", 1.0)
+    elseif model.sense == MOI.MAX_SENSE
+        Ipopt.AddIpoptNumOption(inner, "obj_scaling_factor", -1.0)
+    end
+    # Ipopt crashes by default if NaN/Inf values are returned from the
+    # evaluation callbacks. This option tells Ipopt to explicitly check for them
+    # and return Invalid_Number_Detected instead. This setting may result in a
+    # minor performance loss and can be overwritten by specifying
+    # check_derivatives_for_naninf="no".
+    Ipopt.AddIpoptStrOption(inner, "check_derivatives_for_naninf", "yes")
+    if !has_hessian
+        Ipopt.AddIpoptStrOption(
+            inner,
+            "hessian_approximation",
+            "limited-memory",
+        )
+    end
+    if model.has_only_linear_constraints
+        Ipopt.AddIpoptStrOption(inner, "jac_c_constant", "yes")
+        Ipopt.AddIpoptStrOption(inner, "jac_d_constant", "yes")
+        if !model.nlp_data.has_objective
+            Ipopt.AddIpoptStrOption(inner, "hessian_constant", "yes")
+        end
+    end
+    function _moi_callback(args...)
+        # iter_count is args[2]
+        model.barrier_iterations = args[2]
+        if model.callback !== nothing
+            return model.callback(args...)
+        end
+        return true
+    end
+    Ipopt.SetIntermediateCallback(inner, _moi_callback)
+    model.needs_new_inner = false
+    return model.inner
+end
+
 function _setup_model(model::Optimizer)
-    vars = MOI.get(model.variables, MOI.ListOfVariableIndices())
-    if isempty(vars)
+    if MOI.get(model, MOI.NumberOfVariables()) == 0
         # Don't attempt to create a problem because Ipopt will error.
         model.invalid_model = true
         return
     end
     if model.nlp_model !== nothing
+        vars = MOI.get(model.variables, MOI.ListOfVariableIndices())
         model.nlp_data = MOI.NLPBlockData(
             MOI.Nonlinear.Evaluator(model.nlp_model, model.ad_backend, vars),
         )
@@ -1233,99 +1339,14 @@ function _setup_model(model::Optimizer)
         push!(init_feat, :Jac)
     end
     MOI.initialize(model.nlp_data.evaluator, init_feat)
-    jacobian_sparsity = MOI.jacobian_structure(model)
-    hessian_sparsity = if has_hessian
-        MOI.hessian_lagrangian_structure(model)
-    else
-        Tuple{Int,Int}[]
+    model.jacobian_sparsity = MOI.jacobian_structure(model)
+    model.hessian_sparsity = nothing
+    if has_hessian
+        model.hessian_sparsity = MOI.hessian_lagrangian_structure(model)
     end
-    eval_f_cb(x) = MOI.eval_objective(model, x)
-    eval_grad_f_cb(x, grad_f) = MOI.eval_objective_gradient(model, grad_f, x)
-    eval_g_cb(x, g) = MOI.eval_constraint(model, g, x)
-    function eval_jac_g_cb(x, rows, cols, values)
-        if values === nothing
-            for i in 1:length(jacobian_sparsity)
-                rows[i], cols[i] = jacobian_sparsity[i]
-            end
-        else
-            MOI.eval_constraint_jacobian(model, values, x)
-        end
-        return
-    end
-    function eval_h_cb(x, rows, cols, obj_factor, lambda, values)
-        if values === nothing
-            for i in 1:length(hessian_sparsity)
-                rows[i], cols[i] = hessian_sparsity[i]
-            end
-        else
-            MOI.eval_hessian_lagrangian(model, values, x, obj_factor, lambda)
-        end
-        return
-    end
-    g_L, g_U = copy(model.qp_data.g_L), copy(model.qp_data.g_U)
-    for (_, s) in model.vector_nonlinear_oracle_constraints
-        append!(g_L, s.set.l)
-        append!(g_U, s.set.u)
-    end
-    for bound in model.nlp_data.constraint_bounds
-        push!(g_L, bound.lower)
-        push!(g_U, bound.upper)
-    end
-    model.inner = Ipopt.CreateIpoptProblem(
-        length(vars),
-        model.variables.lower,
-        model.variables.upper,
-        length(g_L),
-        g_L,
-        g_U,
-        length(jacobian_sparsity),
-        length(hessian_sparsity),
-        eval_f_cb,
-        eval_g_cb,
-        eval_grad_f_cb,
-        eval_jac_g_cb,
-        has_hessian ? eval_h_cb : nothing,
-    )
-    if model.sense == MOI.MIN_SENSE
-        Ipopt.AddIpoptNumOption(model.inner, "obj_scaling_factor", 1.0)
-    elseif model.sense == MOI.MAX_SENSE
-        Ipopt.AddIpoptNumOption(model.inner, "obj_scaling_factor", -1.0)
-    end
-    # Ipopt crashes by default if NaN/Inf values are returned from the
-    # evaluation callbacks. This option tells Ipopt to explicitly check for them
-    # and return Invalid_Number_Detected instead. This setting may result in a
-    # minor performance loss and can be overwritten by specifying
-    # check_derivatives_for_naninf="no".
-    Ipopt.AddIpoptStrOption(model.inner, "check_derivatives_for_naninf", "yes")
-    if !has_hessian
-        Ipopt.AddIpoptStrOption(
-            model.inner,
-            "hessian_approximation",
-            "limited-memory",
-        )
-    end
-    if !has_nlp_constraints && !has_quadratic_constraints
-        Ipopt.AddIpoptStrOption(model.inner, "jac_c_constant", "yes")
-        Ipopt.AddIpoptStrOption(model.inner, "jac_d_constant", "yes")
-        if !model.nlp_data.has_objective
-            # We turn on this option if all constraints are linear and the
-            # objective is linear or quadratic. From the documentation, it's
-            # unclear if it may also apply if the constraints are at most
-            # quadratic.
-            Ipopt.AddIpoptStrOption(model.inner, "hessian_constant", "yes")
-        end
-    end
-    return
-end
-
-function copy_parameters(model::Optimizer)
-    if model.nlp_model === nothing
-        return
-    end
-    empty!(model.qp_data.parameters)
-    for (p, index) in model.parameters
-        model.qp_data.parameters[p.value] = model.nlp_model[index]
-    end
+    model.has_only_linear_constraints =
+        !has_nlp_constraints && !has_quadratic_constraints
+    model.needs_new_inner = true
     return
 end
 
@@ -1337,8 +1358,13 @@ function MOI.optimize!(model::Optimizer)
     if model.invalid_model
         return
     end
-    copy_parameters(model)
-    inner = model.inner::Ipopt.IpoptProblem
+    inner = _setup_inner(model)
+    if model.nlp_model !== nothing
+        empty!(model.qp_data.parameters)
+        for (p, index) in model.parameters
+            model.qp_data.parameters[p.value] = model.nlp_model[index]
+        end
+    end
     # The default print level is `5`
     Ipopt.AddIpoptIntOption(inner, "print_level", model.silent ? 0 : 5)
     # Other misc options that over-ride the ones set above.
@@ -1358,13 +1384,12 @@ function MOI.optimize!(model::Optimizer)
         end
     end
     # Initialize the starting point, projecting variables from 0 onto their
-    # bounds if VariablePrimalStart  is not provided.
+    # bounds if VariablePrimalStart is not provided.
     for i in 1:length(model.variable_primal_start)
-        inner.x[i] = if model.variable_primal_start[i] !== nothing
-            model.variable_primal_start[i]
-        else
-            clamp(0.0, model.variables.lower[i], model.variables.upper[i])
-        end
+        inner.x[i] = something(
+            model.variable_primal_start[i],
+            clamp(0.0, model.variables.lower[i], model.variables.upper[i]),
+        )
     end
     for (i, start) in enumerate(model.qp_data.mult_g)
         inner.mult_g[i] = _dual_start(model, start, -1)
@@ -1384,22 +1409,13 @@ function MOI.optimize!(model::Optimizer)
         inner.mult_x_L[i] = _dual_start(model, model.mult_x_L[i])
         inner.mult_x_U[i] = _dual_start(model, model.mult_x_U[i], -1)
     end
+    # Reset timers
     model.barrier_iterations = 0
-    function _moi_callback(args...)
-        # iter_count is args[2]
-        model.barrier_iterations = args[2]
-        if model.callback !== nothing
-            return model.callback(args...)
-        end
-        return true
-    end
-    # Clear timers
     for (_, s) in model.vector_nonlinear_oracle_constraints
         s.eval_f_timer = 0.0
         s.eval_jacobian_timer = 0.0
         s.eval_hessian_lagrangian_timer = 0.0
     end
-    Ipopt.SetIntermediateCallback(inner, _moi_callback)
     Ipopt.IpoptSolve(inner)
     model.solve_time = time() - start_time
     return
