@@ -1025,12 +1025,20 @@ end
 ### Eval_F_CB
 
 function MOI.eval_objective(model::Optimizer, x)
+    return MOI.eval_objective(model, model.nlp_data.evaluator, x)
+end
+
+function MOI.eval_objective(
+    model::Optimizer,
+    evaluator::MOI.AbstractNLPEvaluator,
+    x,
+)
     # TODO(odow): FEASIBILITY_SENSE could produce confusing solver output if
     # a nonzero objective is set.
     if model.sense == MOI.FEASIBILITY_SENSE
         return 0.0
     elseif model.nlp_data.has_objective
-        return MOI.eval_objective(model.nlp_data.evaluator, x)::Float64
+        return MOI.eval_objective(evaluator, x)::Float64
     end
     return MOI.eval_objective(model.qp_data, x)
 end
@@ -1038,10 +1046,19 @@ end
 ### Eval_Grad_F_CB
 
 function MOI.eval_objective_gradient(model::Optimizer, grad, x)
+    return MOI.eval_objective_gradient(model, model.nlp_data.evaluator, grad, x)
+end
+
+function MOI.eval_objective_gradient(
+    model::Optimizer,
+    evaluator::MOI.AbstractNLPEvaluator,
+    grad,
+    x,
+)
     if model.sense == MOI.FEASIBILITY_SENSE
         grad .= zero(eltype(grad))
     elseif model.nlp_data.has_objective
-        MOI.eval_objective_gradient(model.nlp_data.evaluator, grad, x)
+        MOI.eval_objective_gradient(evaluator, grad, x)
     else
         MOI.eval_objective_gradient(model.qp_data, grad, x)
     end
@@ -1066,13 +1083,22 @@ function _eval_constraint(
 end
 
 function MOI.eval_constraint(model::Optimizer, g, x)
+    return MOI.eval_constraint(model, model.nlp_data.evaluator, g, x)
+end
+
+function MOI.eval_constraint(
+    model::Optimizer,
+    evaluator::MOI.AbstractNLPEvaluator,
+    g,
+    x,
+)
     MOI.eval_constraint(model.qp_data, g, x)
     offset = length(model.qp_data)
     for (f, s) in model.vector_nonlinear_oracle_constraints
         offset = _eval_constraint(g, offset, x, f, s)
     end
     g_nlp = view(g, (offset+1):length(g))
-    MOI.eval_constraint(model.nlp_data.evaluator, g_nlp, x)
+    MOI.eval_constraint(evaluator, g_nlp, x)
     return
 end
 
@@ -1091,15 +1117,20 @@ function _jacobian_structure(
 end
 
 function MOI.jacobian_structure(model::Optimizer)
+    return MOI.jacobian_structure(model, model.nlp_data.evaluator)
+end
+
+function MOI.jacobian_structure(
+    model::Optimizer,
+    evaluator::MOI.AbstractNLPEvaluator,
+)
     J = MOI.jacobian_structure(model.qp_data)
     offset = length(model.qp_data)
     for (f, s) in model.vector_nonlinear_oracle_constraints
         offset = _jacobian_structure(J, offset, f, s)
     end
     if length(model.nlp_data.constraint_bounds) > 0
-        J_nlp = MOI.jacobian_structure(
-            model.nlp_data.evaluator,
-        )::Vector{Tuple{Int64,Int64}}
+        J_nlp = MOI.jacobian_structure(evaluator)::Vector{Tuple{Int64,Int64}}
         for (row, col) in J_nlp
             push!(J, (row + offset, col))
         end
@@ -1124,13 +1155,27 @@ function _eval_constraint_jacobian(
 end
 
 function MOI.eval_constraint_jacobian(model::Optimizer, values, x)
+    return MOI.eval_constraint_jacobian(
+        model,
+        model.nlp_data.evaluator,
+        values,
+        x,
+    )
+end
+
+function MOI.eval_constraint_jacobian(
+    model::Optimizer,
+    evaluator::MOI.AbstractNLPEvaluator,
+    values,
+    x,
+)
     offset = MOI.eval_constraint_jacobian(model.qp_data, values, x)
     offset -= 1  # .qp_data returns one-indexed offset
     for (f, s) in model.vector_nonlinear_oracle_constraints
         offset = _eval_constraint_jacobian(values, offset, x, f, s)
     end
     nlp_values = view(values, (offset+1):length(values))
-    MOI.eval_constraint_jacobian(model.nlp_data.evaluator, nlp_values, x)
+    MOI.eval_constraint_jacobian(evaluator, nlp_values, x)
     return
 end
 
@@ -1148,11 +1193,18 @@ function _hessian_lagrangian_structure(
 end
 
 function MOI.hessian_lagrangian_structure(model::Optimizer)
+    return MOI.hessian_lagrangian_structure(model, model.nlp_data.evaluator)
+end
+
+function MOI.hessian_lagrangian_structure(
+    model::Optimizer,
+    evaluator::MOI.AbstractNLPEvaluator,
+)
     H = MOI.hessian_lagrangian_structure(model.qp_data)
     for (f, s) in model.vector_nonlinear_oracle_constraints
         _hessian_lagrangian_structure(H, f, s)
     end
-    append!(H, MOI.hessian_lagrangian_structure(model.nlp_data.evaluator))
+    append!(H, MOI.hessian_lagrangian_structure(evaluator))
     return H
 end
 
@@ -1177,6 +1229,24 @@ function _eval_hessian_lagrangian(
 end
 
 function MOI.eval_hessian_lagrangian(model::Optimizer, H, x, σ, μ)
+    return MOI.eval_hessian_lagrangian(
+        model,
+        model.nlp_data.evaluator,
+        H,
+        x,
+        σ,
+        μ,
+    )
+end
+
+function MOI.eval_hessian_lagrangian(
+    model::Optimizer,
+    evaluator::MOI.AbstractNLPEvaluator,
+    H,
+    x,
+    σ,
+    μ,
+)
     offset = MOI.eval_hessian_lagrangian(model.qp_data, H, x, σ, μ)
     offset -= 1  # .qp_data returns one-indexed offset
     μ_offset = length(model.qp_data)
@@ -1186,7 +1256,7 @@ function MOI.eval_hessian_lagrangian(model::Optimizer, H, x, σ, μ)
     end
     H_nlp = view(H, (offset+1):length(H))
     μ_nlp = view(μ, (μ_offset+1):length(μ))
-    MOI.eval_hessian_lagrangian(model.nlp_data.evaluator, H_nlp, x, σ, μ_nlp)
+    MOI.eval_hessian_lagrangian(evaluator, H_nlp, x, σ, μ_nlp)
     return
 end
 
@@ -1213,29 +1283,39 @@ end
 
 ### MOI.optimize!
 
-function _eval_jac_g_cb(model, x, rows, cols, values)
+function _eval_jac_g_cb(model, evaluator, x, rows, cols, values)
     if values === nothing
         for i in 1:length(model.jacobian_sparsity)
             rows[i], cols[i] = model.jacobian_sparsity[i]
         end
     else
-        MOI.eval_constraint_jacobian(model, values, x)
+        MOI.eval_constraint_jacobian(model, evaluator, values, x)
     end
     return
 end
 
-function _eval_h_cb(model, x, rows, cols, obj_factor, lambda, values)
+function _eval_h_cb(model, evaluator, x, rows, cols, obj_factor, lambda, values)
     if values === nothing
         for (i, v) in enumerate(model.hessian_sparsity::Vector{Tuple{Int,Int}})
             rows[i], cols[i] = v
         end
     else
-        MOI.eval_hessian_lagrangian(model, values, x, obj_factor, lambda)
+        MOI.eval_hessian_lagrangian(
+            model,
+            evaluator,
+            values,
+            x,
+            obj_factor,
+            lambda,
+        )
     end
     return
 end
 
-function _setup_inner(model::Optimizer)::Ipopt.IpoptProblem
+function _setup_inner(
+    model::Optimizer,
+    evaluator::MOI.AbstractNLPEvaluator,
+)::Ipopt.IpoptProblem
     if !model.needs_new_inner
         return model.inner
     end
@@ -1249,7 +1329,16 @@ function _setup_inner(model::Optimizer)::Ipopt.IpoptProblem
         push!(g_U, bound.upper)
     end
     function eval_h_cb(x, rows, cols, obj_factor, lambda, values)
-        return _eval_h_cb(model, x, rows, cols, obj_factor, lambda, values)
+        return _eval_h_cb(
+            model,
+            evaluator,
+            x,
+            rows,
+            cols,
+            obj_factor,
+            lambda,
+            values,
+        )
     end
     has_hessian = model.hessian_sparsity !== nothing
     model.inner = Ipopt.CreateIpoptProblem(
@@ -1261,11 +1350,11 @@ function _setup_inner(model::Optimizer)::Ipopt.IpoptProblem
         g_U,
         length(model.jacobian_sparsity),
         has_hessian ? length(model.hessian_sparsity) : 0,
-        (x) -> MOI.eval_objective(model, x),
-        (x, g) -> MOI.eval_constraint(model, g, x),
-        (x, grad_f) -> MOI.eval_objective_gradient(model, grad_f, x),
+        (x) -> MOI.eval_objective(model, evaluator, x),
+        (x, g) -> MOI.eval_constraint(model, evaluator, g, x),
+        (x, grad_f) -> MOI.eval_objective_gradient(model, evaluator, grad_f, x),
         (x, rows, cols, values) ->
-            _eval_jac_g_cb(model, x, rows, cols, values),
+            _eval_jac_g_cb(model, evaluator, x, rows, cols, values),
         has_hessian ? eval_h_cb : nothing,
     )
     inner = model.inner::Ipopt.IpoptProblem
@@ -1358,7 +1447,7 @@ function MOI.optimize!(model::Optimizer)
     if model.invalid_model
         return
     end
-    inner = _setup_inner(model)
+    inner = _setup_inner(model, model.nlp_data.evaluator)
     if model.nlp_model !== nothing
         empty!(model.qp_data.parameters)
         for (p, index) in model.parameters
