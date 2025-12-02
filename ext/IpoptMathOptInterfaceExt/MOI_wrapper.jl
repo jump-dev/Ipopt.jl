@@ -748,6 +748,7 @@ function MOI.get(
 end
 
 struct _LagrangianMultipliers <: MOI.AbstractConstraintAttribute end
+MOI.is_set_by_optimize(::_LagrangianMultipliers) = true
 
 function MOI.get(
     model::Optimizer,
