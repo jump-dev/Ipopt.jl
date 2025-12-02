@@ -747,6 +747,23 @@ function MOI.get(
     return MOI.get.(model, MOI.VariablePrimal(attr.result_index), f.variables)
 end
 
+struct _LagrangianMultipliers <: MOI.AbstractConstraintAttribute end
+
+function MOI.get(
+    model::Optimizer,
+    attr::_LagrangianMultipliers,
+    ci::MOI.ConstraintIndex{F,S},
+) where {F<:MOI.VectorOfVariables,S<:MOI.VectorNonlinearOracle{Float64}}
+    MOI.check_result_index_bounds(model, attr)
+    MOI.throw_if_not_valid(model, ci)
+    sign = -_dual_multiplier(model)
+    λ = model.inner.mult_g[row(model, ci)]
+    if sign != 1
+        λ = -λ
+    end
+    return λ
+end
+
 function MOI.get(
     model::Optimizer,
     attr::MOI.ConstraintDual,
