@@ -1442,7 +1442,8 @@ function MOI.optimize!(model::Optimizer)
         for (_, cache) in model.vector_nonlinear_oracle_constraints
             if cache.start !== nothing
                 for i in 1:cache.set.output_dimension
-                    inner.mult_g[offset+i] = _dual_start(model, cache.start[i], -1)
+                    inner.mult_g[offset+i] =
+                        _dual_start(model, cache.start[i], -1)
                 end
             end
             offset += cache.set.output_dimension
