@@ -18,6 +18,7 @@ end
 mutable struct _VectorNonlinearOracleCache
     set::MOI.VectorNonlinearOracle{Float64}
     x::Vector{Float64}
+    start::Union{Nothing,Vector{Float64}}
     eval_f_timer::Float64
     eval_jacobian_timer::Float64
     eval_hessian_lagrangian_timer::Float64
@@ -25,7 +26,7 @@ mutable struct _VectorNonlinearOracleCache
     function _VectorNonlinearOracleCache(
         set::MOI.VectorNonlinearOracle{Float64},
     )
-        return new(set, zeros(set.input_dimension), 0.0, 0.0, 0.0)
+        return new(set, zeros(set.input_dimension), nothing, 0.0, 0.0, 0.0)
     end
 end
 
@@ -770,6 +771,44 @@ function MOI.get(
     return dual
 end
 
+function MOI.get(
+    model::Optimizer,
+    attr::MOI.LagrangeMultiplier,
+    ci::MOI.ConstraintIndex{F,S},
+) where {F<:MOI.VectorOfVariables,S<:MOI.VectorNonlinearOracle{Float64}}
+    MOI.check_result_index_bounds(model, attr)
+    MOI.throw_if_not_valid(model, ci)
+    return -_dual_multiplier(model) * model.inner.mult_g[row(model, ci)]
+end
+
+function MOI.supports(
+    ::Optimizer,
+    ::MOI.LagrangeMultiplierStart,
+    ::Type{MOI.ConstraintIndex{F,S}},
+) where {F<:MOI.VectorOfVariables,S<:MOI.VectorNonlinearOracle{Float64}}
+    return true
+end
+
+function MOI.get(
+    model::Optimizer,
+    attr::MOI.LagrangeMultiplierStart,
+    ci::MOI.ConstraintIndex{F,S},
+) where {F<:MOI.VectorOfVariables,S<:MOI.VectorNonlinearOracle{Float64}}
+    _, cache = model.vector_nonlinear_oracle_constraints[ci.value]
+    return cache.start
+end
+
+function MOI.set(
+    model::Optimizer,
+    attr::MOI.LagrangeMultiplierStart,
+    ci::MOI.ConstraintIndex{F,S},
+    start::Union{Nothing,Vector{Float64}},
+) where {F<:MOI.VectorOfVariables,S<:MOI.VectorNonlinearOracle{Float64}}
+    _, cache = model.vector_nonlinear_oracle_constraints[ci.value]
+    cache.start = start
+    return
+end
+
 ### UserDefinedFunction
 
 MOI.supports(model::Optimizer, ::MOI.UserDefinedFunction) = true
@@ -1399,6 +1438,14 @@ function MOI.optimize!(model::Optimizer)
         inner.mult_g[(offset+1):end] .= 0.0
         for (key, val) in model.mult_g_nlp
             inner.mult_g[offset+key.value] = val
+        end
+        for (_, cache) in model.vector_nonlinear_oracle_constraints
+            if cache.start !== nothing
+                for i in 1:cache.set.output_dimension
+                    inner.mult_g[offset+i] = _dual_start(model, cache.start[i], -1)
+                end
+            end
+            offset += cache.set.output_dimension
         end
     else
         for (i, start) in enumerate(model.nlp_dual_start::Vector{Float64})
