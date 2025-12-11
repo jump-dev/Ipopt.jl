@@ -1436,9 +1436,7 @@ function MOI.optimize!(model::Optimizer)
     offset = length(model.qp_data.mult_g)
     if model.nlp_dual_start === nothing
         inner.mult_g[(offset+1):end] .= 0.0
-        for (key, val) in model.mult_g_nlp
-            inner.mult_g[offset+key.value] = val
-        end
+        # First there is VectorNonlinearOracle...
         for (_, cache) in model.vector_nonlinear_oracle_constraints
             if cache.start !== nothing
                 for i in 1:cache.set.output_dimension
@@ -1447,6 +1445,10 @@ function MOI.optimize!(model::Optimizer)
                 end
             end
             offset += cache.set.output_dimension
+        end
+        # then come the ScalarNonlinearFunctions....
+        for (key, val) in model.mult_g_nlp
+            inner.mult_g[offset+key.value] = _dual_start(model, val, -1)
         end
     else
         for (i, start) in enumerate(model.nlp_dual_start::Vector{Float64})
