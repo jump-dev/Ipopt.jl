@@ -144,7 +144,7 @@ function MOI.empty!(model::Optimizer)
     empty!(model.jacobian_sparsity)
     model.hessian_sparsity = nothing
     model.needs_new_inner = true
-    model.has_only_linear_constraints = true
+    model.has_only_linear_constraints = false
     return
 end
 
