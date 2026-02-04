@@ -30,18 +30,18 @@ function test_hs071()
     # Start at (1,5,5,1)
     # End at (1.000..., 4.743..., 3.821..., 1.379...)
 
-    function eval_f(x::Vector{Float64})
+    function eval_f(x::Vector{Float64}, x_new::Bool)
         return x[1] * x[4] * (x[1] + x[2] + x[3]) + x[3]
     end
 
-    function eval_g(x::Vector{Float64}, g::Vector{Float64})
+    function eval_g(x::Vector{Float64}, g::Vector{Float64}, x_new::Bool)
         # Bad: g    = zeros(2)  # Allocates new array
         # OK:  g[:] = zeros(2)  # Modifies 'in place'
         g[1] = x[1] * x[2] * x[3] * x[4]
         return g[2] = x[1]^2 + x[2]^2 + x[3]^2 + x[4]^2
     end
 
-    function eval_grad_f(x::Vector{Float64}, grad_f::Vector{Float64})
+    function eval_grad_f(x::Vector{Float64}, grad_f::Vector{Float64}, x_new::Bool)
         # Bad: grad_f    = zeros(4)  # Allocates new array
         # OK:  grad_f[:] = zeros(4)  # Modifies 'in place'
         grad_f[1] = x[1] * x[4] + x[4] * (x[1] + x[2] + x[3])
@@ -55,6 +55,7 @@ function test_hs071()
         rows::Vector{Int32},
         cols::Vector{Int32},
         values::Union{Nothing,Vector{Float64}},
+        x_new::Bool,
     )
         if values === nothing
             # Constraint (row) 1
@@ -97,6 +98,8 @@ function test_hs071()
         obj_factor::Float64,
         lambda::Vector{Float64},
         values::Union{Nothing,Vector{Float64}},
+        x_new::Bool,
+        lambda_new::Bool,
     )
         if values === nothing
             # Symmetric matrix, fill the lower left triangle only
@@ -265,9 +268,9 @@ function test_IpoptProblem_errors()
             Float64[],  # g_U,
             0,          # nele_jac,
             0,          # nele_hess
-            x -> 0.0,           # eval_f,
-            (x, g) -> nothing,  # eval_g,
-            (x, g) -> nothing,  # eval_grad_f,
+            (x, x_new) -> 0.0,           # eval_f,
+            (x, g, x_new) -> nothing,  # eval_g,
+            (x, g, x_new) -> nothing,  # eval_grad_f,
             (args...) -> nothing, # eval_jac_g,
             nothing,
         ),
@@ -285,9 +288,9 @@ function test_IpoptProblem_errors()
             Float64[],  # g_U,
             -1,          # nele_jac,
             0,          # nele_hess
-            x -> 0.0,           # eval_f,
-            (x, g) -> nothing,  # eval_g,
-            (x, g) -> nothing,  # eval_grad_f,
+            (x, x_new) -> 0.0,           # eval_f,
+            (x, g, x_new) -> nothing,  # eval_g,
+            (x, g, x_new) -> nothing,  # eval_grad_f,
             (args...) -> nothing, # eval_jac_g,
             nothing,
         ),
@@ -305,9 +308,9 @@ function test_non_ascii_options()
         Float64[],  # g_U,
         0,          # nele_jac,
         0,          # nele_hess
-        x -> x[1],           # eval_f,
-        (x, g) -> nothing,  # eval_g,
-        (x, g) -> (g[1] = 1.0),  # eval_grad_f,
+        (x, x_new) -> x[1],           # eval_f,
+        (x, g, x_new) -> nothing,  # eval_g,
+        (x, g, x_new) -> (g[1] = 1.0),  # eval_grad_f,
         (args...) -> nothing, # eval_jac_g,
         nothing,
     )
@@ -340,9 +343,9 @@ function test_SetIpoptProblemScaling()
         Float64[],  # g_U,
         0,          # nele_jac,
         0,          # nele_hess
-        x -> x[1],           # eval_f,
-        (x, g) -> nothing,  # eval_g,
-        (x, g) -> (g[1] = 1.0),  # eval_grad_f,
+        (x, x_new) -> x[1],           # eval_f,
+        (x, g, x_new) -> nothing,  # eval_g,
+        (x, g, x_new) -> (g[1] = 1.0),  # eval_grad_f,
         (args...) -> nothing, # eval_jac_g,
         nothing,
     )
@@ -361,9 +364,9 @@ function test_OpenIpoptOutputFile()
         Float64[],  # g_U,
         0,          # nele_jac,
         0,          # nele_hess
-        x -> x[1],           # eval_f,
-        (x, g) -> nothing,  # eval_g,
-        (x, g) -> (g[1] = 1.0),  # eval_grad_f,
+        (x, x_new) -> x[1],           # eval_f,
+        (x, g, x_new) -> nothing,  # eval_g,
+        (x, g, x_new) -> (g[1] = 1.0),  # eval_grad_f,
         (args...) -> nothing, # eval_jac_g,
         nothing,
     )
@@ -399,9 +402,9 @@ function test_GetIpoptCurrentIterate()
         Float64[],  # g_U,
         0,          # nele_jac,
         0,          # nele_hess
-        x -> x[1],           # eval_f,
-        (x, g) -> nothing,  # eval_g,
-        (x, g) -> (g[1] = 1.0),  # eval_grad_f,
+        (x, x_new) -> x[1],           # eval_f,
+        (x, g, x_new) -> nothing,  # eval_g,
+        (x, g, x_new) -> (g[1] = 1.0),  # eval_grad_f,
         (args...) -> nothing, # eval_jac_g,
         nothing,
     )
@@ -438,9 +441,9 @@ function test_GetIpoptCurrentViolations()
         Float64[],  # g_U,
         0,          # nele_jac,
         0,          # nele_hess
-        x -> x[1],           # eval_f,
-        (x, g) -> nothing,  # eval_g,
-        (x, g) -> (g[1] = 1.0),  # eval_grad_f,
+        (x, x_new) -> x[1],           # eval_f,
+        (x, g, x_new) -> nothing,  # eval_g,
+        (x, g, x_new) -> (g[1] = 1.0),  # eval_grad_f,
         (args...) -> nothing, # eval_jac_g,
         nothing,
     )
@@ -478,9 +481,9 @@ function test_Hessian_failure()
         Float64[],  # g_U,
         0,          # nele_jac,
         1,          # nele_hess
-        x -> x[1],           # eval_f,
-        (x, g) -> nothing,  # eval_g,
-        (x, g) -> (g[1] = 1.0),  # eval_grad_f,
+        (x, x_new) -> x[1],           # eval_f,
+        (x, g, x_new) -> nothing,  # eval_g,
+        (x, g, x_new) -> (g[1] = 1.0),  # eval_grad_f,
         (args...) -> nothing, # eval_jac_g,
         nothing,
     )

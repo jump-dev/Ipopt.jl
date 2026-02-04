@@ -1291,6 +1291,10 @@ function _setup_inner(model::Optimizer)::Ipopt.IpoptProblem
         return _eval_h_cb(model, x, rows, cols, obj_factor, lambda, values)
     end
     has_hessian = model.hessian_sparsity !== nothing
+    # Note: The callback functions accept an x_new::Bool argument that indicates
+    # whether x has changed since the last call. The MOI interface doesn't use
+    # this, but it's exposed for users of the low-level C wrapper who want to
+    # implement caching of shared computations.
     model.inner = Ipopt.CreateIpoptProblem(
         length(model.variables.lower),
         model.variables.lower,
@@ -1300,12 +1304,13 @@ function _setup_inner(model::Optimizer)::Ipopt.IpoptProblem
         g_U,
         length(model.jacobian_sparsity),
         has_hessian ? length(model.hessian_sparsity) : 0,
-        (x) -> MOI.eval_objective(model, x),
-        (x, g) -> MOI.eval_constraint(model, g, x),
-        (x, grad_f) -> MOI.eval_objective_gradient(model, grad_f, x),
-        (x, rows, cols, values) ->
+        (x, x_new) -> MOI.eval_objective(model, x),
+        (x, g, x_new) -> MOI.eval_constraint(model, g, x),
+        (x, grad_f, x_new) -> MOI.eval_objective_gradient(model, grad_f, x),
+        (x, rows, cols, values, x_new) ->
             _eval_jac_g_cb(model, x, rows, cols, values),
-        has_hessian ? eval_h_cb : nothing,
+        has_hessian ? (x, rows, cols, obj_factor, lambda, values, x_new, lambda_new) ->
+            _eval_h_cb(model, x, rows, cols, obj_factor, lambda, values) : nothing,
     )
     inner = model.inner::Ipopt.IpoptProblem
     if model.sense == MOI.MIN_SENSE
