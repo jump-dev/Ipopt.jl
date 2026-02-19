@@ -201,18 +201,16 @@ function MOI.is_valid(
     model::Optimizer,
     ci::MOI.ConstraintIndex{MOI.VariableIndex,MOI.Parameter{Float64}},
 )
-    p = MOI.VariableIndex(ci.value)
-    return haskey(model.parameters, p)
+    return haskey(model.parameters, MOI.VariableIndex(ci.value))
 end
 
 function MOI.get(
     model::Optimizer,
-    ::MOI.ListOfConstraintIndices{MOI.VariableIndex,MOI.Parameter{Float64}},
-)
-    return [
-        MOI.ConstraintIndex{MOI.VariableIndex,MOI.Parameter{Float64}}(p.value)
-        for p in keys(model.parameters)
-    ]
+    ::MOI.ListOfConstraintIndices{F,S},
+) where {F<:MOI.VariableIndex,S<:MOI.Parameter{Float64}}
+    ret = [MOI.ConstraintIndex{F,S}(p.value) for p in keys(model.parameters)]
+    sort!(ret; by = x -> x.value)
+    return ret
 end
 
 function MOI.get(
