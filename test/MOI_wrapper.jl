@@ -1261,6 +1261,23 @@ function test_default_objective_function()
     return
 end
 
+function test_Parameter_basic()
+    F, S = MOI.VariableIndex, MOI.Parameter{Float64}
+    model = Ipopt.Optimizer()
+    @test MOI.supports_add_constrained_variable(model, S)
+    @test !MOI.supports_constraint(model, F, S)
+    @test isempty(MOI.get(model, MOI.ListOfConstraintTypesPresent()))
+    p1, c1 = MOI.add_constrained_variable(model, MOI.Parameter(1.0))
+    @test MOI.is_valid(model, c1)
+    @test (F, S) in MOI.get(model, MOI.ListOfConstraintTypesPresent())
+    @test MOI.get(model, MOI.NumberOfConstraints{F,S}()) == 1
+    @test MOI.get(model, MOI.ListOfConstraintIndices{F,S}()) == [c1]
+    p2, c2 = MOI.add_constrained_variable(model, MOI.Parameter(2.0))
+    @test MOI.get(model, MOI.NumberOfConstraints{F,S}()) == 2
+    @test MOI.get(model, MOI.ListOfConstraintIndices{F,S}()) == [c1, c2]
+    return
+end
+
 end  # module TestMOIWrapper
 
 TestMOIWrapper.runtests()
