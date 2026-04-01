@@ -3,7 +3,7 @@
 # Use of this source code is governed by an MIT-style license that can be found
 # in the LICENSE.md file or at https://opensource.org/licenses/MIT.
 
-mutable struct IpoptProblem
+mutable struct IpoptProblem{F,G,GF,JG,H,I}
     ipopt_problem::Ptr{Cvoid}   # Reference to the internal data structure
     n::Int                      # Num vars
     m::Int                      # Num cons
@@ -15,12 +15,12 @@ mutable struct IpoptProblem
     obj_val::Float64            # Final objective
     status::Cint                # Final status
     # Callbacks
-    eval_f::Function
-    eval_g::Function
-    eval_grad_f::Function
-    eval_jac_g::Function
-    eval_h::Union{Function,Nothing}
-    intermediate::Union{Function,Nothing}
+    eval_f::F
+    eval_g::G
+    eval_grad_f::GF
+    eval_jac_g::JG
+    eval_h::H
+    intermediate::I
 end
 
 Base.unsafe_convert(::Type{Ptr{Cvoid}}, p::IpoptProblem) = p.ipopt_problem
@@ -30,9 +30,9 @@ function _Eval_F_CB(
     x_ptr::Ptr{Float64},
     x_new::Cint,
     obj_value::Ptr{Float64},
-    user_data::Ptr{Cvoid},
-)
-    prob = unsafe_pointer_to_objref(user_data)::IpoptProblem
+    user_data::Ptr{IpoptProblem{F,G,GF,JG,H,I}},
+) where {F,G,GF,JG,H,I}
+    prob = unsafe_pointer_to_objref(Ptr{Cvoid}(user_data))::IpoptProblem{F,G,GF,JG,H,I}
     x = unsafe_wrap(Array, x_ptr, Int(n))
     if x_new == Cint(1)
         prob.x .= x
@@ -48,9 +48,9 @@ function _Eval_Grad_F_CB(
     # A Bool indicating if `x` is a new point. We don't make use of this.
     ::Cint,
     grad_f::Ptr{Float64},
-    user_data::Ptr{Cvoid},
-)
-    prob = unsafe_pointer_to_objref(user_data)::IpoptProblem
+    user_data::Ptr{IpoptProblem{F,G,GF,JG,H,I}},
+) where {F,G,GF,JG,H,I}
+    prob = unsafe_pointer_to_objref(Ptr{Cvoid}(user_data))::IpoptProblem{F,G,GF,JG,H,I}
     new_grad_f = unsafe_wrap(Array, grad_f, Int(n))
     x = unsafe_wrap(Array, x_ptr, Int(n))
     prob.eval_grad_f(x, new_grad_f)
@@ -63,9 +63,9 @@ function _Eval_G_CB(
     x_new::Cint,
     m::Cint,
     g_ptr::Ptr{Float64},
-    user_data::Ptr{Cvoid},
-)
-    prob = unsafe_pointer_to_objref(user_data)::IpoptProblem
+    user_data::Ptr{IpoptProblem{F,G,GF,JG,H,I}},
+) where {F,G,GF,JG,H,I}
+    prob = unsafe_pointer_to_objref(Ptr{Cvoid}(user_data))::IpoptProblem{F,G,GF,JG,H,I}
     new_g = unsafe_wrap(Array, g_ptr, Int(m))
     x = unsafe_wrap(Array, x_ptr, Int(n))
     if x_new == Cint(1)
@@ -84,9 +84,9 @@ function _Eval_Jac_G_CB(
     iRow::Ptr{Cint},
     jCol::Ptr{Cint},
     values_ptr::Ptr{Float64},
-    user_data::Ptr{Cvoid},
-)
-    prob = unsafe_pointer_to_objref(user_data)::IpoptProblem
+    user_data::Ptr{IpoptProblem{F,G,GF,JG,H,I}},
+) where {F,G,GF,JG,H,I}
+    prob = unsafe_pointer_to_objref(Ptr{Cvoid}(user_data))::IpoptProblem{F,G,GF,JG,H,I}
     x = unsafe_wrap(Array, x_ptr, Int(n))
     rows = unsafe_wrap(Array, iRow, Int(nele_jac))
     cols = unsafe_wrap(Array, jCol, Int(nele_jac))
@@ -111,9 +111,9 @@ function _Eval_H_CB(
     iRow::Ptr{Cint},
     jCol::Ptr{Cint},
     values_ptr::Ptr{Float64},
-    user_data::Ptr{Cvoid},
-)
-    prob = unsafe_pointer_to_objref(user_data)::IpoptProblem
+    user_data::Ptr{IpoptProblem{F,G,GF,JG,H,I}},
+) where {F,G,GF,JG,H,I}
+    prob = unsafe_pointer_to_objref(Ptr{Cvoid}(user_data))::IpoptProblem{F,G,GF,JG,H,I}
     if prob.eval_h === nothing
         # No hessian. Return FALSE for failure.
         return Cint(0)
@@ -143,11 +143,11 @@ function _Intermediate_CB(
     alpha_du::Float64,
     alpha_pr::Float64,
     ls_trials::Cint,
-    user_data::Ptr{Cvoid},
-)::Cint
+    user_data::Ptr{IpoptProblem{F,G,GF,JG,H,I}},
+) where {F,G,GF,JG,H,I}
     try
-        return reenable_sigint() do
-            prob = unsafe_pointer_to_objref(user_data)::IpoptProblem
+        ret = reenable_sigint() do
+            prob = unsafe_pointer_to_objref(Ptr{Cvoid}(user_data))::IpoptProblem{F,G,GF,JG,H,I}
             return prob.intermediate(
                 alg_mod,
                 iter_count,
@@ -162,11 +162,12 @@ function _Intermediate_CB(
                 ls_trials,
             )
         end
+        return Cint(ret)
     catch err
         if !(err isa InterruptException)
             rethrow(err)
         end
-        return false  # optimization should stop
+        return Cint(0)  # optimization should stop
     end
 end
 
@@ -179,28 +180,30 @@ function CreateIpoptProblem(
     g_U::Vector{Float64},
     nele_jac::Int,
     nele_hess::Int,
-    eval_f,
-    eval_g,
-    eval_grad_f,
-    eval_jac_g,
-    eval_h,
-)
+    eval_f::F,
+    eval_g::G,
+    eval_grad_f::GF,
+    eval_jac_g::JG,
+    eval_h::H,
+    intermediate::I = nothing,
+) where {F,G,GF,JG,H,I}
+
     @assert n == length(x_L) == length(x_U)
     @assert m == length(g_L) == length(g_U)
     eval_f_cb = @cfunction(
         _Eval_F_CB,
         Cint,
-        (Cint, Ptr{Float64}, Cint, Ptr{Float64}, Ptr{Cvoid}),
+        (Cint, Ptr{Float64}, Cint, Ptr{Float64}, Ptr{IpoptProblem{F,G,GF,JG,H,I}}),
     )
     eval_g_cb = @cfunction(
         _Eval_G_CB,
         Cint,
-        (Cint, Ptr{Float64}, Cint, Cint, Ptr{Float64}, Ptr{Cvoid}),
+        (Cint, Ptr{Float64}, Cint, Cint, Ptr{Float64}, Ptr{IpoptProblem{F,G,GF,JG,H,I}}),
     )
     eval_grad_f_cb = @cfunction(
         _Eval_Grad_F_CB,
         Cint,
-        (Cint, Ptr{Float64}, Cint, Ptr{Float64}, Ptr{Cvoid}),
+        (Cint, Ptr{Float64}, Cint, Ptr{Float64}, Ptr{IpoptProblem{F,G,GF,JG,H,I}}),
     )
     eval_jac_g_cb = @cfunction(
         _Eval_Jac_G_CB,
@@ -214,7 +217,7 @@ function CreateIpoptProblem(
             Ptr{Cint},
             Ptr{Cint},
             Ptr{Float64},
-            Ptr{Cvoid},
+            Ptr{IpoptProblem{F,G,GF,JG,H,I}},
         ),
     )
     eval_h_cb = @cfunction(
@@ -232,7 +235,7 @@ function CreateIpoptProblem(
             Ptr{Cint},
             Ptr{Cint},
             Ptr{Float64},
-            Ptr{Cvoid},
+            Ptr{IpoptProblem{F,G,GF,JG,H,I}},
         ),
     )
     ipopt_problem = @ccall libipopt.CreateIpoptProblem(
@@ -251,6 +254,30 @@ function CreateIpoptProblem(
         eval_jac_g_cb::Ptr{Cvoid},
         eval_h_cb::Ptr{Cvoid},
     )::Ptr{Cvoid}
+    if intermediate !== nothing
+        intermediate_cb = @cfunction(
+            _Intermediate_CB,
+            Cint,
+            (
+                Cint,
+                Cint,
+                Float64,
+                Float64,
+                Float64,
+                Float64,
+                Float64,
+                Float64,
+                Float64,
+                Float64,
+                Cint,
+                Ptr{IpoptProblem{F,G,GF,JG,H,I}},
+            ),
+        )
+        @ccall libipopt.SetIntermediateCallback(
+            ipopt_problem::Ptr{Cvoid},
+            intermediate_cb::Ptr{Cvoid},
+        )::Bool
+    end
     if ipopt_problem == C_NULL
         if n == 0
             error(
@@ -262,7 +289,7 @@ function CreateIpoptProblem(
             error("IPOPT: Failed to construct problem for some unknown reason.")
         end
     end
-    prob = IpoptProblem(
+    prob = IpoptProblem{F,G,GF,JG,H,I}(
         ipopt_problem,
         n,
         m,
@@ -278,7 +305,7 @@ function CreateIpoptProblem(
         eval_grad_f,
         eval_jac_g,
         eval_h,
-        nothing,
+        intermediate,
     )
     finalizer(FreeIpoptProblem, prob)
     return prob
