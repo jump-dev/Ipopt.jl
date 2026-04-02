@@ -283,6 +283,17 @@ function CreateIpoptProblem(
         eval_jac_g_cb::Ptr{Cvoid},
         eval_h_cb::Ptr{Cvoid},
     )::Ptr{Cvoid}
+    if ipopt_problem == C_NULL
+        if n == 0
+            error(
+                "IPOPT: Failed to construct problem because there are 0 " *
+                "variables. If you intended to construct an empty problem, " *
+                "one work-around is to add a variable fixed to 0.",
+            )
+        else
+            error("IPOPT: Failed to construct problem for some unknown reason.")
+        end
+    end
     intermediate_cb = @cfunction(
         _Intermediate_CB,
         Cint,
@@ -305,17 +316,6 @@ function CreateIpoptProblem(
         ipopt_problem::Ptr{Cvoid},
         intermediate_cb::Ptr{Cvoid},
     )::Bool
-    if ipopt_problem == C_NULL
-        if n == 0
-            error(
-                "IPOPT: Failed to construct problem because there are 0 " *
-                "variables. If you intended to construct an empty problem, " *
-                "one work-around is to add a variable fixed to 0.",
-            )
-        else
-            error("IPOPT: Failed to construct problem for some unknown reason.")
-        end
-    end
     prob = IpoptProblem{F,G,GF,JG,H,I}(
         ipopt_problem,
         n,
