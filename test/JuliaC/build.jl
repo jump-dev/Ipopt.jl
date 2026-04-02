@@ -15,8 +15,7 @@ outname = joinpath(output_dir, "app_test_exe")
 image_recipe = JuliaC.ImageRecipe(;
     output_type = "--output-exe",
     file = joinpath(@__DIR__, "App"),
-    # TODO(odow): we want to eventually support trim_mode = "safe"
-    trim_mode = "no",
+    trim_mode = "safe",
     add_ccallables = false,
     verbose = true,
 )
