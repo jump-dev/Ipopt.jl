@@ -3,6 +3,35 @@
 # Use of this source code is governed by an MIT-style license that can be found
 # in the LICENSE.md file or at https://opensource.org/licenses/MIT.
 
+mutable struct IntermediateCallbackWrapper
+    f::Function
+end
+(cb::IntermediateCallbackWrapper)(
+    alg_mod,
+    iter_count,
+    obj_value,
+    inf_pr,
+    inf_du,
+    mu,
+    d_norm,
+    regularization_size,
+    alpha_du,
+    alpha_pr,
+    ls_trials,
+) = cb.f(
+    alg_mod,
+    iter_count,
+    obj_value,
+    inf_pr,
+    inf_du,
+    mu,
+    d_norm,
+    regularization_size,
+    alpha_du,
+    alpha_pr,
+    ls_trials,
+ )
+
 mutable struct IpoptProblem{F,G,GF,JG,H,I}
     ipopt_problem::Ptr{Cvoid}   # Reference to the internal data structure
     n::Int                      # Num vars
@@ -185,7 +214,7 @@ function CreateIpoptProblem(
     eval_grad_f::GF,
     eval_jac_g::JG,
     eval_h::H,
-    intermediate::I = nothing,
+    intermediate::I,
 ) where {F,G,GF,JG,H,I}
 
     @assert n == length(x_L) == length(x_U)
@@ -254,30 +283,28 @@ function CreateIpoptProblem(
         eval_jac_g_cb::Ptr{Cvoid},
         eval_h_cb::Ptr{Cvoid},
     )::Ptr{Cvoid}
-    if intermediate !== nothing
-        intermediate_cb = @cfunction(
-            _Intermediate_CB,
+    intermediate_cb = @cfunction(
+        _Intermediate_CB,
+        Cint,
+        (
             Cint,
-            (
-                Cint,
-                Cint,
-                Float64,
-                Float64,
-                Float64,
-                Float64,
-                Float64,
-                Float64,
-                Float64,
-                Float64,
-                Cint,
-                Ptr{IpoptProblem{F,G,GF,JG,H,I}},
-            ),
-        )
-        @ccall libipopt.SetIntermediateCallback(
-            ipopt_problem::Ptr{Cvoid},
-            intermediate_cb::Ptr{Cvoid},
-        )::Bool
-    end
+            Cint,
+            Float64,
+            Float64,
+            Float64,
+            Float64,
+            Float64,
+            Float64,
+            Float64,
+            Float64,
+            Cint,
+            Ptr{IpoptProblem{F,G,GF,JG,H,I}},
+        ),
+    )
+    @ccall libipopt.SetIntermediateCallback(
+        ipopt_problem::Ptr{Cvoid},
+        intermediate_cb::Ptr{Cvoid},
+    )::Bool
     if ipopt_problem == C_NULL
         if n == 0
             error(
@@ -309,6 +336,52 @@ function CreateIpoptProblem(
     )
     finalizer(FreeIpoptProblem, prob)
     return prob
+end
+
+function CreateIpoptProblem(
+    n::Int,
+    x_L::Vector{Float64},
+    x_U::Vector{Float64},
+    m::Int,
+    g_L::Vector{Float64},
+    g_U::Vector{Float64},
+    nele_jac::Int,
+    nele_hess::Int,
+    eval_f::F,
+    eval_g::G,
+    eval_grad_f::GF,
+    eval_jac_g::JG,
+    eval_h::H,
+) where {F,G,GF,JG,H}
+    return CreateIpoptProblem(
+        n,
+        x_L,
+        x_U,
+        m,
+        g_L,
+        g_U,
+        nele_jac,
+        nele_hess,
+        eval_f,
+        eval_g,
+        eval_grad_f,
+        eval_jac_g,
+        eval_h,
+        IntermediateCallbackWrapper((args...) -> true),
+    )
+end
+
+function SetIntermediateCallback(
+    prob::IpoptProblem{F,G,GF,JG,H,IntermediateCallbackWrapper},
+    f::Function,
+) where {F,G,GF,JG,H}
+    prob.intermediate.f = f
+    return
+end
+
+function SetIntermediateCallback(prob, f)
+    error("Cannot SetIntermediateCallback if intermediate was set in the initial call to CreateIpoptProblem")
+    return
 end
 
 function FreeIpoptProblem(prob::IpoptProblem)
@@ -397,34 +470,6 @@ function SetIpoptProblemScaling(
         g_scaling::Ptr{Cdouble},
     )::Bool
     @assert ret  # The C++ code has `return true`
-    return
-end
-
-function SetIntermediateCallback(prob::IpoptProblem, intermediate::Function)
-    intermediate_cb = @cfunction(
-        _Intermediate_CB,
-        Cint,
-        (
-            Cint,
-            Cint,
-            Float64,
-            Float64,
-            Float64,
-            Float64,
-            Float64,
-            Float64,
-            Float64,
-            Float64,
-            Cint,
-            Ptr{Cvoid},
-        ),
-    )
-    ret = @ccall libipopt.SetIntermediateCallback(
-        prob::Ptr{Cvoid},
-        intermediate_cb::Ptr{Cvoid},
-    )::Bool
-    @assert ret  # The C++ code has `return true`
-    prob.intermediate = intermediate
     return
 end
 
