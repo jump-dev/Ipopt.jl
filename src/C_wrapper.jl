@@ -37,7 +37,7 @@ function _Eval_F_CB(
     if x_new == Cint(1)
         prob.x .= x
     end
-    new_obj = prob.eval_f(x)
+    new_obj = convert(Float64, prob.eval_f(x))::Float64
     unsafe_store!(obj_value, new_obj)
     return Cint(1)
 end
