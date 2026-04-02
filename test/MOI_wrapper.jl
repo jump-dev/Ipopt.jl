@@ -15,6 +15,7 @@ function runtests()
     for name in names(@__MODULE__; all = true)
         if startswith("$(name)", "test_")
             @testset "$(name)" begin
+                @info "$(name)"
                 getfield(@__MODULE__, name)()
             end
         end

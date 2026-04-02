@@ -367,7 +367,7 @@ function CreateIpoptProblem(
         eval_grad_f,
         eval_jac_g,
         eval_h,
-        IntermediateCallbackWrapper((args...) -> true),
+        IntermediateCallbackWrapper((args...) -> Cint(1)),
     )
 end
 
