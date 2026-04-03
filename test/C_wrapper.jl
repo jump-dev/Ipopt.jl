@@ -162,6 +162,7 @@ function test_hs071()
         eval_jac_g,
         eval_h,
     )
+    @test typeof(prob) == IpoptProblem
 
     prob.x = [1.0, 5.0, 5.0, 1.0]
     solvestat = Ipopt.IpoptSolve(prob)
