@@ -21,7 +21,8 @@ end
 
 include("C_wrapper.jl")
 
-export IpoptProblem,
+export Problem,
+    IpoptProblem,
     CreateIpoptProblem,
     FreeIpoptProblem,
     AddIpoptStrOption,

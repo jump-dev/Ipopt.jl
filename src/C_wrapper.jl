@@ -3,42 +3,23 @@
 # Use of this source code is governed by an MIT-style license that can be found
 # in the LICENSE.md file or at https://opensource.org/licenses/MIT.
 
+"""
+    abstract type AbstractOracle end
+
+Implement this subtype for a type-stable interface to Ipopt.
+
+## Interface
+
+ * `eval_f(::AbstractOracle, x::Vector{Float64})::Float64`
+ * `eval_g(::AbstractOracle, x::Vector{Float64}, g::Vector{Float64})`
+ * `eval_grad_f(::AbstractOracle, x::Vector{Float64}, g::Vector{Float64})`
+ * `eval_jac_g(::AbstractOracle, x::Vector{Float64}, g::Vector{Float64})`
+ * `has_eval_h(::AbstractOracle)::Bool`
+ * `eval_h(::AbstractOracle, x, rows, cols, obj_factor, lambda, values)`
+"""
 abstract type AbstractOracle end
 
-mutable struct FunctionOracle <: AbstractOracle
-    eval_f::Function
-    eval_g::Function
-    eval_grad_f::Function
-    eval_jac_g::Function
-    eval_h::Union{Nothing,Function}
-    eval_intermediate::Union{Nothing,Function}
-end
-
-eval_f(o::FunctionOracle, x) = convert(Float64, o.eval_f(x))::Float64
-
-function eval_g(o::FunctionOracle, x, g)
-    o.eval_g(x, g)
-    return
-end
-
-function eval_grad_f(o::FunctionOracle, x, df)
-    o.eval_grad_f(x, df)
-    return
-end
-
-function eval_jac_g(o::FunctionOracle, x, rows, cols, values)
-    o.eval_jac_g(x, rows, cols, values)
-    return
-end
-
-has_eval_h(o::FunctionOracle) = o.eval_h !== nothing
-
-function eval_h(o::FunctionOracle, x, rows, cols, obj_factor, lambda, values)
-    o.eval_h(x, rows, cols, obj_factor, lambda, values)
-    return
-end
-
-mutable struct IpoptProblem{O}
+mutable struct Problem{O}
     ipopt_problem::Ptr{Cvoid}   # Reference to the internal data structure
     n::Int                      # Num vars
     m::Int                      # Num cons
@@ -52,39 +33,9 @@ mutable struct IpoptProblem{O}
     oracle::O
 end
 
-Base.cconvert(::Type{Ptr{Cvoid}}, p::IpoptProblem) = p
+Base.cconvert(::Type{Ptr{Cvoid}}, p::Problem) = p
 
-Base.unsafe_convert(::Type{Ptr{Cvoid}}, p::IpoptProblem) = p.ipopt_problem
-
-function eval_intermediate(
-    prob::IpoptProblem{FunctionOracle},
-    o::FunctionOracle,
-    alg_mod::Cint,
-    iter_count::Cint,
-    obj_value::Float64,
-    inf_pr::Float64,
-    inf_du::Float64,
-    mu::Float64,
-    d_norm::Float64,
-    regularization_size::Float64,
-    alpha_du::Float64,
-    alpha_pr::Float64,
-    ls_trials::Cint,
-)
-    return o.eval_intermediate(
-        alg_mod,
-        iter_count,
-        obj_value,
-        inf_pr,
-        inf_du,
-        mu,
-        d_norm,
-        regularization_size,
-        alpha_du,
-        alpha_pr,
-        ls_trials,
-    )
-end
+Base.unsafe_convert(::Type{Ptr{Cvoid}}, p::Problem) = p.ipopt_problem
 
 function _Eval_F_CB(
     n::Cint,
@@ -92,7 +43,7 @@ function _Eval_F_CB(
     x_new::Cint,
     obj_value::Ptr{Float64},
     user_data::Ptr{P},
-) where {P<:IpoptProblem}
+) where {P<:Problem}
     prob = unsafe_load(user_data)
     x = unsafe_wrap(Array, x_ptr, Int(n))
     if x_new == Cint(1)
@@ -110,7 +61,7 @@ function _Eval_Grad_F_CB(
     ::Cint,
     grad_f::Ptr{Float64},
     user_data::Ptr{P},
-) where {P<:IpoptProblem}
+) where {P<:Problem}
     prob = unsafe_load(user_data)
     new_grad_f = unsafe_wrap(Array, grad_f, Int(n))
     x = unsafe_wrap(Array, x_ptr, Int(n))
@@ -125,7 +76,7 @@ function _Eval_G_CB(
     m::Cint,
     g_ptr::Ptr{Float64},
     user_data::Ptr{P},
-) where {P<:IpoptProblem}
+) where {P<:Problem}
     prob = unsafe_load(user_data)
     new_g = unsafe_wrap(Array, g_ptr, Int(m))
     x = unsafe_wrap(Array, x_ptr, Int(n))
@@ -146,7 +97,7 @@ function _Eval_Jac_G_CB(
     jCol::Ptr{Cint},
     values_ptr::Ptr{Float64},
     user_data::Ptr{P},
-) where {P<:IpoptProblem}
+) where {P<:Problem}
     prob = unsafe_load(user_data)
     x = unsafe_wrap(Array, x_ptr, Int(n))
     rows = unsafe_wrap(Array, iRow, Int(nele_jac))
@@ -173,7 +124,7 @@ function _Eval_H_CB(
     jCol::Ptr{Cint},
     values_ptr::Ptr{Float64},
     user_data::Ptr{P},
-) where {P<:IpoptProblem}
+) where {P<:Problem}
     prob = unsafe_load(user_data)
     if !has_eval_h(prob.oracle)
         return Cint(0)  # No hessian. Return FALSE for failure.
@@ -204,7 +155,7 @@ function _Intermediate_CB(
     alpha_pr::Float64,
     ls_trials::Cint,
     user_data::Ptr{P},
-)::Cint where {P<:IpoptProblem}
+)::Cint where {P<:Problem}
     try
         return reenable_sigint() do
             prob = unsafe_load(user_data)
@@ -242,25 +193,6 @@ function CreateIpoptProblem(
     g_U::Vector{Float64},
     nele_jac::Int,
     nele_hess::Int,
-    eval_f,
-    eval_g,
-    eval_grad_f,
-    eval_jac_g,
-    eval_h,
-)
-    o = FunctionOracle(eval_f, eval_g, eval_grad_f, eval_jac_g, eval_h, nothing)
-    return CreateIpoptProblem(n, x_L, x_U, m, g_L, g_U, nele_jac, nele_hess, o)
-end
-
-function CreateIpoptProblem(
-    n::Int,
-    x_L::Vector{Float64},
-    x_U::Vector{Float64},
-    m::Int,
-    g_L::Vector{Float64},
-    g_U::Vector{Float64},
-    nele_jac::Int,
-    nele_hess::Int,
     oracle::O,
 ) where {O<:AbstractOracle}
     @assert n == length(x_L) == length(x_U)
@@ -268,17 +200,17 @@ function CreateIpoptProblem(
     eval_f_cb = @cfunction(
         _Eval_F_CB,
         Cint,
-        (Cint, Ptr{Float64}, Cint, Ptr{Float64}, Ptr{IpoptProblem{O}}),
+        (Cint, Ptr{Float64}, Cint, Ptr{Float64}, Ptr{Problem{O}}),
     )
     eval_g_cb = @cfunction(
         _Eval_G_CB,
         Cint,
-        (Cint, Ptr{Float64}, Cint, Cint, Ptr{Float64}, Ptr{IpoptProblem{O}}),
+        (Cint, Ptr{Float64}, Cint, Cint, Ptr{Float64}, Ptr{Problem{O}}),
     )
     eval_grad_f_cb = @cfunction(
         _Eval_Grad_F_CB,
         Cint,
-        (Cint, Ptr{Float64}, Cint, Ptr{Float64}, Ptr{IpoptProblem{O}}),
+        (Cint, Ptr{Float64}, Cint, Ptr{Float64}, Ptr{Problem{O}}),
     )
     eval_jac_g_cb = @cfunction(
         _Eval_Jac_G_CB,
@@ -292,7 +224,7 @@ function CreateIpoptProblem(
             Ptr{Cint},
             Ptr{Cint},
             Ptr{Float64},
-            Ptr{IpoptProblem{O}},
+            Ptr{Problem{O}},
         ),
     )
     eval_h_cb = @cfunction(
@@ -310,7 +242,7 @@ function CreateIpoptProblem(
             Ptr{Cint},
             Ptr{Cint},
             Ptr{Float64},
-            Ptr{IpoptProblem{O}},
+            Ptr{Problem{O}},
         ),
     )
     ipopt_problem = @ccall libipopt.CreateIpoptProblem(
@@ -340,7 +272,7 @@ function CreateIpoptProblem(
             error("IPOPT: Failed to construct problem for some unknown reason.")
         end
     end
-    prob = IpoptProblem{O}(
+    prob = Problem{O}(
         ipopt_problem,
         n,
         m,
@@ -357,12 +289,12 @@ function CreateIpoptProblem(
     return prob
 end
 
-function FreeIpoptProblem(prob::IpoptProblem)
+function FreeIpoptProblem(prob::Problem)
     @ccall libipopt.FreeIpoptProblem(prob::Ptr{Cvoid})::Cvoid
     return
 end
 
-function AddIpoptStrOption(prob::IpoptProblem, keyword::String, value::String)
+function AddIpoptStrOption(prob::Problem, keyword::String, value::String)
     if !(isascii(keyword) && isascii(value))
         error("IPOPT: Non ASCII parameters not supported")
     end
@@ -377,7 +309,7 @@ function AddIpoptStrOption(prob::IpoptProblem, keyword::String, value::String)
     return
 end
 
-function AddIpoptNumOption(prob::IpoptProblem, keyword::String, value::Float64)
+function AddIpoptNumOption(prob::Problem, keyword::String, value::Float64)
     if !isascii(keyword)
         error("IPOPT: Non ASCII parameters not supported")
     end
@@ -392,7 +324,7 @@ function AddIpoptNumOption(prob::IpoptProblem, keyword::String, value::Float64)
     return
 end
 
-function AddIpoptIntOption(prob::IpoptProblem, keyword::String, value::Integer)
+function AddIpoptIntOption(prob::Problem, keyword::String, value::Integer)
     if !isascii(keyword)
         error("IPOPT: Non ASCII parameters not supported")
     end
@@ -412,7 +344,7 @@ function AddIpoptIntOption(prob::IpoptProblem, keyword::String, value::Integer)
 end
 
 function OpenIpoptOutputFile(
-    prob::IpoptProblem,
+    prob::Problem,
     file_name::String,
     print_level::Int,
 )
@@ -431,7 +363,7 @@ function OpenIpoptOutputFile(
 end
 
 function SetIpoptProblemScaling(
-    prob::IpoptProblem,
+    prob::Problem,
     obj_scaling::Float64,
     x_scaling::Union{Ptr{Cvoid},Vector{Float64}},
     g_scaling::Union{Ptr{Cvoid},Vector{Float64}},
@@ -446,10 +378,7 @@ function SetIpoptProblemScaling(
     return
 end
 
-function SetIntermediateCallback(
-    prob::IpoptProblem{FunctionOracle},
-    eval_intermediate::Function,
-)
+function SetIntermediateCallback(prob::Problem{O}) where {O}
     intermediate_cb = @cfunction(
         _Intermediate_CB,
         Cint,
@@ -465,35 +394,7 @@ function SetIntermediateCallback(
             Float64,
             Float64,
             Cint,
-            Ptr{IpoptProblem{FunctionOracle}},
-        ),
-    )
-    ret = @ccall libipopt.SetIntermediateCallback(
-        prob::Ptr{Cvoid},
-        intermediate_cb::Ptr{Cvoid},
-    )::Bool
-    @assert ret  # The C++ code has `return true`
-    prob.oracle.eval_intermediate = eval_intermediate
-    return
-end
-
-function SetIntermediateCallback(prob::IpoptProblem{O}) where {O}
-    intermediate_cb = @cfunction(
-        _Intermediate_CB,
-        Cint,
-        (
-            Cint,
-            Cint,
-            Float64,
-            Float64,
-            Float64,
-            Float64,
-            Float64,
-            Float64,
-            Float64,
-            Float64,
-            Cint,
-            Ptr{IpoptProblem{O}},
+            Ptr{Problem{O}},
         ),
     )
     ret = @ccall libipopt.SetIntermediateCallback(
@@ -504,7 +405,7 @@ function SetIntermediateCallback(prob::IpoptProblem{O}) where {O}
     return
 end
 
-function IpoptSolve(prob::IpoptProblem)
+function IpoptSolve(prob::Problem)
     p_objval = Ref{Cdouble}(0.0)
     disable_sigint() do
         prob.status = @ccall libipopt.IpoptSolve(
@@ -524,7 +425,7 @@ function IpoptSolve(prob::IpoptProblem)
 end
 
 function GetIpoptCurrentIterate(
-    prob::IpoptProblem,
+    prob::Problem,
     scaled::Bool,
     n::Integer,
     x::Union{Ptr{Cvoid},Vector{Float64}},
@@ -552,7 +453,7 @@ function GetIpoptCurrentIterate(
 end
 
 function GetIpoptCurrentViolations(
-    prob::IpoptProblem,
+    prob::Problem,
     scaled::Bool,
     n::Integer,
     x_L_violation::Union{Ptr{Cvoid},Vector{Float64}},
@@ -622,3 +523,127 @@ end
    Internal_Error                     = -199
 )
 #!format:on
+
+# ==============================================================================
+# Ipopt.jl v1.50 introduced the AbstractOracle API.
+#
+# To maintain backwards compatibility, we provide the following "function-based"
+# API.
+# ==============================================================================
+
+mutable struct FunctionOracle <: AbstractOracle
+    eval_f::Function
+    eval_g::Function
+    eval_grad_f::Function
+    eval_jac_g::Function
+    eval_h::Union{Nothing,Function}
+    eval_intermediate::Union{Nothing,Function}
+end
+
+const IpoptProblem = Problem{FunctionOracle}
+
+function eval_f(o::FunctionOracle, x::Vector{Float64})
+    return convert(Float64, o.eval_f(x))::Float64
+end
+
+function eval_g(o::FunctionOracle, x::Vector{Float64}, g::Vector{Float64})
+    o.eval_g(x, g)
+    return
+end
+
+function eval_grad_f(o::FunctionOracle, x::Vector{Float64}, df::Vector{Float64})
+    o.eval_grad_f(x, df)
+    return
+end
+
+function eval_jac_g(o::FunctionOracle, x, rows, cols, values)
+    o.eval_jac_g(x, rows, cols, values)
+    return
+end
+
+has_eval_h(o::FunctionOracle) = o.eval_h !== nothing
+
+function eval_h(o::FunctionOracle, x, rows, cols, obj_factor, lambda, values)
+    o.eval_h(x, rows, cols, obj_factor, lambda, values)
+    return
+end
+
+function eval_intermediate(
+    prob::Problem{FunctionOracle},
+    o::FunctionOracle,
+    alg_mod::Cint,
+    iter_count::Cint,
+    obj_value::Float64,
+    inf_pr::Float64,
+    inf_du::Float64,
+    mu::Float64,
+    d_norm::Float64,
+    regularization_size::Float64,
+    alpha_du::Float64,
+    alpha_pr::Float64,
+    ls_trials::Cint,
+)
+    return o.eval_intermediate(
+        alg_mod,
+        iter_count,
+        obj_value,
+        inf_pr,
+        inf_du,
+        mu,
+        d_norm,
+        regularization_size,
+        alpha_du,
+        alpha_pr,
+        ls_trials,
+    )
+end
+
+function CreateIpoptProblem(
+    n::Int,
+    x_L::Vector{Float64},
+    x_U::Vector{Float64},
+    m::Int,
+    g_L::Vector{Float64},
+    g_U::Vector{Float64},
+    nele_jac::Int,
+    nele_hess::Int,
+    eval_f::Function,
+    eval_g::Function,
+    eval_grad_f::Function,
+    eval_jac_g::Function,
+    eval_h::Union{Nothing,Function},
+)
+    o = FunctionOracle(eval_f, eval_g, eval_grad_f, eval_jac_g, eval_h, nothing)
+    return CreateIpoptProblem(n, x_L, x_U, m, g_L, g_U, nele_jac, nele_hess, o)
+end
+
+function SetIntermediateCallback(
+    prob::Problem{FunctionOracle},
+    eval_intermediate::Function,
+)
+    intermediate_cb = @cfunction(
+        _Intermediate_CB,
+        Cint,
+        (
+            Cint,
+            Cint,
+            Float64,
+            Float64,
+            Float64,
+            Float64,
+            Float64,
+            Float64,
+            Float64,
+            Float64,
+            Cint,
+            Ptr{Problem{FunctionOracle}},
+        ),
+    )
+    ret = @ccall libipopt.SetIntermediateCallback(
+        prob::Ptr{Cvoid},
+        intermediate_cb::Ptr{Cvoid},
+    )::Bool
+    @assert ret  # The C++ code has `return true`
+    prob.oracle.eval_intermediate = eval_intermediate
+    return
+end

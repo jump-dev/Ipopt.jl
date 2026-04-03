@@ -110,7 +110,7 @@ function Ipopt.eval_h(
 end
 
 function Ipopt.eval_intermediate(
-    prob::Ipopt.IpoptProblem{HS071},
+    prob::Ipopt.Problem{HS071},
     oracle::HS071,
     alg_mod::Cint,
     iter_count::Cint,
