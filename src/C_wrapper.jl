@@ -19,7 +19,7 @@ Implement this subtype for a type-stable interface to Ipopt.
 """
 abstract type AbstractOracle end
 
-mutable struct Problem{O}
+mutable struct Problem{O<:AbstractOracle}
     ipopt_problem::Ptr{Cvoid}   # Reference to the internal data structure
     n::Int                      # Num vars
     m::Int                      # Num cons
@@ -343,11 +343,7 @@ function AddIpoptIntOption(prob::Problem, keyword::String, value::Integer)
     return
 end
 
-function OpenIpoptOutputFile(
-    prob::Problem,
-    file_name::String,
-    print_level::Int,
-)
+function OpenIpoptOutputFile(prob::Problem, file_name::String, print_level::Int)
     if !isascii(file_name)
         error("IPOPT: Non ASCII parameters not supported")
     end
