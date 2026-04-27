@@ -714,6 +714,15 @@ function test_manually_evaluated_primal_status()
     MOI.add_constraint(model, 1.0 * x, MOI.Interval(0.1, 1.1))
     f = MOI.ScalarNonlinearFunction(:log, Any[x])
     MOI.add_constraint(model, f, MOI.Interval(-1.0, 1.0))
+    set = MOI.VectorNonlinearOracle(;
+        dimension = 1,
+        l = [0.25],
+        u = [0.75],
+        eval_f = (ret, x) -> (ret[1] = x[1]),
+        jacobian_structure = [(1, 1)],
+        eval_jacobian = (ret, x) -> (ret[1] = 1.0),
+    )
+    MOI.add_constraint(model, MOI.VectorOfVariables([x]), set)
     MOI.optimize!(model)
     x_star = copy(model.inner.x)
     g_star = copy(model.inner.g)
@@ -731,13 +740,17 @@ function test_manually_evaluated_primal_status()
     model.inner.x .= x_star
     for (gi, status) in (
         g_star => MOI.FEASIBLE_POINT,
-        [0.0, 0.0] => MOI.INFEASIBLE_POINT,
-        [0.1 - 1e-7, 0.0] => MOI.NEARLY_FEASIBLE_POINT,
-        [1.1 + 1e-7, 0.0] => MOI.NEARLY_FEASIBLE_POINT,
-        [0.1, -1.0 - 1e-7] => MOI.NEARLY_FEASIBLE_POINT,
-        [0.1, 1.0 + 1e-7] => MOI.NEARLY_FEASIBLE_POINT,
-        [0.1, 1.0] => MOI.FEASIBLE_POINT,
-        [1.1, -1.0] => MOI.FEASIBLE_POINT,
+        [0.0, 0.0, 0.0] => MOI.INFEASIBLE_POINT,
+        [0.1 - 1e-7, 0.5, 0.0] => MOI.NEARLY_FEASIBLE_POINT,
+        [1.1 + 1e-7, 0.5, 0.0] => MOI.NEARLY_FEASIBLE_POINT,
+        [0.1, 0.5, -1.0 - 1e-7] => MOI.NEARLY_FEASIBLE_POINT,
+        [0.1, 0.5, 1.0 + 1e-7] => MOI.NEARLY_FEASIBLE_POINT,
+        [0.1, 0.5, 1.0] => MOI.FEASIBLE_POINT,
+        [1.1, 0.5, -1.0] => MOI.FEASIBLE_POINT,
+        [0.5, 0.25 - 1e-7, 0.5] => MOI.NEARLY_FEASIBLE_POINT,
+        [0.5, 0.25 + 1e-7, 0.5] => MOI.FEASIBLE_POINT,
+        [0.5, 0.75 + 1e-7, 0.5] => MOI.NEARLY_FEASIBLE_POINT,
+        [0.5, 0.75 - 1e-7, 0.5] => MOI.FEASIBLE_POINT,
     )
         model.inner.g .= gi
         @test Ext._manually_evaluated_primal_status(model) == status
