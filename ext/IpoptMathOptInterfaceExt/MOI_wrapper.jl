@@ -1552,7 +1552,7 @@ function _manually_evaluated_primal_status(model::Optimizer)
     x, g = model.inner.x, model.inner.g
     x_L, x_U = model.variables.lower, model.variables.upper
     g_L, g_U = copy(model.qp_data.g_L), copy(model.qp_data.g_U)
-        for (_, cache) in model.vector_nonlinear_oracle_constraints
+    for (_, cache) in model.vector_nonlinear_oracle_constraints
         append!(g_L, cache.set.l)
         append!(g_U, cache.set.u)
     end
