@@ -50,7 +50,7 @@ function _Eval_Grad_F_CB(
     grad_f::Ptr{Float64},
     user_data::Ptr{IpoptProblem},
 )
-    prob = unsafe_pointer_to_objref(user_data)
+    prob = unsafe_load(user_data)::IpoptProblem
     new_grad_f = unsafe_wrap(Array, grad_f, Int(n))
     x = unsafe_wrap(Array, x_ptr, Int(n))
     prob.eval_grad_f(x, new_grad_f)
@@ -123,7 +123,7 @@ function _Eval_H_CB(
     rows = unsafe_wrap(Array, iRow, Int(nele_hess))
     cols = unsafe_wrap(Array, jCol, Int(nele_hess))
     if values_ptr == C_NULL
-        prob.eval_h(x, rows, cols, obj_factor, lambda, nothing)::Nothing
+        prob.eval_h(x, rows, cols, obj_factor, lambda, nothing)
     else
         values = unsafe_wrap(Array, values_ptr, Int(nele_hess))
         prob.eval_h(x, rows, cols, obj_factor, lambda, values)
