@@ -16,8 +16,8 @@ MathOptInterface = "b8f27783-ece8-5eb3-8dc8-9495eed66fee"
 IpoptMathOptInterfaceExt = "MathOptInterface"
 
 [compat]
-HSL_jll = "3, 4, 2023, 2024, 2025"
-Ipopt_jll = "=300.1400.1900, =300.1400.1901"
+HSL_jll = "3, 4, 2023, 2024, 2025, 2026"
+Ipopt_jll = "=300.1400.1900, =300.1400.1901, =300.1400.1902"
 LinearAlgebra = "1"
 MathOptInterface = "1.48"
 OpenBLAS32_jll = "0.3.10"
