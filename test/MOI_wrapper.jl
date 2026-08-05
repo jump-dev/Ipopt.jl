@@ -1291,6 +1291,17 @@ function test_Parameter_basic()
     return
 end
 
+function test_bfpc_instance()
+    src = MOI.FileFormats.MOF.Model()
+    MOI.read_from_file(src, joinpath(@__DIR__, "instances", "bfpc.mof.json"))
+    model = MOI.instantiate(Ipopt.Optimizer; with_bridge_type = Float64)
+    MOI.set(model, MOI.Silent(), true)
+    MOI.copy_to(model, src)
+    MOI.optimize!(model)
+    @test isapprox(MOI.get(model, MOI.ObjectiveValue()), 119250; atol = 1e-1)
+    return
+end
+
 end  # module TestMOIWrapper
 
 TestMOIWrapper.runtests()
