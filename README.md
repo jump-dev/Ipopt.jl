@@ -355,10 +355,10 @@ Note that the BLAS and LAPACK backends loaded at runtime must be compiled with 3
 The default BLAS and LAPACK backend is [OpenBLAS](https://github.com/OpenMathLib/OpenBLAS),
 and we rely on the Julia artifact `OpenBLAS32_jll.jl` if no backend is loaded before `using Ipopt`.
 
-Using LBT, we can also switch dynamically to other BLAS backends such as Intel
-MKL, BLIS, and Apple Accelerate. Because Ipopt and the linear solvers heavily
-rely on BLAS and LAPACK routines, using an optimized backend for a particular
-platform can improve the performance.
+Using LBT, we can also switch dynamically to other BLAS backends such as Intel MKL (Intel CPUs),
+AOCL (AMD CPUs), and Apple Accelerate (Apple Silicon).
+Because Ipopt and the linear solvers heavily rely on BLAS and LAPACK routines,
+using an optimized backend for a particular platform can improve the performance.
 
 ### Sequential BLAS and LAPACK
 
@@ -381,15 +381,13 @@ using MKL
 using Ipopt
 ```
 
-### BLIS
+### AOCL
 
-If you have `BLIS32_jll.jl` and `LAPACK32_jll.jl` installed,
-switch to [BLIS](https://github.com/flame/blis) with:
+If you have [AOCL.jl](https://github.com/JuliaLinearAlgebra/AOCL.jl) installed,
+switch to AOCL by adding `using AOCL` to your code:
 
 ```julia
-using blis32_jll, LAPACK32_jll
-LinearAlgebra.BLAS.lbt_forward(blis32)
-LinearAlgebra.BLAS.lbt_forward(liblapack32)
+using AOCL
 using Ipopt
 ```
 
