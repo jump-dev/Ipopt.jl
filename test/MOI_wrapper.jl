@@ -853,7 +853,7 @@ function test_scalar_nonlinear_function_attributes()
 end
 
 function test_vector_nonlinear_oracle()
-    set = Ipopt._VectorNonlinearOracle(;
+    set = MOI.VectorNonlinearOracle(;
         dimension = 5,
         l = [0.0, 0.0],
         u = [0.0, 0.0],
@@ -887,7 +887,7 @@ function test_vector_nonlinear_oracle()
         end,
     )
     @test MOI.dimension(set) == 5
-    @test MOI.copy(set) === set
+    @test MOI.copy(set) == set
     model = Ipopt.Optimizer()
     MOI.set(model, MOI.Silent(), true)
     x = MOI.add_variables(model, 3)
@@ -895,7 +895,7 @@ function test_vector_nonlinear_oracle()
     y = MOI.add_variables(model, 2)
     MOI.optimize!(model)
     f = MOI.VectorOfVariables([x; y])
-    F, S = MOI.VectorOfVariables, Ipopt._VectorNonlinearOracle
+    F, S = MOI.VectorOfVariables, MOI.VectorNonlinearOracle{Float64}
     @test MOI.supports_constraint(model, F, S)
     @test !((F, S) in MOI.get(model, MOI.ListOfConstraintTypesPresent()))
     @test isempty(MOI.get(model, MOI.ListOfConstraintIndices{F,S}()))
@@ -919,7 +919,7 @@ function test_vector_nonlinear_oracle()
 end
 
 function test_vector_nonlinear_oracle_two()
-    set = Ipopt._VectorNonlinearOracle(;
+    set = MOI.VectorNonlinearOracle(;
         dimension = 5,
         l = [0.0, 0.0],
         u = [0.0, 0.0],
@@ -958,7 +958,7 @@ function test_vector_nonlinear_oracle_two()
     c_z = MOI.add_constraint(model, f_z, set)
     @test MOI.is_valid(model, c_y)
     @test MOI.is_valid(model, c_z)
-    F, S = MOI.VectorOfVariables, Ipopt._VectorNonlinearOracle
+    F, S = MOI.VectorOfVariables, MOI.VectorNonlinearOracle{Float64}
     @test (F, S) in MOI.get(model, MOI.ListOfConstraintTypesPresent())
     @test MOI.get(model, MOI.ListOfConstraintIndices{F,S}()) == [c_y, c_z]
     @test MOI.get(model, MOI.NumberOfConstraints{F,S}()) == 2
@@ -976,7 +976,7 @@ function test_vector_nonlinear_oracle_two()
 end
 
 function test_vector_nonlinear_oracle_optimization()
-    set = Ipopt._VectorNonlinearOracle(;
+    set = MOI.VectorNonlinearOracle(;
         dimension = 4,
         l = [0.0, 0.0],
         u = [0.0, 0.0],
@@ -1037,7 +1037,7 @@ function test_vector_nonlinear_oracle_optimization()
 end
 
 function test_vector_nonlinear_oracle_optimization_min_sense()
-    set = Ipopt._VectorNonlinearOracle(;
+    set = MOI.VectorNonlinearOracle(;
         dimension = 4,
         l = [0.0, 0.0],
         u = [0.0, 0.0],
@@ -1135,7 +1135,7 @@ function test_vector_nonlinear_oracle_scalar_nonlinear_equivalent()
 end
 
 function test_vector_nonlinear_oracle_no_hessian()
-    set = Ipopt._VectorNonlinearOracle(;
+    set = MOI.VectorNonlinearOracle(;
         dimension = 5,
         l = [0.0, 0.0],
         u = [0.0, 0.0],
