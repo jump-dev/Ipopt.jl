@@ -3,7 +3,8 @@
 # Use of this source code is governed by an MIT-style license that can be found
 # in the LICENSE.md file or at https://opensource.org/licenses/MIT.
 
-include("utils.jl")
+const QPBlockData = MOI.Nonlinear.QPBlockData
+
 
 const _PARAMETER_OFFSET = 0x00f0000000000000
 
@@ -193,6 +194,11 @@ function MOI.add_constrained_variable(
     push!(model.list_of_variable_indices, p)
     model.parameters[p] =
         MOI.Nonlinear.add_parameter(model.nlp_model, set.value)
+    # `QPBlockData` treats a variable as a parameter if and only if its index
+    # is a key of `parameters`, so the parameter must be registered before
+    # any structure query. The value is re-synced in `copy_parameters` before
+    # every solve.
+    model.qp_data.parameters[p.value] = set.value
     ci = MOI.ConstraintIndex{MOI.VariableIndex,typeof(set)}(p.value)
     return p, ci
 end
@@ -1182,7 +1188,6 @@ end
 
 function MOI.eval_constraint_jacobian(model::Optimizer, values, x)
     offset = MOI.eval_constraint_jacobian(model.qp_data, values, x)
-    offset -= 1  # .qp_data returns one-indexed offset
     for (f, s) in model.vector_nonlinear_oracle_constraints
         offset = _eval_constraint_jacobian(values, offset, x, f, s)
     end
@@ -1235,7 +1240,6 @@ end
 
 function MOI.eval_hessian_lagrangian(model::Optimizer, H, x, σ, μ)
     offset = MOI.eval_hessian_lagrangian(model.qp_data, H, x, σ, μ)
-    offset -= 1  # .qp_data returns one-indexed offset
     μ_offset = length(model.qp_data)
     for (f, s) in model.vector_nonlinear_oracle_constraints
         offset, μ_offset =
@@ -1377,7 +1381,10 @@ function _setup_model(model::Optimizer)
         )
     end
     has_quadratic_constraints =
-        any(isequal(_kFunctionTypeScalarQuadratic), model.qp_data.function_type)
+        any(
+            isequal(MOI.Nonlinear._kFunctionTypeScalarQuadratic),
+            model.qp_data.function_type,
+        )
     has_nlp_constraints =
         !isempty(model.nlp_data.constraint_bounds) ||
         !isempty(model.vector_nonlinear_oracle_constraints)
