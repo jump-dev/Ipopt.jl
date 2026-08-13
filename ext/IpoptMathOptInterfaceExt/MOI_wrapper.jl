@@ -54,6 +54,10 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
     nlp_dual_start::Union{Nothing,Vector{Float64}}
     mult_g_nlp::Dict{MOI.Nonlinear.ConstraintIndex,Float64}
     qp_data::QPBlockData{Float64}
+    # The number of entries of the Jacobian and of the Hessian of the
+    # Lagrangian of `qp_data`, computed in `_setup_model`.
+    qp_nnzj::Int
+    qp_nnzh::Int
     nlp_model::Union{Nothing,MOI.Nonlinear.Model}
     callback::Union{Nothing,Function}
     barrier_iterations::Int
@@ -85,6 +89,8 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
             nothing,
             Dict{MOI.Nonlinear.ConstraintIndex,Float64}(),
             QPBlockData{Float64}(),
+            0,
+            0,
             nothing,
             nothing,
             0,
@@ -137,6 +143,8 @@ function MOI.empty!(model::Optimizer)
     model.nlp_dual_start = nothing
     empty!(model.mult_g_nlp)
     model.qp_data = QPBlockData{Float64}()
+    model.qp_nnzj = 0
+    model.qp_nnzh = 0
     model.nlp_model = nothing
     model.callback = nothing
     model.barrier_iterations = 0
@@ -1187,7 +1195,8 @@ function _eval_constraint_jacobian(
 end
 
 function MOI.eval_constraint_jacobian(model::Optimizer, values, x)
-    offset = MOI.eval_constraint_jacobian(model.qp_data, values, x)
+    MOI.eval_constraint_jacobian(model.qp_data, values, x)
+    offset = model.qp_nnzj
     for (f, s) in model.vector_nonlinear_oracle_constraints
         offset = _eval_constraint_jacobian(values, offset, x, f, s)
     end
@@ -1239,7 +1248,8 @@ function _eval_hessian_lagrangian(
 end
 
 function MOI.eval_hessian_lagrangian(model::Optimizer, H, x, σ, μ)
-    offset = MOI.eval_hessian_lagrangian(model.qp_data, H, x, σ, μ)
+    MOI.eval_hessian_lagrangian(model.qp_data, H, x, σ, μ)
+    offset = model.qp_nnzh
     μ_offset = length(model.qp_data)
     for (f, s) in model.vector_nonlinear_oracle_constraints
         offset, μ_offset =
@@ -1380,6 +1390,8 @@ function _setup_model(model::Optimizer)
             MOI.Nonlinear.Evaluator(model.nlp_model, model.ad_backend, vars),
         )
     end
+    model.qp_nnzj = length(MOI.jacobian_structure(model.qp_data))
+    model.qp_nnzh = length(MOI.hessian_lagrangian_structure(model.qp_data))
     has_quadratic_constraints =
         any(
             isequal(MOI.Nonlinear._kFunctionTypeScalarQuadratic),
