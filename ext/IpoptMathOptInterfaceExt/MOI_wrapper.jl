@@ -32,7 +32,6 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
     solve_time::Float64
     sense::MOI.OptimizationSense
     model::MOI.Nonlinear.ModelWithQuad{Float64,MOI.Nonlinear.Model}
-    list_of_variable_indices::Vector{MOI.VariableIndex}
     variable_primal_start::Vector{Union{Nothing,Float64}}
     mult_x_L::Vector{Union{Nothing,Float64}}
     mult_x_U::Vector{Union{Nothing,Float64}}
@@ -65,7 +64,6 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
             NaN,
             MOI.FEASIBILITY_SENSE,
             MOI.Nonlinear.ModelWithQuad(MOI.Nonlinear.Model()),
-            MOI.VariableIndex[],
             Union{Nothing,Float64}[],
             Union{Nothing,Float64}[],
             Union{Nothing,Float64}[],
@@ -116,7 +114,6 @@ function MOI.empty!(model::Optimizer)
     model.solve_time = 0.0
     model.sense = MOI.FEASIBILITY_SENSE
     model.model = MOI.Nonlinear.ModelWithQuad(MOI.Nonlinear.Model())
-    empty!(model.list_of_variable_indices)
     empty!(model.variable_primal_start)
     empty!(model.mult_x_L)
     empty!(model.mult_x_U)
@@ -177,7 +174,6 @@ function MOI.add_constrained_variable(
     model.inner = nothing
     _check_no_nlp_block(model)
     p, ci = MOI.add_constrained_variable(model.model, set)
-    push!(model.list_of_variable_indices, p)
     return p, ci
 end
 
@@ -318,7 +314,6 @@ function MOI.add_variable(model::Optimizer)
     push!(model.mult_x_U, nothing)
     model.inner = nothing
     x = MOI.add_variable(model.model)
-    push!(model.list_of_variable_indices, x)
     return x
 end
 
@@ -326,12 +321,12 @@ function MOI.is_valid(model::Optimizer, x::MOI.VariableIndex)
     return MOI.is_valid(model.model, x)
 end
 
-function MOI.get(model::Optimizer, ::MOI.ListOfVariableIndices)
-    return model.list_of_variable_indices
+function MOI.get(model::Optimizer, attr::MOI.ListOfVariableIndices)
+    return MOI.get(model.model, attr)
 end
 
-function MOI.get(model::Optimizer, ::MOI.NumberOfVariables)
-    return length(model.list_of_variable_indices)
+function MOI.get(model::Optimizer, attr::MOI.NumberOfVariables)
+    return MOI.get(model.model, attr)
 end
 
 function MOI.is_valid(
