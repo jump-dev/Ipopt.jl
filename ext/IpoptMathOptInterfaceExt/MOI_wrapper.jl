@@ -15,10 +15,7 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
     silent::Bool
     options::Dict{String,Any}
     solve_time::Float64
-    model::MOI.Nonlinear.ModelWithQuad{
-        Float64,
-        MOI.Nonlinear.ModelWithOracles{Float64,MOI.Nonlinear.Model},
-    }
+    model::MOI.ModelLike
     variable_primal_start::Vector{Union{Nothing,Float64}}
     mult_x_L::Vector{Union{Nothing,Float64}}
     mult_x_U::Vector{Union{Nothing,Float64}}
@@ -38,6 +35,7 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
     has_only_linear_constraints::Bool
 
     function Optimizer()
+        backend = MOI.Nonlinear.SparseReverseMode()
         return new(
             nothing,
             "",
@@ -45,9 +43,7 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
             false,
             Dict{String,Any}(),
             NaN,
-            MOI.Nonlinear.ModelWithQuad(
-                MOI.Nonlinear.ModelWithOracles(MOI.Nonlinear.Model()),
-            ),
+            MOI.Nonlinear.model(backend),
             Union{Nothing,Float64}[],
             Union{Nothing,Float64}[],
             Union{Nothing,Float64}[],
@@ -57,7 +53,7 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
             nothing,
             nothing,
             0,
-            MOI.Nonlinear.SparseReverseMode(),
+            backend,
             Tuple{Int,Int}[],
             nothing,
             true,
@@ -127,9 +123,7 @@ function MOI.empty!(model::Optimizer)
     # SKIP: model.silent
     # SKIP: model.options
     model.solve_time = 0.0
-    model.model = MOI.Nonlinear.ModelWithQuad(
-        MOI.Nonlinear.ModelWithOracles(MOI.Nonlinear.Model()),
-    )
+    model.model = MOI.Nonlinear.model(model.ad_backend)
     empty!(model.variable_primal_start)
     empty!(model.mult_x_L)
     empty!(model.mult_x_U)
@@ -149,7 +143,6 @@ end
 
 function MOI.is_empty(model::Optimizer)
     return MOI.get(model.model, MOI.NumberOfVariables()) == 0 &&
-           isempty(MOI.get(model.model, MOI.ListOfConstraintTypesPresent())) &&
            isempty(model.variable_primal_start) &&
            isempty(model.mult_x_L) &&
            isempty(model.mult_x_U) &&
@@ -523,6 +516,14 @@ function MOI.set(
     # don't requrire == for `::MOI.Nonlinear.AutomaticDifferentiationBackend` so
     # act defensive and invalidate regardless.
     model.inner = nothing
+    if MOI.get(model.model, MOI.NumberOfVariables()) != 0 ||
+       MOI.get(model.model, MOI.ObjectiveSense()) != MOI.FEASIBILITY_SENSE
+        error(
+            "The automatic-differentiation backend must be set before " *
+            "adding model data.",
+        )
+    end
+    model.model = MOI.Nonlinear.model(backend)
     model.ad_backend = backend
     return
 end
@@ -621,6 +622,12 @@ function _setup_model(model::Optimizer)
     end
     vars = MOI.get(model.model, MOI.ListOfVariableIndices())
     if model.uses_nlp_block
+        if !(model.model isa MOI.Nonlinear.ModelWithQuad)
+            error(
+                "The legacy `MOI.NLPBlock` interface cannot be combined " *
+                "with the selected automatic-differentiation backend.",
+            )
+        end
         oracles = model.model.inner
         inner = MOI.Nonlinear.EvaluatorWithOracles(
             oracles,
