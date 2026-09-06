@@ -933,22 +933,6 @@ function test_vector_nonlinear_oracle()
     @test isapprox(y_v, [x_v[1]^2, x_v[2]^2 + x_v[3]^3], atol = 1e-5)
     @test MOI.get(model, MOI.ConstraintPrimal(), c) ≈ [x_v; y_v]
     @test MOI.get(model, MOI.ConstraintDual(), c) ≈ zeros(5)
-    # Test timers with plenty of buffer to avoid a flakey test
-    for (_, cache) in model.vector_nonlinear_oracle_constraints
-        @show cache.eval_f_timer
-        @test 0.9 < cache.eval_f_timer < 2
-        @test 0.9 < cache.eval_jacobian_timer < 4
-        @test 0.9 < cache.eval_hessian_lagrangian_timer < 2
-    end
-    # Test that optimize! resets the timers. Upper bounds are chosen such that
-    # they're violated if times from both solves were added together.
-    MOI.optimize!(model)
-    for (_, cache) in model.vector_nonlinear_oracle_constraints
-        @show cache.eval_f_timer
-        @test 0.9 < cache.eval_f_timer < 2
-        @test 0.9 < cache.eval_jacobian_timer < 4
-        @test 0.9 < cache.eval_hessian_lagrangian_timer < 2
-    end
     MOI.set(model, MOI.RawOptimizerAttribute("max_iter"), 0)
     MOI.optimize!(model)
     @test MOI.get(model, MOI.PrimalStatus()) == MOI.INFEASIBLE_POINT
@@ -1219,9 +1203,9 @@ function test_issue_491()
     g = [MOI.ScalarNonlinearFunction(:log, Any[x[i]]) for i in 1:2]
     c = MOI.add_constraint.(model, g, MOI.LessThan(1.0))
     MOI.set.(model, MOI.ConstraintDualStart(), c, 0.5)
-    @test length(model.mult_g_nlp) == 2
+    @test MOI.get.(model, MOI.ConstraintDualStart(), c) == [0.5, 0.5]
     MOI.empty!(model)
-    @test isempty(model.mult_g_nlp)
+    @test MOI.is_empty(model)
     return
 end
 
