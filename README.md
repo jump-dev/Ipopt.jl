@@ -268,13 +268,13 @@ Instead of
 ```julia
 model = Model(Ipopt.Optimizer)
 @variable(model, x)
-@NLobjective(model, 1 / x)
+@objective(model, Min, 1 / x)
 ```
 do
 ```julia
 model = Model(Ipopt.Optimizer)
 @variable(model, x >= 0.0001)
-@NLobjective(model, 1 / x)
+@objective(model, Min, 1 / x)
 ```
 
 ## Linear Solvers
