@@ -1291,6 +1291,17 @@ function test_Parameter_basic()
     return
 end
 
+function test_isempty()
+    model = Ipopt.Optimizer()
+    @test MOI.is_empty(model)
+    p, _ = MOI.add_constrained_variable(model, MOI.Parameter(1.0))
+    @test !MOI.is_empty(model)
+    MOI.empty!(model)
+    MOI.add_constraint(model, zero(MOI.ScalarAffineFunction{Float64}), MOI.EqualTo(0.0))
+    @test !MOI.is_empty(model)
+    return
+end
+
 end  # module TestMOIWrapper
 
 TestMOIWrapper.runtests()
