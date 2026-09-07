@@ -1297,7 +1297,8 @@ function test_isempty()
     p, _ = MOI.add_constrained_variable(model, MOI.Parameter(1.0))
     @test !MOI.is_empty(model)
     MOI.empty!(model)
-    MOI.add_constraint(model, zero(MOI.ScalarAffineFunction{Float64}), MOI.EqualTo(0.0))
+    f = zero(MOI.ScalarAffineFunction{Float64})
+    MOI.add_constraint(model, f, MOI.EqualTo(0.0))
     @test !MOI.is_empty(model)
     return
 end
