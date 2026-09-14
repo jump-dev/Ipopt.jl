@@ -1258,6 +1258,45 @@ function test_default_objective_function()
     return
 end
 
+function test_constant_derivative_classification()
+    model = Ipopt.Optimizer()
+    x = MOI.add_variable(model)
+    affine = MOI.ScalarAffineFunction(
+        [MOI.ScalarAffineTerm(1.0, x)],
+        0.0,
+    )
+    MOI.add_constraint(model, affine, MOI.LessThan(1.0))
+    @test model.has_constant_constraint_jacobian
+    @test model.has_constant_constraint_hessian
+    quadratic = MOI.ScalarQuadraticFunction(
+        [MOI.ScalarQuadraticTerm(2.0, x, x)],
+        MOI.ScalarAffineTerm{Float64}[],
+        0.0,
+    )
+    MOI.set(model, MOI.ObjectiveFunction{typeof(quadratic)}(), quadratic)
+    @test model.has_constant_objective_hessian
+    MOI.add_constraint(model, quadratic, MOI.LessThan(2.0))
+    @test !model.has_constant_constraint_jacobian
+    @test model.has_constant_constraint_hessian
+    nonlinear = MOI.ScalarNonlinearFunction(:sin, Any[x])
+    MOI.set(model, MOI.ObjectiveFunction{typeof(nonlinear)}(), nonlinear)
+    @test !model.has_constant_objective_hessian
+    oracle = MOI.VectorNonlinearOracle(;
+        dimension = 1,
+        l = [0.0],
+        u = [1.0],
+        eval_f = (output, input) -> (output[1] = input[1]),
+        jacobian_structure = [(1, 1)],
+        eval_jacobian = (values, input) -> (values[1] = 1.0),
+    )
+    oracle_model = Ipopt.Optimizer()
+    z = MOI.add_variable(oracle_model)
+    MOI.add_constraint(oracle_model, MOI.VectorOfVariables([z]), oracle)
+    @test !oracle_model.has_constant_constraint_jacobian
+    @test !oracle_model.has_constant_constraint_hessian
+    return
+end
+
 function test_Parameter_basic()
     F, S = MOI.VariableIndex, MOI.Parameter{Float64}
     model = Ipopt.Optimizer()
@@ -1272,6 +1311,17 @@ function test_Parameter_basic()
     p2, c2 = MOI.add_constrained_variable(model, MOI.Parameter(2.0))
     @test MOI.get(model, MOI.NumberOfConstraints{F,S}()) == 2
     @test MOI.get(model, MOI.ListOfConstraintIndices{F,S}()) == [c1, c2]
+    return
+end
+
+function test_parameter_constraint_validity()
+    model = Ipopt.Optimizer()
+    x = MOI.add_variable(model)
+    ci = MOI.ConstraintIndex{MOI.VariableIndex,MOI.Parameter{Float64}}(x.value)
+    @test !MOI.is_valid(model, ci)
+    p, cp = MOI.add_constrained_variable(model, MOI.Parameter(1.0))
+    @test MOI.is_valid(model, cp)
+    @test cp.value == p.value
     return
 end
 

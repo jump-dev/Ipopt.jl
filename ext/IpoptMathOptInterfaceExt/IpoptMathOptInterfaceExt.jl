@@ -17,6 +17,7 @@ function __init__()
 end
 
 include("MOI_wrapper.jl")
+include("legacy.jl")
 
 PrecompileTools.@setup_workload begin
     PrecompileTools.@compile_workload begin
