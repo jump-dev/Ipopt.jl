@@ -295,14 +295,6 @@ function MOI.set(model::Optimizer, attr::MOI.ConstraintSet, ci::MOI.ConstraintIn
     return
 end
 
-function MOI.delete(model::Optimizer, ci::MOI.ConstraintIndex)
-    MOI.delete(model.model, ci)
-    F, S = typeof(ci).parameters
-    model.number_of_nonlinear_constraints -= _is_nonlinear(F, S)
-    model.inner = nothing
-    return
-end
-
 function MOI.supports(model::Optimizer, attr::MOI.ConstraintDualStart, CI::Type{<:MOI.ConstraintIndex})
     return MOI.supports(model.model, attr, CI)
 end
@@ -537,14 +529,15 @@ function _setup_inner(model::Optimizer)::Ipopt.IpoptProblem
     if !model.needs_new_inner
         return model.inner
     end
-    bounds = MOI.Nonlinear._constraint_bounds(model.evaluator)
-    g_L = Float64[b.lower for b in bounds]
-    g_U = Float64[b.upper for b in bounds]
+    bounds = _constraint_bounds(model)
+    g_L = bounds.lower
+    g_U = bounds.upper
     function eval_h_cb(x, rows, cols, obj_factor, lambda, values)
         return _eval_h_cb(model, x, rows, cols, obj_factor, lambda, values)
     end
     has_hessian = model.hessian_sparsity !== nothing
-    x_L, x_U = MOI.Nonlinear._variable_bounds(model.model)
+    variable_bounds = MOI.Utilities.variable_bounds(model.model)
+    x_L, x_U = variable_bounds.lower, variable_bounds.upper
     model.inner = Ipopt.CreateIpoptProblem(
         length(x_L),
         x_L,
@@ -610,7 +603,7 @@ function _setup_model(model::Optimizer)
             MOI.Nonlinear.Evaluator(model.model, model.ad_backend, vars)
     end
     has_hessian = :Hess in MOI.features_available(model.evaluator)
-    has_constraints = !isempty(MOI.Nonlinear._constraint_bounds(model.evaluator))
+    has_constraints = !isempty(_constraint_bounds(model).lower)
     init_feat = [:Grad]
     if has_hessian
         push!(init_feat, :Hess)
@@ -657,7 +650,8 @@ function MOI.optimize!(model::Optimizer)
     end
     # Initialize the starting point, projecting variables from 0 onto their
     # bounds if VariablePrimalStart is not provided.
-    x_L, x_U = MOI.Nonlinear._variable_bounds(model.model)
+    variable_bounds = MOI.Utilities.variable_bounds(model.model)
+    x_L, x_U = variable_bounds.lower, variable_bounds.upper
     for i in 1:length(model.variable_primal_start)
         inner.x[i] = something(
             model.variable_primal_start[i],
@@ -748,10 +742,10 @@ end
 
 function _manually_evaluated_primal_status(model::Optimizer)
     x, g = model.inner.x, model.inner.g
-    x_L, x_U = MOI.Nonlinear._variable_bounds(model.model)
-    bounds = MOI.Nonlinear._constraint_bounds(model.evaluator)
-    g_L = Float64[b.lower for b in bounds]
-    g_U = Float64[b.upper for b in bounds]
+    variable_bounds = MOI.Utilities.variable_bounds(model.model)
+    x_L, x_U = variable_bounds.lower, variable_bounds.upper
+    bounds = _constraint_bounds(model)
+    g_L, g_U = bounds.lower, bounds.upper
     m, n = length(g_L), length(x)
     # 1e-8 is the default tolerance
     tol = get(model.options, "tol", 1e-8)
@@ -827,7 +821,7 @@ end
 ### MOI.ConstraintPrimal
 
 function row(model::Optimizer, ci::MOI.ConstraintIndex)
-    return only(MOI.Nonlinear.constraint_rows(model.model, ci))
+    return MOI.Utilities.rows(model.model, ci)
 end
 
 function MOI.get(
@@ -878,7 +872,7 @@ function MOI.get(
 )
     MOI.check_result_index_bounds(model, attr)
     MOI.throw_if_not_valid(model, ci)
-    rows = MOI.Nonlinear.constraint_rows(model.model, ci)
+    rows = MOI.Utilities.rows(model.model, ci)
     return -model.inner.mult_g[rows]
 end
 
@@ -907,7 +901,7 @@ function MOI.get(
 )
     MOI.check_result_index_bounds(model, attr)
     MOI.throw_if_not_valid(model, ci)
-    rows = Set(MOI.Nonlinear.constraint_rows(model.model, ci))
+    rows = Set(MOI.Utilities.rows(model.model, ci))
     structure = MOI.jacobian_structure(model.evaluator)
     values = zeros(length(structure))
     MOI.eval_constraint_jacobian(model.evaluator, values, model.inner.x)

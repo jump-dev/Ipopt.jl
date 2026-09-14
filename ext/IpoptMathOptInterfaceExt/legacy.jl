@@ -18,14 +18,26 @@ MOI.features_available(d::_NLPBlockEvaluator) =
     MOI.features_available(d.data.evaluator)
 MOI.initialize(d::_NLPBlockEvaluator, features) =
     MOI.initialize(d.data.evaluator, features)
-MOI.Nonlinear._constraint_bounds(d::_NLPBlockEvaluator) =
-    d.data.constraint_bounds
 MOI.eval_objective(d::_NLPBlockEvaluator, x) =
     _objective_sign(d.sense) * MOI.eval_objective(d.data.evaluator, x)
 function MOI.eval_objective_gradient(d::_NLPBlockEvaluator, g, x)
     MOI.eval_objective_gradient(d.data.evaluator, g, x)
     g .*= _objective_sign(d.sense)
     return
+end
+
+# Return all constraint bounds in evaluator row order. The first part is the
+# regular model stack; a legacy NLP block, when present, is appended by the
+# legacy evaluator at the innermost position.
+function _constraint_bounds(model::Optimizer)
+    bounds = MOI.Utilities.constraint_bounds(model.model)
+    if !model.uses_nlp_block
+        return bounds
+    end
+    legacy = model.nlp_data.constraint_bounds
+    lower = vcat(bounds.lower, getfield.(legacy, :lower))
+    upper = vcat(bounds.upper, getfield.(legacy, :upper))
+    return MOI.Utilities.Hyperrectangle(lower, upper)
 end
 MOI.eval_constraint(d::_NLPBlockEvaluator, g, x) =
     MOI.eval_constraint(d.data.evaluator, g, x)
