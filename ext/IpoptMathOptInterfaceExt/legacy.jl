@@ -60,6 +60,9 @@ function _legacy_evaluator(model::Optimizer, vars)
         )
     end
     if model.nlp_data.has_objective
+        # The legacy NLPBlock path only supports the built-in layered model,
+        # not backend-specific models such as ExaModels.
+        @assert model.model isa MOI.Nonlinear.ModelWithQuad
         model.model.objective_sink = MOI.Nonlinear._INNER
     end
     oracles = model.model.inner
