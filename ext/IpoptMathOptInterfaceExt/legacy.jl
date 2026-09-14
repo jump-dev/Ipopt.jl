@@ -20,7 +20,6 @@ MOI.initialize(d::_NLPBlockEvaluator, features) =
     MOI.initialize(d.data.evaluator, features)
 MOI.Nonlinear._constraint_bounds(d::_NLPBlockEvaluator) =
     d.data.constraint_bounds
-MOI.Nonlinear._has_objective(d::_NLPBlockEvaluator) = d.data.has_objective
 MOI.eval_objective(d::_NLPBlockEvaluator, x) =
     _objective_sign(d.sense) * MOI.eval_objective(d.data.evaluator, x)
 function MOI.eval_objective_gradient(d::_NLPBlockEvaluator, g, x)
