@@ -151,13 +151,17 @@ end
 
 MOI.get(::Optimizer, ::MOI.SolverName) = "Ipopt"
 
-MOI.supports_add_constrained_variable(
+function MOI.supports_add_constrained_variable(
     model::Optimizer,
     S::Type{<:MOI.AbstractScalarSet},
-) =
-    MOI.supports_add_constrained_variable(model.model, S)
+)
+    return MOI.supports_add_constrained_variable(model.model, S)
+end
 
-function MOI.add_constrained_variable(model::Optimizer, set::MOI.AbstractScalarSet)
+function MOI.add_constrained_variable(
+    model::Optimizer,
+    set::MOI.AbstractScalarSet,
+)
     model.inner = nothing
     x = MOI.add_variable(model)
     return x, MOI.add_constraint(model.model, x, set)
@@ -174,15 +178,17 @@ function MOI.add_constrained_variable(
     return MOI.add_constrained_variable(model.model, set)
 end
 
-MOI.supports_constraint(
+function MOI.supports_constraint(
     model::Optimizer,
     F::Type{<:MOI.AbstractFunction},
     S::Type{<:MOI.AbstractSet},
-) =
-    MOI.supports_constraint(model.model, F, S)
+)
+    return MOI.supports_constraint(model.model, F, S)
+end
 
-MOI.get(model::Optimizer, attr::MOI.ListOfConstraintTypesPresent) =
-    MOI.get(model.model, attr)
+function MOI.get(model::Optimizer, attr::MOI.ListOfConstraintTypesPresent)
+    return MOI.get(model.model, attr)
+end
 
 ### MOI.Name
 
@@ -247,9 +253,7 @@ end
 Ipopt.column(x::MOI.VariableIndex) = x.value
 
 function _is_parameter(model::Optimizer, vi::MOI.VariableIndex)
-    ci = MOI.ConstraintIndex{MOI.VariableIndex,MOI.Parameter{Float64}}(
-        vi.value,
-    )
+    ci = MOI.ConstraintIndex{MOI.VariableIndex,MOI.Parameter{Float64}}(vi.value)
     return MOI.is_valid(model.model, ci)
 end
 
@@ -261,48 +265,92 @@ function MOI.add_variable(model::Optimizer)
     return MOI.add_variable(model.model)
 end
 
-MOI.is_valid(
+function MOI.is_valid(
     model::Optimizer,
     index::Union{MOI.VariableIndex,MOI.ConstraintIndex},
-) = MOI.is_valid(model.model, index)
-MOI.get(model::Optimizer, attr::MOI.ListOfVariableIndices) = MOI.get(model.model, attr)
-MOI.get(model::Optimizer, attr::MOI.NumberOfVariables) = MOI.get(model.model, attr)
-MOI.get(model::Optimizer, attr::Union{MOI.NumberOfConstraints,MOI.ListOfConstraintIndices}) = MOI.get(model.model, attr)
-MOI.get(model::Optimizer, attr::Union{MOI.ConstraintFunction,MOI.ConstraintSet}, ci::MOI.ConstraintIndex) = MOI.get(model.model, attr, ci)
+)
+    return MOI.is_valid(model.model, index)
+end
+function MOI.get(model::Optimizer, attr::MOI.ListOfVariableIndices)
+    return MOI.get(model.model, attr)
+end
+function MOI.get(model::Optimizer, attr::MOI.NumberOfVariables)
+    return MOI.get(model.model, attr)
+end
+function MOI.get(
+    model::Optimizer,
+    attr::Union{MOI.NumberOfConstraints,MOI.ListOfConstraintIndices},
+)
+    return MOI.get(model.model, attr)
+end
+function MOI.get(
+    model::Optimizer,
+    attr::Union{MOI.ConstraintFunction,MOI.ConstraintSet},
+    ci::MOI.ConstraintIndex,
+)
+    return MOI.get(model.model, attr, ci)
+end
 
-function MOI.add_constraint(model::Optimizer, f::MOI.AbstractFunction, s::MOI.AbstractSet)
+function MOI.add_constraint(
+    model::Optimizer,
+    f::MOI.AbstractFunction,
+    s::MOI.AbstractSet,
+)
     is_nonlinear = _is_nonlinear(typeof(f), typeof(s))
     if model.uses_nlp_block && is_nonlinear
         error("Cannot mix the new and legacy nonlinear APIs")
     end
     model.inner = nothing
     ci = MOI.add_constraint(model.model, f, s)
-    model.has_constant_constraint_jacobian &=
-        _is_linear(typeof(f), typeof(s))
+    model.has_constant_constraint_jacobian &= _is_linear(typeof(f), typeof(s))
     model.number_of_nonlinear_constraints += is_nonlinear
     return ci
 end
 
-function MOI.set(model::Optimizer, attr::MOI.ConstraintSet, ci::MOI.ConstraintIndex, set)
+function MOI.set(
+    model::Optimizer,
+    attr::MOI.ConstraintSet,
+    ci::MOI.ConstraintIndex,
+    set,
+)
     MOI.set(model.model, attr, ci, set)
     model.needs_new_inner = true
     return
 end
 
-function MOI.supports(model::Optimizer, attr::MOI.ConstraintDualStart, CI::Type{<:MOI.ConstraintIndex})
+function MOI.supports(
+    model::Optimizer,
+    attr::MOI.ConstraintDualStart,
+    CI::Type{<:MOI.ConstraintIndex},
+)
     return MOI.supports(model.model, attr, CI)
 end
-MOI.get(model::Optimizer, attr::MOI.ConstraintDualStart, ci::MOI.ConstraintIndex) = MOI.get(model.model, attr, ci)
-function MOI.set(model::Optimizer, attr::MOI.ConstraintDualStart, ci::MOI.ConstraintIndex, value)
+function MOI.get(
+    model::Optimizer,
+    attr::MOI.ConstraintDualStart,
+    ci::MOI.ConstraintIndex,
+)
+    return MOI.get(model.model, attr, ci)
+end
+function MOI.set(
+    model::Optimizer,
+    attr::MOI.ConstraintDualStart,
+    ci::MOI.ConstraintIndex,
+    value,
+)
     MOI.set(model.model, attr, ci, value)
     return
 end
 
-MOI.supports(model::Optimizer, attr::MOI.UserDefinedFunction) = MOI.supports(model.model, attr)
+function MOI.supports(model::Optimizer, attr::MOI.UserDefinedFunction)
+    return MOI.supports(model.model, attr)
+end
 function MOI.set(model::Optimizer, attr::MOI.UserDefinedFunction, value)
     return MOI.set(model.model, attr, value)
 end
-MOI.get(model::Optimizer, attr::MOI.ListOfSupportedNonlinearOperators) = MOI.get(model.model, attr)
+function MOI.get(model::Optimizer, attr::MOI.ListOfSupportedNonlinearOperators)
+    return MOI.get(model.model, attr)
+end
 
 ### MOI.VariablePrimalStart
 
@@ -433,17 +481,29 @@ end
 
 ### Objective forwarding
 
-MOI.supports(model::Optimizer, attr::MOI.ObjectiveSense) = MOI.supports(model.model, attr)
+function MOI.supports(model::Optimizer, attr::MOI.ObjectiveSense)
+    return MOI.supports(model.model, attr)
+end
 MOI.get(model::Optimizer, attr::MOI.ObjectiveSense) = MOI.get(model.model, attr)
-function MOI.set(model::Optimizer, attr::MOI.ObjectiveSense, sense::MOI.OptimizationSense)
+function MOI.set(
+    model::Optimizer,
+    attr::MOI.ObjectiveSense,
+    sense::MOI.OptimizationSense,
+)
     MOI.set(model.model, attr, sense)
     model.needs_new_inner = true
     return
 end
 
-MOI.get(model::Optimizer, attr::MOI.ObjectiveFunctionType) = MOI.get(model.model, attr)
-MOI.supports(model::Optimizer, attr::MOI.ObjectiveFunction) = MOI.supports(model.model, attr)
-MOI.get(model::Optimizer, attr::MOI.ObjectiveFunction) = MOI.get(model.model, attr)
+function MOI.get(model::Optimizer, attr::MOI.ObjectiveFunctionType)
+    return MOI.get(model.model, attr)
+end
+function MOI.supports(model::Optimizer, attr::MOI.ObjectiveFunction)
+    return MOI.supports(model.model, attr)
+end
+function MOI.get(model::Optimizer, attr::MOI.ObjectiveFunction)
+    return MOI.get(model.model, attr)
+end
 function MOI.set(model::Optimizer, attr::MOI.ObjectiveFunction, f)
     is_nonlinear = f isa MOI.ScalarNonlinearFunction
     if model.uses_nlp_block && is_nonlinear
@@ -459,12 +519,24 @@ end
 ### Evaluator forwarding
 
 MOI.eval_objective(model::Optimizer, x) = MOI.eval_objective(model.evaluator, x)
-MOI.eval_objective_gradient(model::Optimizer, g, x) = MOI.eval_objective_gradient(model.evaluator, g, x)
-MOI.eval_constraint(model::Optimizer, g, x) = MOI.eval_constraint(model.evaluator, g, x)
-MOI.jacobian_structure(model::Optimizer) = MOI.jacobian_structure(model.evaluator)
-MOI.eval_constraint_jacobian(model::Optimizer, J, x) = MOI.eval_constraint_jacobian(model.evaluator, J, x)
-MOI.hessian_lagrangian_structure(model::Optimizer) = MOI.hessian_lagrangian_structure(model.evaluator)
-MOI.eval_hessian_lagrangian(model::Optimizer, H, x, sigma, mu) = MOI.eval_hessian_lagrangian(model.evaluator, H, x, sigma, mu)
+function MOI.eval_objective_gradient(model::Optimizer, g, x)
+    return MOI.eval_objective_gradient(model.evaluator, g, x)
+end
+function MOI.eval_constraint(model::Optimizer, g, x)
+    return MOI.eval_constraint(model.evaluator, g, x)
+end
+function MOI.jacobian_structure(model::Optimizer)
+    return MOI.jacobian_structure(model.evaluator)
+end
+function MOI.eval_constraint_jacobian(model::Optimizer, J, x)
+    return MOI.eval_constraint_jacobian(model.evaluator, J, x)
+end
+function MOI.hessian_lagrangian_structure(model::Optimizer)
+    return MOI.hessian_lagrangian_structure(model.evaluator)
+end
+function MOI.eval_hessian_lagrangian(model::Optimizer, H, x, sigma, mu)
+    return MOI.eval_hessian_lagrangian(model.evaluator, H, x, sigma, mu)
+end
 
 ### MOI.AutomaticDifferentiationBackend
 
@@ -572,7 +644,8 @@ function _setup_inner(model::Optimizer)::Ipopt.IpoptProblem
     end
     # The Hessian of the Lagrangian is constant only if the constraints are
     # linear: the Hessian of a quadratic constraint is scaled by its multiplier.
-    if has_hessian && model.has_constant_constraint_jacobian &&
+    if has_hessian &&
+       model.has_constant_constraint_jacobian &&
        model.has_constant_objective_hessian
         Ipopt.AddIpoptStrOption(inner, "hessian_constant", "yes")
     end
@@ -867,7 +940,10 @@ end
 
 ### MOI.ConstraintDual
 
-_dual_multiplier(model::Optimizer) = MOI.get(model.model, MOI.ObjectiveSense()) == MOI.MIN_SENSE ? 1.0 : -1.0
+function _dual_multiplier(model::Optimizer)
+    return MOI.get(model.model, MOI.ObjectiveSense()) == MOI.MIN_SENSE ? 1.0 :
+           -1.0
+end
 
 function MOI.get(
     model::Optimizer,
@@ -887,8 +963,13 @@ function MOI.supports(
 )
     return MOI.supports(model.model, attr, CI)
 end
-MOI.get(model::Optimizer, attr::MOI.LagrangeMultiplierStart, ci::MOI.ConstraintIndex) =
-    MOI.get(model.model, attr, ci)
+function MOI.get(
+    model::Optimizer,
+    attr::MOI.LagrangeMultiplierStart,
+    ci::MOI.ConstraintIndex,
+)
+    return MOI.get(model.model, attr, ci)
+end
 function MOI.set(
     model::Optimizer,
     attr::MOI.LagrangeMultiplierStart,

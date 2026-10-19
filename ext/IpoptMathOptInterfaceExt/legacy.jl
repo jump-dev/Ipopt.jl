@@ -6,8 +6,9 @@
 # Support for the legacy MOI.NLPBlock interface. This file can be removed when
 # that interface is removed from MOI.
 
-_objective_sign(sense::MOI.OptimizationSense) =
-    sense == MOI.MAX_SENSE ? -1.0 : sense == MOI.MIN_SENSE ? 1.0 : 0.0
+function _objective_sign(sense::MOI.OptimizationSense)
+    return sense == MOI.MAX_SENSE ? -1.0 : sense == MOI.MIN_SENSE ? 1.0 : 0.0
+end
 
 # The objective sense is read from `model` at each evaluation because it may
 # be modified after the evaluator is created.
@@ -16,15 +17,19 @@ struct _NLPBlockEvaluator{M<:MOI.ModelLike} <: MOI.AbstractNLPEvaluator
     model::M
 end
 
-_objective_sign(d::_NLPBlockEvaluator) =
-    _objective_sign(MOI.get(d.model, MOI.ObjectiveSense()))
+function _objective_sign(d::_NLPBlockEvaluator)
+    return _objective_sign(MOI.get(d.model, MOI.ObjectiveSense()))
+end
 
-MOI.features_available(d::_NLPBlockEvaluator) =
-    MOI.features_available(d.data.evaluator)
-MOI.initialize(d::_NLPBlockEvaluator, features) =
-    MOI.initialize(d.data.evaluator, features)
-MOI.eval_objective(d::_NLPBlockEvaluator, x) =
-    _objective_sign(d) * MOI.eval_objective(d.data.evaluator, x)
+function MOI.features_available(d::_NLPBlockEvaluator)
+    return MOI.features_available(d.data.evaluator)
+end
+function MOI.initialize(d::_NLPBlockEvaluator, features)
+    return MOI.initialize(d.data.evaluator, features)
+end
+function MOI.eval_objective(d::_NLPBlockEvaluator, x)
+    return _objective_sign(d) * MOI.eval_objective(d.data.evaluator, x)
+end
 function MOI.eval_objective_gradient(d::_NLPBlockEvaluator, g, x)
     MOI.eval_objective_gradient(d.data.evaluator, g, x)
     g .*= _objective_sign(d)
@@ -69,8 +74,9 @@ function MOI.eval_constraint_jacobian(d::_NLPBlockEvaluator, J, x)
     end
     return
 end
-MOI.hessian_lagrangian_structure(d::_NLPBlockEvaluator) =
-    MOI.hessian_lagrangian_structure(d.data.evaluator)
+function MOI.hessian_lagrangian_structure(d::_NLPBlockEvaluator)
+    return MOI.hessian_lagrangian_structure(d.data.evaluator)
+end
 function MOI.eval_hessian_lagrangian(d::_NLPBlockEvaluator, H, x, σ, μ)
     sign = _objective_sign(d)
     return MOI.eval_hessian_lagrangian(d.data.evaluator, H, x, sign * σ, μ)
@@ -139,6 +145,7 @@ end
 
 function MOI.get(model::Optimizer, attr::MOI.NLPBlockDual)
     MOI.check_result_index_bounds(model, attr)
-    offset = length(model.inner.mult_g) - length(model.nlp_data.constraint_bounds)
+    offset =
+        length(model.inner.mult_g) - length(model.nlp_data.constraint_bounds)
     return -model.inner.mult_g[(offset+1):end]
 end
