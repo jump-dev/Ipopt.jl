@@ -1262,10 +1262,7 @@ end
 function test_constant_derivative_classification()
     model = Ipopt.Optimizer()
     x = MOI.add_variable(model)
-    affine = MOI.ScalarAffineFunction(
-        [MOI.ScalarAffineTerm(1.0, x)],
-        0.0,
-    )
+    affine = MOI.ScalarAffineFunction([MOI.ScalarAffineTerm(1.0, x)], 0.0)
     MOI.add_constraint(model, affine, MOI.LessThan(1.0))
     @test model.has_constant_constraint_jacobian
     quadratic = MOI.ScalarQuadraticFunction(
