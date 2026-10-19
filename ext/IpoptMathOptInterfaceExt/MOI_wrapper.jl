@@ -35,7 +35,6 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
     hessian_sparsity::Union{Nothing,Vector{Tuple{Int,Int}}}
     needs_new_inner::Bool
     has_constant_constraint_jacobian::Bool
-    has_constant_constraint_hessian::Bool
     has_constant_objective_hessian::Bool
 
     function Optimizer()
@@ -65,7 +64,6 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
             true,
             true,
             true,
-            true,
         )
     end
 end
@@ -89,8 +87,6 @@ _is_quad(::Type{<:MOI.VectorQuadraticFunction}) = true
 
 _is_linear(F::Type, ::Type) = _is_linear(F)
 _is_linear(::Type, ::Type{<:MOI.VectorNonlinearOracle}) = false
-_is_quad(F::Type, ::Type) = _is_quad(F)
-_is_quad(::Type, ::Type{<:MOI.VectorNonlinearOracle}) = false
 
 _is_nonlinear(::Type, ::Type) = false
 _is_nonlinear(::Type{<:MOI.ScalarNonlinearFunction}, ::Type) = true
@@ -134,18 +130,16 @@ function MOI.empty!(model::Optimizer)
     model.hessian_sparsity = nothing
     model.needs_new_inner = true
     model.has_constant_constraint_jacobian = true
-    model.has_constant_constraint_hessian = true
     model.has_constant_objective_hessian = true
     return
 end
 
 function MOI.is_empty(model::Optimizer)
-    return MOI.get(model.model, MOI.NumberOfVariables()) == 0 &&
+    return MOI.is_empty(model.model) &&
            isempty(model.variable_primal_start) &&
            isempty(model.mult_x_L) &&
            isempty(model.mult_x_U) &&
            model.nlp_data.evaluator isa _EmptyNLPEvaluator &&
-           MOI.get(model.model, MOI.ObjectiveSense()) == MOI.FEASIBILITY_SENSE &&
            model.inner === nothing
 end
 
@@ -285,7 +279,6 @@ function MOI.add_constraint(model::Optimizer, f::MOI.AbstractFunction, s::MOI.Ab
     ci = MOI.add_constraint(model.model, f, s)
     model.has_constant_constraint_jacobian &=
         _is_linear(typeof(f), typeof(s))
-    model.has_constant_constraint_hessian &= _is_quad(typeof(f), typeof(s))
     model.number_of_nonlinear_constraints += is_nonlinear
     return ci
 end
@@ -490,14 +483,18 @@ function MOI.set(
     # don't requrire == for `::MOI.Nonlinear.AutomaticDifferentiationBackend` so
     # act defensive and invalidate regardless.
     model.inner = nothing
-    if MOI.get(model.model, MOI.NumberOfVariables()) != 0 ||
-       MOI.get(model.model, MOI.ObjectiveSense()) != MOI.FEASIBILITY_SENSE
-        error(
-            "The automatic-differentiation backend must be set before " *
-            "adding model data.",
-        )
+    new_model = MOI.Nonlinear.model(backend)
+    # The model data can be kept if the new backend uses the same type of
+    # model, otherwise it would have to be copied to the new model.
+    if typeof(new_model) != typeof(model.model)
+        if !MOI.is_empty(model.model)
+            error(
+                "The automatic-differentiation backend must be set before " *
+                "adding model data.",
+            )
+        end
+        model.model = new_model
     end
-    model.model = MOI.Nonlinear.model(backend)
     model.ad_backend = backend
     return
 end
@@ -573,7 +570,9 @@ function _setup_inner(model::Optimizer)::Ipopt.IpoptProblem
         Ipopt.AddIpoptStrOption(inner, "jac_c_constant", "yes")
         Ipopt.AddIpoptStrOption(inner, "jac_d_constant", "yes")
     end
-    if has_hessian && model.has_constant_constraint_hessian &&
+    # The Hessian of the Lagrangian is constant only if the constraints are
+    # linear: the Hessian of a quadratic constraint is scaled by its multiplier.
+    if has_hessian && model.has_constant_constraint_jacobian &&
        model.has_constant_objective_hessian
         Ipopt.AddIpoptStrOption(inner, "hessian_constant", "yes")
     end
@@ -591,12 +590,16 @@ function _setup_inner(model::Optimizer)::Ipopt.IpoptProblem
 end
 
 function _setup_model(model::Optimizer)
-    if MOI.get(model, MOI.NumberOfVariables()) == 0
+    # The parameters are not decision variables of the Ipopt problem.
+    vars = filter(
+        x -> !_is_parameter(model, x),
+        MOI.get(model.model, MOI.ListOfVariableIndices()),
+    )
+    if isempty(vars)
         # Don't attempt to create a problem because Ipopt will error.
         model.invalid_model = true
         return
     end
-    vars = MOI.get(model.model, MOI.ListOfVariableIndices())
     if model.uses_nlp_block
         model.evaluator = _legacy_evaluator(model, vars)
     else

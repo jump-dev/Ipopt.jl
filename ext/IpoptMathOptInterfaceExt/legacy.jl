@@ -9,20 +9,25 @@
 _objective_sign(sense::MOI.OptimizationSense) =
     sense == MOI.MAX_SENSE ? -1.0 : sense == MOI.MIN_SENSE ? 1.0 : 0.0
 
-struct _NLPBlockEvaluator <: MOI.AbstractNLPEvaluator
+# The objective sense is read from `model` at each evaluation because it may
+# be modified after the evaluator is created.
+struct _NLPBlockEvaluator{M<:MOI.ModelLike} <: MOI.AbstractNLPEvaluator
     data::MOI.NLPBlockData
-    sense::MOI.OptimizationSense
+    model::M
 end
+
+_objective_sign(d::_NLPBlockEvaluator) =
+    _objective_sign(MOI.get(d.model, MOI.ObjectiveSense()))
 
 MOI.features_available(d::_NLPBlockEvaluator) =
     MOI.features_available(d.data.evaluator)
 MOI.initialize(d::_NLPBlockEvaluator, features) =
     MOI.initialize(d.data.evaluator, features)
 MOI.eval_objective(d::_NLPBlockEvaluator, x) =
-    _objective_sign(d.sense) * MOI.eval_objective(d.data.evaluator, x)
+    _objective_sign(d) * MOI.eval_objective(d.data.evaluator, x)
 function MOI.eval_objective_gradient(d::_NLPBlockEvaluator, g, x)
     MOI.eval_objective_gradient(d.data.evaluator, g, x)
-    g .*= _objective_sign(d.sense)
+    g .*= _objective_sign(d)
     return
 end
 
@@ -39,16 +44,35 @@ function _constraint_bounds(model::Optimizer)
     upper = vcat(bounds.upper, getfield.(legacy, :upper))
     return MOI.Utilities.Hyperrectangle(lower, upper)
 end
-MOI.eval_constraint(d::_NLPBlockEvaluator, g, x) =
-    MOI.eval_constraint(d.data.evaluator, g, x)
-MOI.jacobian_structure(d::_NLPBlockEvaluator) =
-    MOI.jacobian_structure(d.data.evaluator)
-MOI.eval_constraint_jacobian(d::_NLPBlockEvaluator, J, x) =
-    MOI.eval_constraint_jacobian(d.data.evaluator, J, x)
+
+# A block without constraints is not required to support the Jacobian, for
+# instance, it may not have the `:Jac` feature.
+_has_constraints(d::_NLPBlockEvaluator) = !isempty(d.data.constraint_bounds)
+
+function MOI.eval_constraint(d::_NLPBlockEvaluator, g, x)
+    if _has_constraints(d)
+        MOI.eval_constraint(d.data.evaluator, g, x)
+    end
+    return
+end
+
+function MOI.jacobian_structure(d::_NLPBlockEvaluator)
+    if !_has_constraints(d)
+        return Tuple{Int64,Int64}[]
+    end
+    return MOI.jacobian_structure(d.data.evaluator)
+end
+
+function MOI.eval_constraint_jacobian(d::_NLPBlockEvaluator, J, x)
+    if _has_constraints(d)
+        MOI.eval_constraint_jacobian(d.data.evaluator, J, x)
+    end
+    return
+end
 MOI.hessian_lagrangian_structure(d::_NLPBlockEvaluator) =
     MOI.hessian_lagrangian_structure(d.data.evaluator)
 function MOI.eval_hessian_lagrangian(d::_NLPBlockEvaluator, H, x, σ, μ)
-    sign = _objective_sign(d.sense)
+    sign = _objective_sign(d)
     return MOI.eval_hessian_lagrangian(d.data.evaluator, H, x, sign * σ, μ)
 end
 
@@ -68,10 +92,7 @@ function _legacy_evaluator(model::Optimizer, vars)
     oracles = model.model.inner
     inner = MOI.Nonlinear.EvaluatorWithOracles(
         oracles,
-        _NLPBlockEvaluator(
-            model.nlp_data,
-            MOI.get(model.model, MOI.ObjectiveSense()),
-        ),
+        _NLPBlockEvaluator(model.nlp_data, model.model),
         vars,
     )
     return MOI.Nonlinear.EvaluatorWithQuad(model.model, inner)
@@ -89,16 +110,27 @@ end
 MOI.get(model::Optimizer, ::MOI.NLPBlockDualStart) = model.nlp_dual_start
 
 MOI.supports(::Optimizer, ::MOI.NLPBlock) = true
-MOI.get(model::Optimizer, ::MOI.NLPBlock) = model.nlp_data
+
+# After `optimize!`, this also returns the block created from the model, for
+# instance from its `ScalarNonlinearFunction`s.
+function MOI.get(model::Optimizer, ::MOI.NLPBlock)
+    if model.uses_nlp_block || model.inner === nothing
+        return model.nlp_data
+    end
+    return MOI.NLPBlockData(model.evaluator)
+end
+
 function MOI.set(model::Optimizer, ::MOI.NLPBlock, nlp_data::MOI.NLPBlockData)
-    if model.number_of_nonlinear_constraints > 0 || model.has_nonlinear_objective
+    P = MOI.Parameter{Float64}
+    if model.number_of_nonlinear_constraints > 0 ||
+       model.has_nonlinear_objective ||
+       MOI.get(model.model, MOI.NumberOfConstraints{MOI.VariableIndex,P}()) > 0
         error("Cannot mix the new and legacy nonlinear APIs")
     end
     model.nlp_data = nlp_data
     model.uses_nlp_block = !(nlp_data.evaluator isa _EmptyNLPEvaluator)
     if model.uses_nlp_block
         model.has_constant_constraint_jacobian = false
-        model.has_constant_constraint_hessian = false
         model.has_constant_objective_hessian = false
     end
     model.inner = nothing
