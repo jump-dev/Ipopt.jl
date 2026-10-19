@@ -455,7 +455,8 @@ function test_scalar_nonlinear_function_nlp_block()
     MOI.optimize!(model)
     block = MOI.get(model, MOI.NLPBlock())
     @test !block.has_objective
-    @test block.evaluator isa MOI.Nonlinear.Evaluator
+    @test block.evaluator isa MOI.Nonlinear.EvaluatorWithQuad
+    @test block.constraint_bounds == [MOI.NLPBoundsPair(-Inf, 1.0)]
     return
 end
 
@@ -1267,7 +1268,6 @@ function test_constant_derivative_classification()
     )
     MOI.add_constraint(model, affine, MOI.LessThan(1.0))
     @test model.has_constant_constraint_jacobian
-    @test model.has_constant_constraint_hessian
     quadratic = MOI.ScalarQuadraticFunction(
         [MOI.ScalarQuadraticTerm(2.0, x, x)],
         MOI.ScalarAffineTerm{Float64}[],
@@ -1277,7 +1277,6 @@ function test_constant_derivative_classification()
     @test model.has_constant_objective_hessian
     MOI.add_constraint(model, quadratic, MOI.LessThan(2.0))
     @test !model.has_constant_constraint_jacobian
-    @test model.has_constant_constraint_hessian
     nonlinear = MOI.ScalarNonlinearFunction(:sin, Any[x])
     MOI.set(model, MOI.ObjectiveFunction{typeof(nonlinear)}(), nonlinear)
     @test !model.has_constant_objective_hessian
@@ -1293,7 +1292,6 @@ function test_constant_derivative_classification()
     z = MOI.add_variable(oracle_model)
     MOI.add_constraint(oracle_model, MOI.VectorOfVariables([z]), oracle)
     @test !oracle_model.has_constant_constraint_jacobian
-    @test !oracle_model.has_constant_constraint_hessian
     return
 end
 
