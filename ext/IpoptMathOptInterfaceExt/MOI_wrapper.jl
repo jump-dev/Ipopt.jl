@@ -77,13 +77,10 @@ const _SETS = Union{
 
 _is_linear(::Type) = false
 _is_linear(::Type{<:MOI.VariableIndex}) = true
-_is_linear(::Type{<:MOI.VectorOfVariables}) = true
 _is_linear(::Type{<:MOI.ScalarAffineFunction}) = true
-_is_linear(::Type{<:MOI.VectorAffineFunction}) = true
 
 _is_quad(F::Type) = _is_linear(F)
 _is_quad(::Type{<:MOI.ScalarQuadraticFunction}) = true
-_is_quad(::Type{<:MOI.VectorQuadraticFunction}) = true
 
 _is_linear(F::Type, ::Type) = _is_linear(F)
 _is_linear(::Type, ::Type{<:MOI.VectorNonlinearOracle}) = false
