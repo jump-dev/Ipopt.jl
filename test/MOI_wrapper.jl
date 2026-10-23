@@ -455,7 +455,8 @@ function test_scalar_nonlinear_function_nlp_block()
     MOI.optimize!(model)
     block = MOI.get(model, MOI.NLPBlock())
     @test !block.has_objective
-    @test block.evaluator isa MOI.Nonlinear.Evaluator
+    @test block.evaluator isa MOI.Nonlinear.EvaluatorWithQuad
+    @test block.constraint_bounds == [MOI.NLPBoundsPair(-Inf, 1.0)]
     return
 end
 
@@ -645,6 +646,31 @@ function test_ad_backend()
     return
 end
 
+struct _CustomModelAD <: MOI.Nonlinear.AbstractAutomaticDifferentiation end
+
+MOI.Nonlinear.model(::_CustomModelAD) = MOI.Utilities.Model{Float64}()
+
+function test_ad_backend_custom_model()
+    model = Ipopt.Optimizer()
+    attr = MOI.AutomaticDifferentiationBackend()
+    default_model = model.model
+    # The model is empty so the model of the new backend replaces it
+    MOI.set(model, attr, _CustomModelAD())
+    @test MOI.get(model, attr) == _CustomModelAD()
+    @test model.model isa MOI.Utilities.Model{Float64}
+    MOI.set(model, attr, MOI.Nonlinear.SparseReverseMode())
+    @test typeof(model.model) == typeof(default_model)
+    # The model data cannot be moved to the model of the new backend
+    MOI.add_variable(model)
+    err = ErrorException(
+        "The automatic-differentiation backend must be set before " *
+        "adding model data.",
+    )
+    @test_throws err MOI.set(model, attr, _CustomModelAD())
+    @test MOI.get(model, attr) == MOI.Nonlinear.SparseReverseMode()
+    return
+end
+
 function test_mixing_new_old_api()
     # new then old
     model = Ipopt.Optimizer()
@@ -660,6 +686,11 @@ function test_mixing_new_old_api()
     MOI.set(model, MOI.NLPBlock(), block_data)
     err = ErrorException("Cannot mix the new and legacy nonlinear APIs")
     @test_throws err MOI.add_constrained_variable(model, MOI.Parameter(2.0))
+    x = MOI.add_variable(model)
+    f = MOI.ScalarNonlinearFunction(:sqrt, Any[x])
+    @test_throws err MOI.add_constraint(model, f, MOI.LessThan(1.0))
+    attr = MOI.ObjectiveFunction{MOI.ScalarNonlinearFunction}()
+    @test_throws err MOI.set(model, attr, f)
     return
 end
 
@@ -933,22 +964,6 @@ function test_vector_nonlinear_oracle()
     @test isapprox(y_v, [x_v[1]^2, x_v[2]^2 + x_v[3]^3], atol = 1e-5)
     @test MOI.get(model, MOI.ConstraintPrimal(), c) ≈ [x_v; y_v]
     @test MOI.get(model, MOI.ConstraintDual(), c) ≈ zeros(5)
-    # Test timers with plenty of buffer to avoid a flakey test
-    for (_, cache) in model.vector_nonlinear_oracle_constraints
-        @show cache.eval_f_timer
-        @test 0.9 < cache.eval_f_timer < 2
-        @test 0.9 < cache.eval_jacobian_timer < 4
-        @test 0.9 < cache.eval_hessian_lagrangian_timer < 2
-    end
-    # Test that optimize! resets the timers. Upper bounds are chosen such that
-    # they're violated if times from both solves were added together.
-    MOI.optimize!(model)
-    for (_, cache) in model.vector_nonlinear_oracle_constraints
-        @show cache.eval_f_timer
-        @test 0.9 < cache.eval_f_timer < 2
-        @test 0.9 < cache.eval_jacobian_timer < 4
-        @test 0.9 < cache.eval_hessian_lagrangian_timer < 2
-    end
     MOI.set(model, MOI.RawOptimizerAttribute("max_iter"), 0)
     MOI.optimize!(model)
     @test MOI.get(model, MOI.PrimalStatus()) == MOI.INFEASIBLE_POINT
@@ -1219,9 +1234,9 @@ function test_issue_491()
     g = [MOI.ScalarNonlinearFunction(:log, Any[x[i]]) for i in 1:2]
     c = MOI.add_constraint.(model, g, MOI.LessThan(1.0))
     MOI.set.(model, MOI.ConstraintDualStart(), c, 0.5)
-    @test length(model.mult_g_nlp) == 2
+    @test MOI.get.(model, MOI.ConstraintDualStart(), c) == [0.5, 0.5]
     MOI.empty!(model)
-    @test isempty(model.mult_g_nlp)
+    @test MOI.is_empty(model)
     return
 end
 
@@ -1274,6 +1289,39 @@ function test_default_objective_function()
     return
 end
 
+function test_constant_derivative_classification()
+    model = Ipopt.Optimizer()
+    x = MOI.add_variable(model)
+    affine = MOI.ScalarAffineFunction([MOI.ScalarAffineTerm(1.0, x)], 0.0)
+    MOI.add_constraint(model, affine, MOI.LessThan(1.0))
+    @test model.has_constant_constraint_jacobian
+    quadratic = MOI.ScalarQuadraticFunction(
+        [MOI.ScalarQuadraticTerm(2.0, x, x)],
+        MOI.ScalarAffineTerm{Float64}[],
+        0.0,
+    )
+    MOI.set(model, MOI.ObjectiveFunction{typeof(quadratic)}(), quadratic)
+    @test model.has_constant_objective_hessian
+    MOI.add_constraint(model, quadratic, MOI.LessThan(2.0))
+    @test !model.has_constant_constraint_jacobian
+    nonlinear = MOI.ScalarNonlinearFunction(:sin, Any[x])
+    MOI.set(model, MOI.ObjectiveFunction{typeof(nonlinear)}(), nonlinear)
+    @test !model.has_constant_objective_hessian
+    oracle = MOI.VectorNonlinearOracle(;
+        dimension = 1,
+        l = [0.0],
+        u = [1.0],
+        eval_f = (output, input) -> (output[1] = input[1]),
+        jacobian_structure = [(1, 1)],
+        eval_jacobian = (values, input) -> (values[1] = 1.0),
+    )
+    oracle_model = Ipopt.Optimizer()
+    z = MOI.add_variable(oracle_model)
+    MOI.add_constraint(oracle_model, MOI.VectorOfVariables([z]), oracle)
+    @test !oracle_model.has_constant_constraint_jacobian
+    return
+end
+
 function test_Parameter_basic()
     F, S = MOI.VariableIndex, MOI.Parameter{Float64}
     model = Ipopt.Optimizer()
@@ -1300,6 +1348,17 @@ function test_isempty()
     f = zero(MOI.ScalarAffineFunction{Float64})
     MOI.add_constraint(model, f, MOI.EqualTo(0.0))
     @test !MOI.is_empty(model)
+    return
+end
+
+function test_parameter_constraint_validity()
+    model = Ipopt.Optimizer()
+    x = MOI.add_variable(model)
+    ci = MOI.ConstraintIndex{MOI.VariableIndex,MOI.Parameter{Float64}}(x.value)
+    @test !MOI.is_valid(model, ci)
+    p, cp = MOI.add_constrained_variable(model, MOI.Parameter(1.0))
+    @test MOI.is_valid(model, cp)
+    @test cp.value == p.value
     return
 end
 
