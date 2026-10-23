@@ -83,16 +83,10 @@ function MOI.eval_hessian_lagrangian(d::_NLPBlockEvaluator, H, x, σ, μ)
 end
 
 function _legacy_evaluator(model::Optimizer, vars)
-    if !(model.model isa MOI.Nonlinear.ModelWithQuad)
-        error(
-            "The legacy `MOI.NLPBlock` interface cannot be combined " *
-            "with the selected automatic-differentiation backend.",
-        )
-    end
+    # The legacy NLPBlock path only supports the built-in layered model,
+    # not backend-specific models such as ExaModels.
+    @assert model.model isa MOI.Nonlinear.ModelWithQuad
     if model.nlp_data.has_objective
-        # The legacy NLPBlock path only supports the built-in layered model,
-        # not backend-specific models such as ExaModels.
-        @assert model.model isa MOI.Nonlinear.ModelWithQuad
         model.model.objective_sink = MOI.Nonlinear._INNER
     end
     oracles = model.model.inner

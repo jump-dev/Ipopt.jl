@@ -646,6 +646,31 @@ function test_ad_backend()
     return
 end
 
+struct _CustomModelAD <: MOI.Nonlinear.AbstractAutomaticDifferentiation end
+
+MOI.Nonlinear.model(::_CustomModelAD) = MOI.Utilities.Model{Float64}()
+
+function test_ad_backend_custom_model()
+    model = Ipopt.Optimizer()
+    attr = MOI.AutomaticDifferentiationBackend()
+    default_model = model.model
+    # The model is empty so the model of the new backend replaces it
+    MOI.set(model, attr, _CustomModelAD())
+    @test MOI.get(model, attr) == _CustomModelAD()
+    @test model.model isa MOI.Utilities.Model{Float64}
+    MOI.set(model, attr, MOI.Nonlinear.SparseReverseMode())
+    @test typeof(model.model) == typeof(default_model)
+    # The model data cannot be moved to the model of the new backend
+    MOI.add_variable(model)
+    err = ErrorException(
+        "The automatic-differentiation backend must be set before " *
+        "adding model data.",
+    )
+    @test_throws err MOI.set(model, attr, _CustomModelAD())
+    @test MOI.get(model, attr) == MOI.Nonlinear.SparseReverseMode()
+    return
+end
+
 function test_mixing_new_old_api()
     # new then old
     model = Ipopt.Optimizer()
@@ -661,6 +686,11 @@ function test_mixing_new_old_api()
     MOI.set(model, MOI.NLPBlock(), block_data)
     err = ErrorException("Cannot mix the new and legacy nonlinear APIs")
     @test_throws err MOI.add_constrained_variable(model, MOI.Parameter(2.0))
+    x = MOI.add_variable(model)
+    f = MOI.ScalarNonlinearFunction(:sqrt, Any[x])
+    @test_throws err MOI.add_constraint(model, f, MOI.LessThan(1.0))
+    attr = MOI.ObjectiveFunction{MOI.ScalarNonlinearFunction}()
+    @test_throws err MOI.set(model, attr, f)
     return
 end
 
