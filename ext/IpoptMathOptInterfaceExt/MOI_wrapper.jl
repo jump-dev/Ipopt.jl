@@ -1426,9 +1426,6 @@ function MOI.optimize!(model::Optimizer)
             model.qp_data.parameters[p.value] = model.nlp_model[index]
         end
     end
-    # The default print level is `5`
-    Ipopt.AddIpoptIntOption(inner, "print_level", model.silent ? 0 : 5)
-    # Other misc options that over-ride the ones set above.
     for (name, value) in model.options
         if value isa String
             Ipopt.AddIpoptStrOption(inner, name, value)
@@ -1443,6 +1440,9 @@ function MOI.optimize!(model::Optimizer)
                 "`::Integer`, or `::Float64`.",
             )
         end
+    end
+    if model.silent
+        Ipopt.AddIpoptIntOption(inner, "print_level", 0)
     end
     # Initialize the starting point, projecting variables from 0 onto their
     # bounds if VariablePrimalStart is not provided.
