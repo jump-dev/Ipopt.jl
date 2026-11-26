@@ -979,23 +979,19 @@ end
 function MOI.get(
     model::Optimizer,
     attr::MOI.ConstraintDual,
-    ci::MOI.ConstraintIndex{MOI.VectorOfVariables},
-)
-    MOI.check_result_index_bounds(model, attr)
-    MOI.throw_if_not_valid(model, ci)
-    rows = Set(MOI.Utilities.rows(model.model, ci))
-    structure = MOI.jacobian_structure(model.evaluator)
-    values = zeros(length(structure))
-    MOI.eval_constraint_jacobian(model.evaluator, values, model.inner.x)
-    dual = zeros(MOI.get(model, MOI.NumberOfVariables()))
-    sign = -1.0
-    for ((r, c), value) in zip(structure, values)
-        if r in rows
-            dual[c] += sign * value * model.inner.mult_g[r]
-        end
+    ci::MOI.ConstraintIndex{MOI.VectorOfVariables,S},
+) where {S<:MOI.VectorNonlinearOracle{Float64}}
+    x = MOI.get(model, MOI.ConstraintPrimal(attr.result_index), ci)
+    multiplier = MOI.LagrangeMultiplier(attr.result_index)
+    λ = MOI.get(model, multiplier, ci)::Vector{Float64}
+    set = MOI.get(model, MOI.ConstraintSet(), ci)::S
+    values = zeros(length(set.jacobian_structure))
+    set.eval_jacobian(values, x)
+    dual = zeros(MOI.dimension(set))
+    for ((row, col), value) in zip(set.jacobian_structure, values)
+        dual[col] += value * λ[row]
     end
-    f = MOI.get(model.model, MOI.ConstraintFunction(), ci)
-    return dual[getfield.(f.variables, :value)]
+    return dual
 end
 
 function MOI.get(

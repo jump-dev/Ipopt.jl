@@ -971,6 +971,7 @@ function test_vector_nonlinear_oracle()
 end
 
 function test_vector_nonlinear_oracle_two()
+    jacobian_calls = Ref(0)
     set = MOI.VectorNonlinearOracle(;
         dimension = 5,
         l = [0.0, 0.0],
@@ -982,6 +983,7 @@ function test_vector_nonlinear_oracle_two()
         end,
         jacobian_structure = [(1, 1), (2, 2), (2, 3), (1, 4), (2, 5)],
         eval_jacobian = (ret, x) -> begin
+            jacobian_calls[] += 1
             ret[1] = 2 * x[1]
             ret[2] = 2 * x[2]
             ret[3] = 3 * x[3]^2
@@ -1022,8 +1024,11 @@ function test_vector_nonlinear_oracle_two()
     @test isapprox(z_v, [x_v[3]^2, x_v[2]^2 + x_v[1]^3], atol = 1e-5)
     @test MOI.get(model, MOI.ConstraintPrimal(), c_y) ≈ [x_v; y_v]
     @test MOI.get(model, MOI.ConstraintPrimal(), c_z) ≈ [reverse(x_v); z_v]
+    jacobian_calls[] = 0
     @test MOI.get(model, MOI.ConstraintDual(), c_y) ≈ zeros(5)
+    @test jacobian_calls[] == 1
     @test MOI.get(model, MOI.ConstraintDual(), c_z) ≈ zeros(5)
+    @test jacobian_calls[] == 2
     return
 end
 
