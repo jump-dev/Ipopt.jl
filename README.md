@@ -2,8 +2,8 @@
 
 # Ipopt.jl
 
-[![Build Status](https://github.com/jump-dev/Ipopt.jl/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/jump-dev/Ipopt.jl/actions?query=workflow%3ACI)
-[![codecov](https://codecov.io/gh/jump-dev/Ipopt.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/jump-dev/Ipopt.jl)
+[![Build Status](https://github.com/jump-dev/Ipopt.jl/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/jump-dev/Ipopt.jl/actions?query=workflow%3ACI)
+[![codecov](https://codecov.io/gh/jump-dev/Ipopt.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/jump-dev/Ipopt.jl)
 
 [Ipopt.jl](https://github.com/jump-dev/Ipopt.jl) is a wrapper for the
 [Ipopt](https://github.com/coin-or/ipopt) solver.
@@ -20,10 +20,10 @@ If you have a reproducible example of a bug, please [open a GitHub issue](https:
 
 ## License
 
-`Ipopt.jl` is licensed under the [MIT License](https://github.com/jump-dev/Ipopt.jl/blob/master/LICENSE.md).
+`Ipopt.jl` is licensed under the [MIT License](https://github.com/jump-dev/Ipopt.jl/blob/main/LICENSE.md).
 
 The underlying solver, [coin-or/Ipopt](https://github.com/coin-or/Ipopt), is
-licensed under the [Eclipse public license](https://github.com/coin-or/Ipopt/blob/master/LICENSE).
+licensed under the [Eclipse public license](https://github.com/coin-or/Ipopt/blob/main/LICENSE).
 
 ## Installation
 
