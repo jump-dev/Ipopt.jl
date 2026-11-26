@@ -162,6 +162,7 @@ function test_hs071()
         eval_jac_g,
         eval_h,
     )
+    @test typeof(prob) == IpoptProblem
 
     prob.x = [1.0, 5.0, 5.0, 1.0]
     solvestat = Ipopt.IpoptSolve(prob)
@@ -486,6 +487,202 @@ function test_Hessian_failure()
     )
     prob.x = [0.0]
     @test Ipopt.IpoptSolve(prob) == -12  # InvalidOption
+    return
+end
+
+struct HS071 <: Ipopt.AbstractOracle
+    n::Int
+    x_L::Vector{Float64}
+    x_U::Vector{Float64}
+    m::Int
+    g_L::Vector{Float64}
+    g_U::Vector{Float64}
+
+    function HS071()
+        return new(
+            4,
+            [1.0, 1.0, 1.0, 1.0],
+            [5.0, 5.0, 5.0, 5.0],
+            2,
+            [25.0, 40.0],
+            [2.0e19, 40.0],
+        )
+    end
+end
+
+Ipopt.eval_f(::HS071, x) = x[1] * x[4] * (x[1] + x[2] + x[3]) + x[3]
+
+function Ipopt.eval_g(::HS071, x::Vector{Float64}, g::Vector{Float64})
+    g[1] = x[1] * x[2] * x[3] * x[4]
+    g[2] = x[1]^2 + x[2]^2 + x[3]^2 + x[4]^2
+    return
+end
+
+function Ipopt.eval_grad_f(::HS071, x::Vector{Float64}, grad_f::Vector{Float64})
+    grad_f[1] = x[1] * x[4] + x[4] * (x[1] + x[2] + x[3])
+    grad_f[2] = x[1] * x[4]
+    grad_f[3] = x[1] * x[4] + 1
+    grad_f[4] = x[1] * (x[1] + x[2] + x[3])
+    return
+end
+
+function Ipopt.eval_jac_g(
+    ::HS071,
+    x::Vector{Float64},
+    rows::Vector{Int32},
+    cols::Vector{Int32},
+    values::Union{Nothing,Vector{Float64}},
+)
+    if values === nothing
+        # Constraint (row) 1
+        rows[1] = 1
+        cols[1] = 1
+        rows[2] = 1
+        cols[2] = 2
+        rows[3] = 1
+        cols[3] = 3
+        rows[4] = 1
+        cols[4] = 4
+        # Constraint (row) 2
+        rows[5] = 2
+        cols[5] = 1
+        rows[6] = 2
+        cols[6] = 2
+        rows[7] = 2
+        cols[7] = 3
+        rows[8] = 2
+        cols[8] = 4
+    else
+        # Constraint (row) 1
+        values[1] = x[2] * x[3] * x[4]  # 1,1
+        values[2] = x[1] * x[3] * x[4]  # 1,2
+        values[3] = x[1] * x[2] * x[4]  # 1,3
+        values[4] = x[1] * x[2] * x[3]  # 1,4
+        # Constraint (row) 2
+        values[5] = 2 * x[1]  # 2,1
+        values[6] = 2 * x[2]  # 2,2
+        values[7] = 2 * x[3]  # 2,3
+        values[8] = 2 * x[4]  # 2,4
+    end
+    return
+end
+
+Ipopt.has_eval_h(::HS071) = true
+
+function Ipopt.eval_h(
+    ::HS071,
+    x::Vector{Float64},
+    rows::Vector{Int32},
+    cols::Vector{Int32},
+    obj_factor::Float64,
+    lambda::Vector{Float64},
+    values::Union{Nothing,Vector{Float64}},
+)
+    if values === nothing
+        # Symmetric matrix, fill the lower left triangle only
+        idx = 1
+        for row in 1:4
+            for col in 1:row
+                rows[idx] = row
+                cols[idx] = col
+                idx += 1
+            end
+        end
+    else
+        # Again, only lower left triangle
+        # Objective
+        values[1] = obj_factor * (2 * x[4])  # 1,1
+        values[2] = obj_factor * (x[4])  # 2,1
+        values[3] = 0                      # 2,2
+        values[4] = obj_factor * (x[4])  # 3,1
+        values[5] = 0                      # 3,2
+        values[6] = 0                      # 3,3
+        values[7] = obj_factor * (2 * x[1] + x[2] + x[3])  # 4,1
+        values[8] = obj_factor * (x[1])  # 4,2
+        values[9] = obj_factor * (x[1])  # 4,3
+        values[10] = 0                     # 4,4
+
+        # First constraint
+        values[2] += lambda[1] * (x[3] * x[4])  # 2,1
+        values[4] += lambda[1] * (x[2] * x[4])  # 3,1
+        values[5] += lambda[1] * (x[1] * x[4])  # 3,2
+        values[7] += lambda[1] * (x[2] * x[3])  # 4,1
+        values[8] += lambda[1] * (x[1] * x[3])  # 4,2
+        values[9] += lambda[1] * (x[1] * x[2])  # 4,3
+
+        # Second constraint
+        values[1] += lambda[2] * 2  # 1,1
+        values[3] += lambda[2] * 2  # 2,2
+        values[6] += lambda[2] * 2  # 3,3
+        values[10] += lambda[2] * 2  # 4,4
+    end
+    return
+end
+
+function Ipopt.eval_intermediate(
+    prob::Ipopt.Problem{HS071},
+    oracle::HS071,
+    alg_mod::Cint,
+    iter_count::Cint,
+    obj_value::Float64,
+    inf_pr::Float64,
+    inf_du::Float64,
+    mu::Float64,
+    d_norm::Float64,
+    regularization_size::Float64,
+    alpha_du::Float64,
+    alpha_pr::Float64,
+    ls_trials::Cint,
+)
+    m, n = oracle.m, oracle.n
+    x, z_L, z_U = zeros(n), zeros(n), zeros(n)
+    g, lambda = zeros(m), zeros(m)
+    scaled = false
+    Ipopt.GetIpoptCurrentIterate(prob, scaled, n, x, z_L, z_U, m, g, lambda)
+    x_L_violation, x_U_violation = zeros(n), zeros(n)
+    compl_x_L, compl_x_U, grad_lag_x = zeros(n), zeros(n), zeros(n)
+    nlp_constraint_violation, compl_g = zeros(m), zeros(m)
+    Ipopt.GetIpoptCurrentViolations(
+        prob,
+        scaled,
+        n,
+        x_L_violation,
+        x_U_violation,
+        compl_x_L,
+        compl_x_U,
+        grad_lag_x,
+        m,
+        nlp_constraint_violation,
+        compl_g,
+    )
+    @test x .+ x_L_violation >= oracle.x_L
+    @test x .- x_U_violation <= oracle.x_U
+    @test oracle.g_L <= g .- nlp_constraint_violation <= oracle.g_U
+    return iter_count < 1  # Interrupts after one iteration.
+end
+
+function test_hs071_oracle()
+    oracle = HS071()
+    prob = Ipopt.CreateIpoptProblem(
+        oracle.n,
+        oracle.x_L,
+        oracle.x_U,
+        oracle.m,
+        oracle.g_L,
+        oracle.g_U,
+        8,
+        10,
+        oracle,
+    )
+    prob.x = [1.0, 5.0, 5.0, 1.0]
+    @test Ipopt.IpoptSolve(prob) == 0
+    @test prob.x[1] ≈ 1.0000000000000000 atol = 1e-5
+    @test prob.x[2] ≈ 4.7429996418092970 atol = 1e-5
+    @test prob.x[3] ≈ 3.8211499817883077 atol = 1e-5
+    @test prob.x[4] ≈ 1.3794082897556983 atol = 1e-5
+    @test prob.obj_val ≈ 17.014017145179164 atol = 1e-5
+    Ipopt.SetIntermediateCallback(prob)
+    @test Ipopt.IpoptSolve(prob) == 5
     return
 end
 
