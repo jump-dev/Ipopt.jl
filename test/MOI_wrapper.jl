@@ -815,6 +815,62 @@ function test_empty_nlp_evaluator()
     return
 end
 
+struct _ObjectiveOnly <: MOI.AbstractNLPEvaluator end
+
+function MOI.features_available(::_ObjectiveOnly)
+    return [:Grad]
+end
+
+function MOI.initialize(d::_ObjectiveOnly, features)
+    @test issubset(features, MOI.features_available(d))
+    return
+end
+
+function MOI.eval_objective(::_ObjectiveOnly, x)
+    return 2 * x[1] + 4
+end
+
+function MOI.eval_objective_gradient(::_ObjectiveOnly, g, x)
+    g[1] = 2.0
+    return
+end
+
+# The legacy evaluator only needs the outer QP layer from the backend.
+struct _QuadLayerAD <: MOI.Nonlinear.AbstractAutomaticDifferentiation end
+
+function MOI.Nonlinear.model(::_QuadLayerAD)
+    return MOI.Nonlinear.ModelWithQuad(MOI.Nonlinear.Model())
+end
+
+function test_NLPBlock_objective_only_with_quadratic_constraint()
+    for backend in (MOI.Nonlinear.SparseReverseMode(), _QuadLayerAD())
+        model = Ipopt.Optimizer()
+        MOI.set(model, MOI.AutomaticDifferentiationBackend(), backend)
+        MOI.set(model, MOI.Silent(), true)
+        x = MOI.add_variable(model)
+        MOI.add_constraint(model, 1.0 * x * x, MOI.LessThan(1.0))
+        data = MOI.NLPBlockData([], _ObjectiveOnly(), true)
+        MOI.set(model, MOI.NLPBlock(), data)
+        for (sense, x_opt) in ((MOI.MIN_SENSE, -1.0), (MOI.MAX_SENSE, 1.0))
+            MOI.set(model, MOI.ObjectiveSense(), sense)
+            MOI.optimize!(model)
+            @test :Jac in MOI.features_available(model.evaluator)
+            @test MOI.get(model, MOI.TerminationStatus()) == MOI.LOCALLY_SOLVED
+            @test isapprox(
+                MOI.get(model, MOI.VariablePrimal(), x),
+                x_opt;
+                atol = 1e-6,
+            )
+            @test isapprox(
+                MOI.get(model, MOI.ObjectiveValue()),
+                2 * x_opt + 4;
+                atol = 1e-6,
+            )
+        end
+    end
+    return
+end
+
 function test_NLPBlockDualStart()
     model = Ipopt.Optimizer()
     MOI.set(model, MOI.Silent(), true)

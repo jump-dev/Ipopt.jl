@@ -671,7 +671,7 @@ function _setup_model(model::Optimizer)
         return
     end
     if model.uses_nlp_block
-        model.evaluator = _legacy_evaluator(model, vars)
+        model.evaluator = _legacy_evaluator(model)
     else
         model.evaluator =
             MOI.Nonlinear.Evaluator(model.model, model.ad_backend, vars)
