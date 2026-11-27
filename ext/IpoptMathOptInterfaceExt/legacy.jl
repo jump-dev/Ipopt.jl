@@ -21,10 +21,21 @@ function _objective_sign(d::_NLPBlockEvaluator)
     return _objective_sign(MOI.get(d.model, MOI.ObjectiveSense()))
 end
 
+# A block without constraints is not required to support the Jacobian, for
+# instance, it may not have the `:Jac` feature.
+_has_constraints(d::_NLPBlockEvaluator) = !isempty(d.data.constraint_bounds)
+
 function MOI.features_available(d::_NLPBlockEvaluator)
-    return MOI.features_available(d.data.evaluator)
+    features = MOI.features_available(d.data.evaluator)
+    if !_has_constraints(d)
+        return union(features, [:Jac])
+    end
+    return features
 end
 function MOI.initialize(d::_NLPBlockEvaluator, features)
+    if !_has_constraints(d)
+        features = setdiff(features, [:Jac])
+    end
     return MOI.initialize(d.data.evaluator, features)
 end
 function MOI.eval_objective(d::_NLPBlockEvaluator, x)
@@ -49,10 +60,6 @@ function _constraint_bounds(model::Optimizer)
     upper = vcat(bounds.upper, getfield.(legacy, :upper))
     return MOI.Utilities.Hyperrectangle(lower, upper)
 end
-
-# A block without constraints is not required to support the Jacobian, for
-# instance, it may not have the `:Jac` feature.
-_has_constraints(d::_NLPBlockEvaluator) = !isempty(d.data.constraint_bounds)
 
 function MOI.eval_constraint(d::_NLPBlockEvaluator, g, x)
     if _has_constraints(d)
@@ -82,19 +89,15 @@ function MOI.eval_hessian_lagrangian(d::_NLPBlockEvaluator, H, x, σ, μ)
     return MOI.eval_hessian_lagrangian(d.data.evaluator, H, x, sign * σ, μ)
 end
 
-function _legacy_evaluator(model::Optimizer, vars)
+function _legacy_evaluator(model::Optimizer)
     # The legacy NLPBlock path only supports the built-in layered model,
     # not backend-specific models such as ExaModels.
     @assert model.model isa MOI.Nonlinear.ModelWithQuad
     if model.nlp_data.has_objective
         model.model.objective_sink = MOI.Nonlinear._INNER
     end
-    oracles = model.model.inner
-    inner = MOI.Nonlinear.EvaluatorWithOracles(
-        oracles,
-        _NLPBlockEvaluator(model.nlp_data, model.model),
-        vars,
-    )
+    # VectorNonlinearOracle constraints cannot be mixed with a legacy NLP block.
+    inner = _NLPBlockEvaluator(model.nlp_data, model.model)
     return MOI.Nonlinear.EvaluatorWithQuad(model.model, inner)
 end
 
